@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from './module_bindings';
+import { PlayerAccount } from './auth/PlayerAccount';
 
 function App() {
   const { isActive, identity, connectionError } = useSpacetimeDB();
@@ -55,6 +56,8 @@ function App() {
         <p className="intro">Your connection to the realm, ready for its first adventure.</p>
       </header>
 
+      <PlayerAccount />
+
       <section className="panel" aria-labelledby="connection-title">
         <div className="panel-heading">
           <h2 id="connection-title">Connection check</h2>
@@ -89,7 +92,7 @@ function App() {
 
       <section className="panel" aria-labelledby="test-title">
         <h2 id="test-title">Send a test record</h2>
-        <p>Save a name to confirm the connection. Open this page in another tab to see it arrive live.</p>
+        <p>Save a shared test name to confirm the connection. Open this page in another tab to see it arrive live.</p>
         <form onSubmit={submitTest}>
           <label htmlFor="test-name">Test name</label>
           <div className="form-row">
@@ -122,7 +125,7 @@ function App() {
 
       <section className="panel" aria-labelledby="records-title" aria-busy={!ready}>
         <div className="panel-heading">
-          <h2 id="records-title">Live database records</h2>
+          <h2 id="records-title">Shared test records</h2>
           {ready && <span className="record-count">{people.length} records</span>}
         </div>
         {!ready ? (

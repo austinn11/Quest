@@ -1,6 +1,7 @@
 {
   "name": "Quest",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "scripts": {
     "build": "spacetime build",

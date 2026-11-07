@@ -4,5 +4,8 @@
   },
   "server": "maincloud",
   "module-path": "./spacetimedb",
-  "database": "quest-db"
+  "database": "quest-db",
+  "env": {
+    "SPACETIMEAUTH_CLIENT_ID": "client_034th99S8ZfAMgWt5nNYdF"
+  }
 }

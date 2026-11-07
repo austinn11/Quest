@@ -10,8 +10,19 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const MyPlayer = __t.object("MyPlayer", {});
+export type MyPlayer = __Infer<typeof MyPlayer>;
+
 export const Person = __t.object("Person", {
   name: __t.string(),
 });
 export type Person = __Infer<typeof Person>;
+
+export const Player = __t.object("Player", {
+  identity: __t.identity(),
+  displayName: __t.string(),
+  xp: __t.u32(),
+  createdAt: __t.timestamp(),
+});
+export type Player = __Infer<typeof Player>;
 

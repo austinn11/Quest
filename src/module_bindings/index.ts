@@ -35,11 +35,13 @@ import {
 
 // Import all reducer arg schemas
 import AddReducer from "./add_reducer";
+import EnsurePlayerReducer from "./ensure_player_reducer";
 import SayHelloReducer from "./say_hello_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import MyPlayerRow from "./my_player_table";
 import PersonRow from "./person_table";
 
 /** Type-only namespace exports for generated type groups. */
@@ -53,11 +55,19 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, PersonRow),
+  myPlayer: __table({
+    name: 'my_player',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPlayerRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("add", AddReducer),
+  __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("say_hello", SayHelloReducer),
 );
 

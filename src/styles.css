@@ -35,6 +35,8 @@ button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
 .error { color: #8c2727; overflow-wrap: anywhere; }
 .error-detail { font-size: .85rem; }
 .success { color: #24513c; }
+.account-id { display: block; overflow-wrap: anywhere; }
+summary { cursor: pointer; }
 .records { list-style: none; padding: 0; margin-bottom: 0; max-height: 22rem; overflow-y: auto; }
 .records li { border-top: 1px solid #e7dfd0; padding: .6rem 0; overflow-wrap: anywhere; }
 

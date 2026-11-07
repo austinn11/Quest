@@ -1,53 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import { Identity } from 'spacetimedb';
-import { SpacetimeDBProvider } from 'spacetimedb/react';
-import { DbConnection, ErrorContext } from './module_bindings/index.ts';
+import { Authentication, AuthScreen } from './auth/Authentication';
+import { createUserManager } from './auth/settings';
 import './styles.css';
 
-const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'https://maincloud.spacetimedb.com';
-const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'quest-db';
-const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
+const root = createRoot(document.getElementById('root')!);
 
-// Storage can be disabled by browser privacy settings. Keep the connection usable.
-const readToken = () => {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const onConnect = (_conn: DbConnection, _identity: Identity, token: string) => {
-  try {
-    localStorage.setItem(TOKEN_KEY, token);
-  } catch {
-    console.warn('Browser storage is unavailable; this identity will not survive a reload.');
-  }
-};
-
-const onDisconnect = () => {
-  console.log('Disconnected from SpacetimeDB');
-};
-
-const onConnectError = (_ctx: ErrorContext, err: Error) => {
-  console.log('Error connecting to SpacetimeDB:', err);
-};
-
-const connectionBuilder = DbConnection.builder()
-  .withUri(HOST)
-  .withDatabaseName(DB_NAME)
-  .withToken(readToken())
-  .withAutomaticReconnect()
-  .onConnect(onConnect)
-  .onDisconnect(onDisconnect)
-  .onConnectError(onConnectError);
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
-      <App />
-    </SpacetimeDBProvider>
-  </StrictMode>
-);
+try {
+  const manager = createUserManager();
+  root.render(<StrictMode><Authentication manager={manager} /></StrictMode>);
+} catch (error) {
+  root.render(
+    <AuthScreen>
+      <h2 id="auth-title">Authentication setup required</h2>
+      <p className="error" role="alert">{error instanceof Error ? error.message : 'Unable to initialize authentication.'}</p>
+      <p>Ask the project administrator to finish SpacetimeAuth setup. If browser storage is blocked, allow site storage and reload.</p>
+      <button type="button" onClick={() => window.location.reload()}>Retry</button>
+    </AuthScreen>
+  );
+}
