@@ -61,6 +61,22 @@ Maincloud hosts the backend, so a local `spacetime start` process is unnecessary
 
 The OIDC library stores the session in local storage to survive refreshes, uses authorization code flow with PKCE, and renews tokens automatically. It manages OAuth state in session storage; both storage mechanisms must be available. Anonymous tokens from the F01 starter are no longer used. Signing out removes the local session before redirecting to SpacetimeAuth and closes the database connection. Other tabs reload when the stored session changes. This signs out of Quest, not your Google account globally.
 
+## Application pages (F04)
+
+The signed-in application uses React Router with a shared header and navigation:
+
+| Route | Page |
+| --- | --- |
+| `/` | Dashboard / Home |
+| `/map` | World Map placeholder |
+| `/questboard` | Available quests placeholder |
+| `/journal` | Personal quests placeholder |
+| `/profile` | Player profile, progression, and username editor |
+
+The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. The dashboard retains F01's test interface under **Connection test**. Unknown paths show a recovery link to Home.
+
+You can open or refresh any page directly. A signed-out deep link is restored after login, while the OAuth callback remains `/callback`. Vite supports these paths during development. Any future static hosting must rewrite application routes to `index.html` so deep-link refreshes work there too.
+
 ## SpacetimeAuth and Google setup
 
 In the [quest-db dashboard](https://spacetimedb.com/quest-db), enable SpacetimeAuth and configure its **Default Client** as a public web client with authorization code flow (no browser client secret).
@@ -175,6 +191,10 @@ Quest/
     App.tsx                 React interface
     main.tsx                Database connection and React entry point
     auth/                   SpacetimeAuth session, login/logout, and private account UI
+    layout/                 Shared header, navigation, and page outlet
+    pages/                  Dashboard, map, questboard, journal, and profile routes
+    player/                 Persistent player profile provider
+    components/             Shared interface components and connection test
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit && npm --prefix spacetimedb run typecheck",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs",
     "preview": "vite preview",
     "generate": "npm run spacetime:generate",
     "spacetime:build": "spacetime build --module-path spacetimedb",
@@ -20,6 +20,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-oidc-context": "^3.3.1",
+    "react-router": "^7.18.5",
     "spacetimedb": "2.14.*"
   },
   "devDependencies": {

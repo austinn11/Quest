@@ -9,6 +9,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input { font: inherit; }
+a { color: #31563a; }
+.app-shell { min-height: 100vh; }
+.app-header { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem 1.5rem; padding: 1rem max(1rem, calc((100% - 70rem) / 2)); border-bottom: 1px solid #d8cdb8; background: #fffcf5; margin: 0; }
+.app-brand { font-family: Georgia, serif; font-size: 1.75rem; font-weight: 700; text-decoration: none; }
+.app-nav { display: flex; flex: 1; flex-wrap: wrap; gap: .25rem; }
+.app-nav a { padding: .45rem .7rem; border-radius: .35rem; text-decoration: none; }
+.app-nav a:hover { background: #f3efe5; }
+.app-nav a.active { background: #dfe8dc; color: #263e2b; font-weight: 700; }
+.app-content { width: min(100% - 2rem, 62rem); margin: 2rem auto; }
+.app-content:focus { outline: none; }
+.page-heading { margin-bottom: 1.5rem; }
+.page-heading h1 { font-size: clamp(2rem, 5vw, 2.75rem); }
+.skip-link { position: absolute; left: 1rem; top: -5rem; padding: .5rem; background: #fffefa; z-index: 1; }
+.skip-link:focus { top: .5rem; }
+.connection-test { margin-top: 2rem; }
+.connection-test > summary { margin-bottom: 1rem; }
 .foundation { width: min(100% - 2rem, 46rem); margin: 3rem auto; }
 header { margin-bottom: 2rem; }
 .eyebrow { color: #6a5834; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
@@ -51,4 +67,10 @@ summary { cursor: pointer; }
   .foundation { margin: 1.5rem auto; }
   .panel { padding: 1.1rem; }
   .form-row { flex-direction: column; }
+}
+
+@media (max-width: 700px) {
+  .app-nav { flex-basis: 100%; order: 1; }
+  .app-header > div { margin-left: auto; }
+  .app-content { margin-top: 1.5rem; }
 }

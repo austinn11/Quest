@@ -5,6 +5,7 @@ import { SpacetimeDBProvider } from 'spacetimedb/react';
 import { DbConnection } from '../module_bindings';
 import App from '../App';
 import { SPACETIMEDB_DATABASE, SPACETIMEDB_HOST } from './settings';
+import { postLoginPath } from './return-path';
 
 export function AuthScreen({ children }: { children: ReactNode }) {
   return (
@@ -77,8 +78,9 @@ function AuthenticationGate({ manager }: { manager: UserManager }) {
         <p>Continue through SpacetimeAuth using your Google account.</p>
         {error && <p className="error" role="alert">Sign-in could not be completed. {error}</p>}
         <button type="button" onClick={() => {
+          const returnTo = window.location.pathname + window.location.search + window.location.hash;
           window.history.replaceState({}, document.title, '/');
-          void auth.signinRedirect();
+          void auth.signinRedirect({ state: { returnTo } });
         }}>Continue with Google</button>
       </AuthScreen>
     );
@@ -91,7 +93,7 @@ export function Authentication({ manager }: { manager: UserManager }) {
   return (
     <AuthProvider
       userManager={manager}
-      onSigninCallback={() => window.history.replaceState({}, document.title, '/')}
+      onSigninCallback={user => window.history.replaceState({}, document.title, postLoginPath(user?.state))}
     >
       <AuthenticationGate manager={manager} />
     </AuthProvider>
