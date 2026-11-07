@@ -15,4 +15,6 @@ export default __t.row({
   displayName: __t.string().name("display_name"),
   xp: __t.u32(),
   createdAt: __t.timestamp().name("created_at"),
+  username: __t.string(),
+  level: __t.u32(),
 });

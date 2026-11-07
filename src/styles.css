@@ -36,6 +36,13 @@ button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
 .error-detail { font-size: .85rem; }
 .success { color: #24513c; }
 .account-id { display: block; overflow-wrap: anywhere; }
+.profile-name { font-family: Georgia, serif; font-size: 1.5rem; margin: 1.25rem 0 .5rem; overflow-wrap: anywhere; }
+.profile-stats { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin: 1rem 0 1.5rem; }
+.profile-stats dt { color: #645d51; font-size: .8rem; }
+.profile-stats dd { margin: 0; font-weight: 700; font-size: 1.4rem; }
+.profile-stats .profile-date { font-size: 1rem; line-height: 2.2; }
+.username-editor { margin: 1.25rem 0; }
+.field-help { color: #645d51; font-size: .85rem; margin-top: 0; }
 summary { cursor: pointer; }
 .records { list-style: none; padding: 0; margin-bottom: 0; max-height: 22rem; overflow-y: auto; }
 .records li { border-top: 1px solid #e7dfd0; padding: .6rem 0; overflow-wrap: anywhere; }

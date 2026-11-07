@@ -7,6 +7,12 @@ let nextConnection = 1n;
 
 export function createPlayerHarness() {
   const harness = createModuleTestHarness(module.default, module);
+  const configuredContext = (ctx: Parameters<typeof module.ensurePlayer>[0]) => new Proxy(ctx, {
+    get(target, key) {
+      if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
+      return Reflect.get(target, key, target);
+    },
+  });
   return {
     auth(subject: string, audience = clientId) {
       return TestAuth.fromJwtPayload(JSON.stringify({
@@ -17,12 +23,10 @@ export function createPlayerHarness() {
       }), new ConnectionId(nextConnection++));
     },
     ensure(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
-      return harness.withReducerTx(auth, ctx => module.ensurePlayer(new Proxy(ctx, {
-        get(target, key) {
-          if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
-          return Reflect.get(target, key, target);
-        },
-      })));
+      return harness.withReducerTx(auth, ctx => module.ensurePlayer(configuredContext(ctx)));
+    },
+    setUsername(auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) {
+      return harness.withReducerTx(auth, ctx => module.setUsername(configuredContext(ctx), { username }));
     },
     profile(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return module.myPlayer(harness.viewContext(auth));

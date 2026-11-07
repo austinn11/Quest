@@ -23,6 +23,18 @@ export const Player = __t.object("Player", {
   displayName: __t.string(),
   xp: __t.u32(),
   createdAt: __t.timestamp(),
+  username: __t.string(),
+  usernameKey: __t.string(),
 });
 export type Player = __Infer<typeof Player>;
+
+export const PlayerProfile = __t.object("PlayerProfile", {
+  identity: __t.identity(),
+  displayName: __t.string(),
+  xp: __t.u32(),
+  createdAt: __t.timestamp(),
+  username: __t.string(),
+  level: __t.u32(),
+});
+export type PlayerProfile = __Infer<typeof PlayerProfile>;
 

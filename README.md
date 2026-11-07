@@ -95,6 +95,16 @@ The `player` table is private. The public `my_player` view exposes only the row 
 
 The F01 `person` table still contains shared test records; it is separate from private player progression. Its `add` reducer now also requires a Quest sign-in. Database owners retain administrative access to private tables.
 
+### Adventurer profiles (F03)
+
+On the first authenticated connection, the app creates a private player record. The profile shows your username, total XP, derived level, join date, and account ID. The existing `xp` column holds cumulative total XP; level is calculated on the server as `1 + floor(xp / 100)`, with level 1 at zero XP.
+
+Choose an adventurer username in the profile, then use **Edit username** to change it. Usernames use 3 to 24 ASCII letters, numbers, or underscores. Capitalization is preserved for display, but uniqueness is checked without regard to case. A rename releases the old name. Duplicate or invalid names are rejected by the server without changing the saved profile.
+
+`setUsername` accepts only a username and updates the player identified by `ctx.sender`; it cannot change another account, XP, or creation time. Existing profiles receive empty username fields during migration and can choose a name when they next open the app. The private normalized username index enforces availability inside a transaction. Only the public spelling is returned in the per-user view.
+
+To check F03 in the browser, choose a name, refresh, edit it, and sign out/back in. The saved name should return. With a second Google account, choose a different name and confirm both accounts retain their own names. Trying the first account's name (including different capitalization) should display an availability error.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:
@@ -146,7 +156,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, account persistence, and XP preservation. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
+`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames for separate identities, name validation/uniqueness, XP preservation, and level boundaries. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
 
 To verify F02 end to end:
 
@@ -169,6 +179,7 @@ Quest/
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks
     src/auth-policy.ts      Trusted issuer and client audience checks
+    src/player-profile.ts   Username validation and derived level rules
     package.json            Database module dependencies
   .env.example              Shared frontend connection settings
   spacetime.json            CLI database, server, and module configuration

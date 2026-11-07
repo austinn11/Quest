@@ -37,6 +37,7 @@ import {
 import AddReducer from "./add_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import SayHelloReducer from "./say_hello_reducer";
+import SetUsernameReducer from "./set_username_reducer";
 
 // Import all procedure arg schemas
 
@@ -69,6 +70,7 @@ const reducersSchema = __reducers(
   __reducerSchema("add", AddReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("say_hello", SayHelloReducer),
+  __reducerSchema("set_username", SetUsernameReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

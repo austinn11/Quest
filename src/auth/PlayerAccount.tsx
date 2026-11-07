@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
+import { UsernameEditor } from './UsernameEditor';
 
 export function PlayerAccount() {
   const auth = useAuth();
-  const { isActive, identity } = useSpacetimeDB();
+  const { isActive } = useSpacetimeDB();
   const [players, profileReady] = useTable(tables.myPlayer);
   const ensurePlayer = useReducer(reducers.ensurePlayer);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function PlayerAccount() {
   return (
     <section className="panel" aria-labelledby="account-title">
       <div className="panel-heading">
-        <h2 id="account-title">Your adventurer account</h2>
+        <h2 id="account-title">Adventurer profile</h2>
         <button className="secondary" type="button" disabled={signingOut} onClick={() => void signOut()}>
           {signingOut ? 'Signing out...' : 'Sign out'}
         </button>
@@ -58,11 +59,16 @@ export function PlayerAccount() {
         <p role="status">Loading your private progression...</p>
       ) : (
         <>
-          <p><strong>{player.displayName}</strong> · {player.xp} XP</p>
-          <p>Your progression is saved to your account.</p>
+          <h3 className="profile-name">{player.username || 'An adventurer awaits a name'}</h3>
+          <dl className="profile-stats">
+            <div><dt>Level</dt><dd>{player.level}</dd></div>
+            <div><dt>Total XP</dt><dd>{player.xp.toLocaleString()}</dd></div>
+            <div><dt>Adventurer since</dt><dd className="profile-date">{new Date(Number(player.createdAt.microsSinceUnixEpoch / 1000n)).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</dd></div>
+          </dl>
+          <UsernameEditor username={player.username} disabled={!isActive || !profileReady || signingOut} />
           <details>
             <summary>Account details</summary>
-            <p>Account ID: <code className="account-id">{identity?.toHexString()}</code></p>
+            <p>Account ID: <code className="account-id">{player.identity.toHexString()}</code></p>
           </details>
         </>
       )}
