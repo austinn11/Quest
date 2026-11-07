@@ -1,1 +1,17 @@
-/venv
+node_modules
+dist
+*.log
+*.tsbuildinfo
+
+# Local settings and credentials; commit only the example.
+.env
+.env.*
+!.env.example
+spacetime.local.json
+
+# Local Python environments are not part of this TypeScript application.
+venv/
+.venv/
+__pycache__/
+
+.DS_Store
