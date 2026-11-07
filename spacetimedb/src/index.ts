@@ -1,4 +1,4 @@
-import { schema, table, t } from 'spacetimedb/server';
+import { schema, table, t, SenderError } from 'spacetimedb/server';
 
 const spacetimedb = schema({
   person: table(
@@ -25,7 +25,11 @@ export const onDisconnect = spacetimedb.clientDisconnected(_ctx => {
 export const add = spacetimedb.reducer(
   { name: t.string() },
   (ctx, { name }) => {
-    ctx.db.person.insert({ name });
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.length > 80) {
+      throw new SenderError('Enter a test name between 1 and 80 characters.');
+    }
+    ctx.db.person.insert({ name: trimmedName });
   }
 );
 

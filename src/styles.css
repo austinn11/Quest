@@ -1,0 +1,45 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #302b23;
+  background: #f3efe5;
+  font-synthesis: none;
+  line-height: 1.6;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+.foundation { width: min(100% - 2rem, 46rem); margin: 3rem auto; }
+header { margin-bottom: 2rem; }
+.eyebrow { color: #6a5834; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+h1, h2 { font-family: Georgia, serif; line-height: 1.2; }
+h1 { font-size: clamp(3rem, 10vw, 4.5rem); margin: .25rem 0; }
+h2 { font-size: 1.35rem; margin: 0; }
+p { margin: .75rem 0; }
+.intro { color: #645d51; }
+.panel { background: #fffcf5; border: 1px solid #d8cdb8; border-radius: .75rem; padding: 1.5rem; margin-bottom: 1rem; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.badge { border-radius: 2rem; padding: .2rem .75rem; font-size: .8rem; font-weight: 700; }
+.badge-ready { color: #24513c; background: #dfede2; }
+.badge-waiting { color: #72511a; background: #f4e8cc; }
+.record-count { font-size: .85rem; color: #645d51; }
+label { display: block; font-weight: 600; margin: 1rem 0 .35rem; }
+.form-row { display: flex; gap: .75rem; }
+input { flex: 1; width: 100%; min-width: 0; padding: .65rem .8rem; border: 1px solid #b9aa91; border-radius: .35rem; background: #fffefa; color: inherit; }
+button { padding: .65rem 1rem; border: 1px solid #3c503e; border-radius: .35rem; color: #fffefa; background: #3c503e; font-weight: 600; cursor: pointer; }
+button:hover:enabled { background: #2b3c2d; }
+button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
+.secondary { background: transparent; color: #3c503e; }
+.secondary:hover:enabled { background: #e7eadf; }
+:focus-visible { outline: 3px solid #977127; outline-offset: 3px; }
+.error { color: #8c2727; overflow-wrap: anywhere; }
+.error-detail { font-size: .85rem; }
+.success { color: #24513c; }
+.records { list-style: none; padding: 0; margin-bottom: 0; max-height: 22rem; overflow-y: auto; }
+.records li { border-top: 1px solid #e7dfd0; padding: .6rem 0; overflow-wrap: anywhere; }
+
+@media (max-width: 480px) {
+  .foundation { margin: 1.5rem auto; }
+  .panel { padding: 1.1rem; }
+  .form-row { flex-direction: column; }
+}

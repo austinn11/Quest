@@ -4,17 +4,27 @@ import App from './App.tsx';
 import { Identity } from 'spacetimedb';
 import { SpacetimeDBProvider } from 'spacetimedb/react';
 import { DbConnection, ErrorContext } from './module_bindings/index.ts';
+import './styles.css';
 
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'https://maincloud.spacetimedb.com';
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'quest-db';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
-const onConnect = (_conn: DbConnection, identity: Identity, token: string) => {
-  localStorage.setItem(TOKEN_KEY, token);
-  console.log(
-    'Connected to SpacetimeDB with identity:',
-    identity.toHexString()
-  );
+// Storage can be disabled by browser privacy settings. Keep the connection usable.
+const readToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const onConnect = (_conn: DbConnection, _identity: Identity, token: string) => {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    console.warn('Browser storage is unavailable; this identity will not survive a reload.');
+  }
 };
 
 const onDisconnect = () => {
@@ -28,7 +38,8 @@ const onConnectError = (_ctx: ErrorContext, err: Error) => {
 const connectionBuilder = DbConnection.builder()
   .withUri(HOST)
   .withDatabaseName(DB_NAME)
-  .withToken(localStorage.getItem(TOKEN_KEY) || undefined)
+  .withToken(readToken())
+  .withAutomaticReconnect()
   .onConnect(onConnect)
   .onDisconnect(onDisconnect)
   .onConnectError(onConnectError);
