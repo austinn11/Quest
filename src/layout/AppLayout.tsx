@@ -12,6 +12,7 @@ export function AppLayout() {
   const { isActive, identity, connectionError } = useSpacetimeDB();
   const { error, retry } = usePlayer();
   const main = useRef<HTMLElement>(null);
+  const nav = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const page = navigationPageTitle(pathname);
@@ -19,6 +20,17 @@ export function AppLayout() {
     // Questboard handles its card anchor after assignments render.
     if (pathname !== '/questboard' || !/^#quest-slot-[0-5]$/.test(hash)) main.current?.focus();
   }, [pathname, hash]);
+
+  useEffect(() => {
+    const menu = nav.current;
+    const active = menu?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!menu || !active) return;
+    // Keep the selected destination visible in the narrow, horizontally scrolling menu.
+    const bounds = menu.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    if (item.left < bounds.left) menu.scrollLeft -= bounds.left - item.left;
+    else if (item.right > bounds.right) menu.scrollLeft += item.right - bounds.right;
+  }, [pathname]);
 
   return (
     <div className="app-shell">

@@ -49,7 +49,6 @@ export function QuestboardPage() {
       <QuestAreaNotice />
       {hasSnapshot && slots.length > 0 && (
         <section className="noticeboard" aria-label="Quest notices">
-          <img className="noticeboard-texture" src={boardTexture} alt="" aria-hidden="true" />
           <ol className="questboard" aria-label="Your quest slots">
             {[...slots].sort((a, b) => a.slotIndex - b.slotIndex).map(slot => {
               const template = catalogue.get(slot.templateId);
