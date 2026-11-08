@@ -1,14 +1,15 @@
 .world-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 2rem; align-items: start; }
 .map-main { min-width: 0; }
 .map-toolbar { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.25rem; }
-.fantasy-map-frame { position: relative; overflow: hidden; border: 1px solid var(--border); background: #efeae1; }
+.fantasy-map-frame { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: #efeae1; }
 .fantasy-map { width: 100%; height: clamp(24rem, 62vh, 40rem); isolation: isolate; }
-.map-north { position: absolute; top: .75rem; left: .75rem; z-index: 2; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--border); border-radius: 50%; background: color-mix(in oklab, var(--card) 90%, transparent); color: var(--foreground); font-size: .75rem; font-weight: 600; pointer-events: none; }
+.map-north { position: absolute; top: .75rem; left: .75rem; z-index: 2; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--border); border-radius: 50%; background: color-mix(in oklab, var(--card) 90%, transparent); color: var(--foreground); font-family: var(--font-mono); font-size: .7rem; font-weight: 400; pointer-events: none; }
 .map-message { position: absolute; z-index: 3; left: 1rem; right: 1rem; bottom: 2.5rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: color-mix(in oklab, var(--card) 96%, transparent); box-shadow: 0 2px 8px oklch(0.22 0.03 55 / .12); }
 .map-error { color: var(--destructive); max-height: 70%; overflow: auto; }
 .map-message p { margin: 0 0 .5rem; }
 
 /* MapLibre controls */
+.fantasy-map button { min-height: 0; }
 .fantasy-map button:hover { transform: none; box-shadow: none; }
 .fantasy-map .maplibregl-ctrl-group { border: 1px solid var(--border); background: var(--card); box-shadow: none; }
 .fantasy-map .maplibregl-ctrl-group button { display: block; padding: 0; border-radius: 0; border-color: var(--border); background-color: var(--card); }
@@ -27,32 +28,35 @@
 .fantasy-map .quest-map-pin:focus-visible { outline: 3px solid var(--foreground); outline-offset: 2px; }
 .player-map-pin { width: 18px; height: 18px; border: 3px solid white; background: #276d9c; border-radius: 50%; box-shadow: 0 0 0 5px #276d9c44; }
 
-.map-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; padding: .75rem 0; color: var(--muted-foreground); font-size: .85rem; }
+.map-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; padding: 1rem 0; color: var(--muted-foreground); font-family: var(--font-mono); font-size: .65rem; }
 .map-legend span { display: inline-flex; align-items: center; gap: .4rem; }
 .legend-dot { width: .8rem; height: .8rem; border: 2px solid var(--easy); border-radius: 50%; }
 .legend-dot.medium { border-color: var(--medium); }
 .legend-dot.hard { border-color: var(--hard); }
 
 .map-destinations { margin-top: 1.5rem; }
-.map-destinations h2 { margin-bottom: .75rem; }
+.map-destinations h2 { margin-bottom: .75rem; font-size: 1.25rem; letter-spacing: -.025em; }
 .map-quest-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
 .map-quest-option { display: flex; align-items: flex-start; justify-content: flex-start; gap: .75rem; width: 100%; padding: .75rem .5rem; border: 0; border-radius: calc(var(--radius) - 2px); background: transparent; color: var(--foreground); font-weight: 400; text-align: left; }
 .map-quest-option:hover:enabled { background: var(--secondary); box-shadow: none; transform: none; }
 .map-quest-option[aria-pressed="true"] { background: var(--secondary); }
 .map-quest-option[aria-pressed="true"] .map-quest-title { font-weight: 600; }
-.map-quest-number { display: grid; place-items: center; flex-shrink: 0; width: 1.5rem; height: 1.5rem; font-weight: 500; }
+.map-quest-number { display: grid; place-items: center; flex-shrink: 0; width: 1.5rem; height: 1.5rem; font-family: var(--font-mono); font-size: .7rem; font-weight: 400; }
 .map-quest-title { display: block; }
 .map-quest-option small { display: block; color: var(--muted-foreground); font-size: .875rem; }
 
-.map-detail { position: sticky; top: 5rem; overflow-wrap: anywhere; }
-.map-detail > h2 { margin-bottom: .75rem; color: var(--muted-foreground); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; }
-.map-detail h3 { font-size: 1.1rem; }
+.map-detail { position: sticky; top: 6.5rem; padding-left: 1.5rem; border-left: 1px solid var(--border); overflow-wrap: anywhere; font-size: .9rem; }
+.map-detail > h2 { margin-bottom: 1.25rem; color: var(--muted-foreground); font-family: var(--font-mono); font-size: .62rem; font-weight: 400; letter-spacing: .12em; text-transform: uppercase; }
+.map-detail h3 { font-size: 1.5rem; font-weight: 400; letter-spacing: -.035em; line-height: 1.25; }
 .map-detail .quest-meta { color: var(--muted-foreground); }
 .map-detail .quest-completion { margin-top: 1.25rem; }
 .map-detail-links { display: flex; flex-direction: column; gap: .5rem; margin-top: 1.25rem; }
+@media (max-width: 1000px) {
+  .map-detail { top: 8rem; }
+}
 @media (max-width: 850px) {
   .world-map-layout { grid-template-columns: minmax(0, 1fr); }
-  .map-detail { position: static; }
+  .map-detail { position: static; border-left: 0; border-top: 1px solid var(--border); padding: 1.5rem 0 0; }
 }
 @media (max-width: 540px) {
   .map-toolbar button { flex: 1 1 auto; }
