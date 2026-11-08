@@ -2,6 +2,7 @@ import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from
 import { TimeDuration } from 'spacetimedb';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
+import { guildQuest, guildQuestContribution, guildQuestRows, refreshGuildQuests as refreshGuildQuestsHandler } from './guild-quests';
 import { guild, guildInvite, guildMembership, guildStats, memberRows, createGuild as createGuildHandler, joinGuildByCode as joinGuildByCodeHandler, joinOpenGuild as joinOpenGuildHandler, leaveGuild as leaveGuildHandler, setGuildOpen as setGuildOpenHandler } from './guilds';
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
@@ -38,6 +39,8 @@ const spacetimedb = schema({
   guild,
   guildMembership,
   guildInvite,
+  guildQuest,
+  guildQuestContribution,
 }, { env: {
   SPACETIMEAUTH_CLIENT_ID: t.string(),
   // Photo judge: any OpenAI-compatible chat completions API, Google Gemini by default.
@@ -385,6 +388,30 @@ export const myGuildMembers = spacetimedb.view(
     const membership = ctx.db.guildMembership.playerIdentity.find(ctx.sender);
     return membership ? memberRows(ctx, ctx.sender, membership.guildId) : [];
   }
+);
+
+// Guild quests: three shared weekly goals per guild, advanced by members' quest completions.
+export const refreshGuildQuests = spacetimedb.reducer(refreshGuildQuestsHandler);
+
+const GuildQuestCard = t.row('GuildQuestCard', {
+  guildQuestId: t.u64().primaryKey(),
+  kind: t.string(),
+  title: t.string(),
+  description: t.string(),
+  target: t.u32(),
+  progress: t.u32(),
+  rewardXp: t.u32(),
+  startedAt: t.timestamp(),
+  endsAt: t.timestamp(),
+  completedAt: t.option(t.timestamp()),
+  yourContribution: t.u32(),
+  contributors: t.u32(),
+});
+
+export const myGuildQuests = spacetimedb.view(
+  { name: 'my_guild_quests', public: true },
+  t.array(GuildQuestCard),
+  ctx => guildQuestRows(ctx)
 );
 
 export const init = spacetimedb.init(ctx => {

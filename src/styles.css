@@ -252,6 +252,19 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .guild-facts { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: .75rem 0 0; color: var(--muted-foreground); font-size: .9rem; }
 .guild-facts strong { color: var(--foreground); font-family: var(--font-mono); font-weight: 500; }
 .guild-invite { margin-top: 2rem; }
+.guild-quests .field-help { margin-top: -.25rem; }
+.guild-quest-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.guild-quest { padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.guild-quest.is-done { border-color: color-mix(in oklab, var(--success) 45%, var(--border)); }
+.guild-quest.is-done .xp-meter-fill { background: var(--success); }
+.guild-quest-head { display: flex; align-items: center; gap: .6rem; }
+.guild-quest-head h3 { flex: 1; font-size: 1rem; }
+.guild-quest-head .icon { color: var(--primary); }
+.guild-quest-xp { color: var(--primary); font-family: var(--font-mono); font-size: .75rem; font-weight: 500; }
+.guild-quest-time { color: var(--muted-foreground); font-family: var(--font-mono); font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.guild-quest-stamp { color: var(--success); font-family: var(--font-mono); font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
+.guild-quest .xp-meter { margin: .75rem 0 .5rem; }
+.guild-quest-facts { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: 0; color: var(--muted-foreground); font-family: var(--font-mono); font-size: .7rem; }
 .guild-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
 .guild-code { padding: .35rem .75rem; border: 1px dashed var(--input); border-radius: calc(var(--radius) - 2px); background: var(--card); font-size: 1.3rem; letter-spacing: .25em; }
 .section-title { margin: 2.5rem 0 .75rem; font-size: 1.25rem; }

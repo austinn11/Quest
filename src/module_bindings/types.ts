@@ -77,6 +77,56 @@ export const GuildMembership = __t.object("GuildMembership", {
 });
 export type GuildMembership = __Infer<typeof GuildMembership>;
 
+export const GuildQuest = __t.object("GuildQuest", {
+  guildQuestId: __t.u64(),
+  guildId: __t.u64(),
+  get kind() {
+    return GuildQuestKind;
+  },
+  title: __t.string(),
+  description: __t.string(),
+  target: __t.u32(),
+  progress: __t.u32(),
+  rewardXp: __t.u32(),
+  startedAt: __t.timestamp(),
+  endsAt: __t.timestamp(),
+  completedAt: __t.option(__t.timestamp()),
+});
+export type GuildQuest = __Infer<typeof GuildQuest>;
+
+export const GuildQuestCard = __t.object("GuildQuestCard", {
+  guildQuestId: __t.u64(),
+  kind: __t.string(),
+  title: __t.string(),
+  description: __t.string(),
+  target: __t.u32(),
+  progress: __t.u32(),
+  rewardXp: __t.u32(),
+  startedAt: __t.timestamp(),
+  endsAt: __t.timestamp(),
+  completedAt: __t.option(__t.timestamp()),
+  yourContribution: __t.u32(),
+  contributors: __t.u32(),
+});
+export type GuildQuestCard = __Infer<typeof GuildQuestCard>;
+
+export const GuildQuestContribution = __t.object("GuildQuestContribution", {
+  contributionId: __t.u64(),
+  guildQuestId: __t.u64(),
+  playerIdentity: __t.identity(),
+  amount: __t.u32(),
+});
+export type GuildQuestContribution = __Infer<typeof GuildQuestContribution>;
+
+// The tagged union or sum type for the algebraic type `GuildQuestKind`.
+export const GuildQuestKind = __t.enum("GuildQuestKind", {
+  Bestiary: __t.unit(),
+  Exploration: __t.unit(),
+  Crafting: __t.unit(),
+  Experience: __t.unit(),
+});
+export type GuildQuestKind = __Infer<typeof GuildQuestKind>;
+
 // The tagged union or sum type for the algebraic type `GuildRole`.
 export const GuildRole = __t.enum("GuildRole", {
   Leader: __t.unit(),
@@ -115,6 +165,9 @@ export type MyGuild = __Infer<typeof MyGuild>;
 
 export const MyGuildMembers = __t.object("MyGuildMembers", {});
 export type MyGuildMembers = __Infer<typeof MyGuildMembers>;
+
+export const MyGuildQuests = __t.object("MyGuildQuests", {});
+export type MyGuildQuests = __Infer<typeof MyGuildQuests>;
 
 export const MyLocalQuests = __t.object("MyLocalQuests", {});
 export type MyLocalQuests = __Infer<typeof MyLocalQuests>;

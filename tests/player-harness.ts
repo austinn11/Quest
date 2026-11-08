@@ -79,6 +79,14 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     myGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuild(harness.viewContext(auth)); },
     guildMembers(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuildMembers(harness.viewContext(auth)); },
     guildDirectory() { return module.guildDirectory(harness.anonymousViewContext()); },
+    guildQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuildQuests(harness.viewContext(auth)); },
+    refreshGuildQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return harness.withReducerTx(auth, ctx => module.refreshGuildQuests(configuredContext(ctx)));
+    },
+    guildQuestVisibility: {
+      quest: module.default.schemaType.tables.guildQuest.tableDef.tableAccess.tag,
+      contribution: module.default.schemaType.tables.guildQuestContribution.tableDef.tableAccess.tag,
+    },
     guildTableVisibility: {
       guild: module.default.schemaType.tables.guild.tableDef.tableAccess.tag,
       membership: module.default.schemaType.tables.guildMembership.tableDef.tableAccess.tag,

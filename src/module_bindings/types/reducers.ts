@@ -13,6 +13,7 @@ import InitializeQuestboardReducer from "../initialize_questboard_reducer";
 import JoinGuildByCodeReducer from "../join_guild_by_code_reducer";
 import JoinOpenGuildReducer from "../join_open_guild_reducer";
 import LeaveGuildReducer from "../leave_guild_reducer";
+import RefreshGuildQuestsReducer from "../refresh_guild_quests_reducer";
 import RefreshQuestSlotsReducer from "../refresh_quest_slots_reducer";
 import SetGuildOpenReducer from "../set_guild_open_reducer";
 import SetQuestAreaReducer from "../set_quest_area_reducer";
@@ -25,6 +26,7 @@ export type InitializeQuestboardParams = __Infer<typeof InitializeQuestboardRedu
 export type JoinGuildByCodeParams = __Infer<typeof JoinGuildByCodeReducer>;
 export type JoinOpenGuildParams = __Infer<typeof JoinOpenGuildReducer>;
 export type LeaveGuildParams = __Infer<typeof LeaveGuildReducer>;
+export type RefreshGuildQuestsParams = __Infer<typeof RefreshGuildQuestsReducer>;
 export type RefreshQuestSlotsParams = __Infer<typeof RefreshQuestSlotsReducer>;
 export type SetGuildOpenParams = __Infer<typeof SetGuildOpenReducer>;
 export type SetQuestAreaParams = __Infer<typeof SetQuestAreaReducer>;

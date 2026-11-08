@@ -41,6 +41,7 @@ import InitializeQuestboardReducer from "./initialize_questboard_reducer";
 import JoinGuildByCodeReducer from "./join_guild_by_code_reducer";
 import JoinOpenGuildReducer from "./join_open_guild_reducer";
 import LeaveGuildReducer from "./leave_guild_reducer";
+import RefreshGuildQuestsReducer from "./refresh_guild_quests_reducer";
 import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
 import SetGuildOpenReducer from "./set_guild_open_reducer";
 import SetQuestAreaReducer from "./set_quest_area_reducer";
@@ -55,6 +56,7 @@ import GuildDirectoryRow from "./guild_directory_table";
 import MyCreatureCapturesRow from "./my_creature_captures_table";
 import MyGuildRow from "./my_guild_table";
 import MyGuildMembersRow from "./my_guild_members_table";
+import MyGuildQuestsRow from "./my_guild_quests_table";
 import MyLocalQuestsRow from "./my_local_quests_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestAreaRow from "./my_quest_area_table";
@@ -129,6 +131,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyGuildMembersRow),
+  myGuildQuests: __table({
+    name: 'my_guild_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildQuestsRow),
   myLocalQuests: __table({
     name: 'my_local_quests',
     indexes: [
@@ -175,6 +184,7 @@ const reducersSchema = __reducers(
   __reducerSchema("join_guild_by_code", JoinGuildByCodeReducer),
   __reducerSchema("join_open_guild", JoinOpenGuildReducer),
   __reducerSchema("leave_guild", LeaveGuildReducer),
+  __reducerSchema("refresh_guild_quests", RefreshGuildQuestsReducer),
   __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
   __reducerSchema("set_guild_open", SetGuildOpenReducer),
   __reducerSchema("set_quest_area", SetQuestAreaReducer),

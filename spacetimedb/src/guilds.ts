@@ -3,6 +3,7 @@ import type { Identity } from 'spacetimedb';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { levelForXp } from './player-profile';
+import { ensureGuildQuests, removeGuildQuests } from './guild-quests';
 
 export const GUILD_MAX_MEMBERS = 20;
 export const GUILD_CRESTS = ['moss', 'river', 'ember', 'dusk', 'gold', 'slate'] as const;
@@ -81,6 +82,7 @@ export function createGuild(ctx: Ctx, args: { name: string; motto: string; crest
   const row = ctx.db.guild.insert({ guildId: 0n, name, nameKey, motto, crest: args.crest, isOpen: args.isOpen, foundedAt: ctx.timestamp });
   ctx.db.guildInvite.insert({ guildId: row.guildId, joinCode: newJoinCode(ctx) });
   ctx.db.guildMembership.insert({ playerIdentity: ctx.sender, guildId: row.guildId, role: { tag: 'Leader' }, joinedAt: ctx.timestamp });
+  ensureGuildQuests(ctx, row.guildId);
 }
 
 export function joinOpenGuild(ctx: Ctx, { guildId }: { guildId: bigint }) {
@@ -110,6 +112,7 @@ export function leaveGuild(ctx: Ctx) {
     // The last adventurer out disbands the guild and frees its name.
     ctx.db.guild.guildId.delete(membership.guildId);
     ctx.db.guildInvite.guildId.delete(membership.guildId);
+    removeGuildQuests(ctx, membership.guildId);
   } else if (membership.role.tag === 'Leader') {
     ctx.db.guildMembership.playerIdentity.update({ ...remaining[0], role: { tag: 'Leader' } });
   }

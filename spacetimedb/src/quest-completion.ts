@@ -4,6 +4,7 @@ import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { cooldownMicrosFor } from './quest-config';
 import { resolveQuest } from './quest-selection';
+import { recordGuildProgress } from './guild-quests';
 import { slotDifficulty, slotIdFor, validateNewCompletion, validateSlot, validateTemplate, type PlayerQuestSlot, type QuestCompletion, type QuestTemplate } from './quest-model';
 
 type CompletionArgs = { slotIndex: number; expectedAssignedAt: Timestamp };
@@ -56,6 +57,8 @@ export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: stri
   const inserted = ctx.db.questCompletions.insert(completion);
   ctx.db.player.identity.update({ ...player, xp });
   ctx.db.playerQuestSlots.slotId.update(completedSlot);
+  // The same transaction advances the player's guild quests and pays any guild reward once.
+  recordGuildProgress(ctx, template, template.xpReward);
   return { template, completion: inserted };
 }
 

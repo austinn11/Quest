@@ -299,6 +299,21 @@ Players can band together in guilds, one guild per player and up to 20 members.
 
 Privacy: the public `guild` table holds only names, mottos and crests. Membership (`guild_membership`) and invite codes (`guild_invite`) are private. Clients read them through `my_guild` (your guild and its code), `my_guild_members` (your guild's roster, by chosen username only) and the anonymous `guild_directory` view (member counts and XP, never members or codes). Reducers: `createGuild`, `joinOpenGuild`, `joinGuildByCode`, `leaveGuild`, `setGuildOpen`.
 
+### Guild quests
+
+Each guild has three shared **guild quests** at a time, each of a different kind, drawn from:
+- **The Great Hunt:** claim Bestiary bounties together.
+- **Chart the Frontier:** complete Exploration quests.
+- **The Guild Workshop:** complete Crafting quests.
+- **Strength in Numbers:** earn quest XP together.
+
+Targets scale with the guild's size when the quests are drawn.
+
+- Members don't do anything extra: each ordinary quest completion advances every matching guild quest in the same transaction that awards its XP, and records the member's contribution.
+- When a guild quest reaches its target, every member who contributed receives its bonus XP (100, or 150 for Strength in Numbers) exactly once, including members who have since left.
+- Quests last 7 days. Opening the Guild page replaces expired quests (`refreshGuildQuests`), so guilds created earlier also get a board.
+- `guild_quest` and `guild_quest_contribution` are private; members read their guild's board, progress and own share through `my_guild_quests`. Disbanding a guild removes its quests.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:
@@ -394,6 +409,7 @@ Quest/
     src/local-quests.ts     Bestiary, Exploration and Crafting quests generated from nearby places
     src/bounties.ts         Bestiary bounty targets for each kind of place and difficulty
     src/guilds.ts           Guild tables, membership rules, and roster/directory helpers
+    src/guild-quests.ts     Shared weekly guild quests, progress, contributions, and rewards
     src/quest-area.ts       Quest-area reloads and photo-check transactions
     src/photo-judge.ts      AI judge prompt, image checks, and verdict parsing
     package.json            Database module dependencies

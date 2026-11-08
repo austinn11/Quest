@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { GuildQuests } from '../guild/GuildQuests';
 import { GUILD_CRESTS, GuildCrest, useGuild } from '../guild/GuildProvider';
 import { QuestDate } from '../questboard/QuestDate';
 import { PageHeading } from '../ui/PageHeading';
@@ -52,6 +53,8 @@ function YourGuild() {
           </p>
         </div>
       </section>
+
+      <GuildQuests />
 
       <section className="guild-invite" aria-labelledby="invite-title">
         <h2 id="invite-title">Invite adventurers</h2>

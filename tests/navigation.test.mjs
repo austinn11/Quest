@@ -414,3 +414,23 @@ test('members see their guild, invite code, and roster with the leader first', (
   const member = renderPage('/guild', {}, 150, { guild: { ...guild, role: 'Member' }, members });
   assert.ok(!member.includes('Make the guild invite only'));
 });
+
+test('guild members see shared guild quests with progress, their share and rewards', () => {
+  const guild = { guildId: 1n, name: 'Owl Watch', motto: '', crest: 'moss', isOpen: true, joinCode: 'K7Q2MX', role: 'Member', memberCount: 2, totalXp: 400n, foundedAt: new Timestamp(1n) };
+  const far = new Timestamp(BigInt(Date.now() + 3 * 86_400_000) * 1000n);
+  const quests = [
+    { guildQuestId: 1n, kind: 'Bestiary', title: 'The Great Hunt', description: 'Claim 5 Bestiary bounties as a guild.', target: 5, progress: 2, rewardXp: 100, startedAt: new Timestamp(1n), endsAt: far, completedAt: undefined, yourContribution: 1, contributors: 2 },
+    { guildQuestId: 2n, kind: 'Experience', title: 'Strength in Numbers', description: 'Earn 450 quest XP together this week.', target: 450, progress: 450, rewardXp: 150, startedAt: new Timestamp(1n), endsAt: far, completedAt: new Timestamp(2n), yourContribution: 200, contributors: 2 },
+  ];
+  const html = renderPage('/guild', {}, 150, { guild, quests });
+  assert.ok(html.includes('Guild quests'));
+  assert.ok(html.includes('The Great Hunt'));
+  assert.ok(html.includes('2 / 5'));
+  assert.ok(html.includes('Your share: 1'));
+  assert.ok(html.includes('Reward: +100 XP each'));
+  assert.ok(html.includes('aria-valuemax="5" aria-valuenow="2"'));
+  assert.ok(html.includes('+150 XP paid to 2 members'));
+  assert.ok(html.includes('Completed'));
+  assert.match(html, /\d days? left/);
+  assert.ok(renderPage('/guild', {}, 150, { guild, quests: [] }).includes('Posting this week'));
+});

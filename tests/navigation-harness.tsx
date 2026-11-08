@@ -12,7 +12,7 @@ import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
 
 export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, guildState: Partial<GuildState> = {}) {
   const guild: GuildState = {
-    guild: null, members: [], directory: [], ready: true,
+    guild: null, members: [], directory: [], quests: [], ready: true, refreshGuildQuests: async () => {},
     createGuild: async () => {}, joinOpenGuild: async () => {}, joinGuildByCode: async () => {}, leaveGuild: async () => {}, setGuildOpen: async () => {},
     ...guildState,
   };
