@@ -19,6 +19,8 @@ export function QuestMap({ quests, selectedKey, onSelect, view, playerLocation }
   playerLocation: PlayerLocation | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const selectionHandler = useRef(onSelect);
+  selectionHandler.current = onSelect;
   const pins = useRef(new Map<string, Pin>());
   const [map, setMap] = useState<LibreMap | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -92,7 +94,7 @@ export function QuestMap({ quests, selectedKey, onSelect, view, playerLocation }
         const symbol = document.createElement('span');
         symbol.setAttribute('aria-hidden', 'true');
         element.append(symbol);
-        element.addEventListener('click', () => onSelect(quest.key));
+        element.addEventListener('click', () => selectionHandler.current(quest.key));
         pin = { element, marker: new library.Marker({ element, anchor: 'bottom' }).setLngLat(quest.coordinates).addTo(map) };
         pins.current.set(quest.key, pin);
       }

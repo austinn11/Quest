@@ -2,9 +2,12 @@ import { Link } from 'react-router';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestDate } from '../questboard/QuestDate';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
+import { locatedQuests } from '../map/quest-locations';
+import { completionMapLocation, questMapPath } from '../map/quest-navigation';
 
 export function JournalPage() {
-  const { completions, templates, ready, hasSnapshot, subscriptionError } = useQuestboard();
+  const { slots, completions, templates, ready, hasSnapshot, subscriptionError } = useQuestboard();
+  const destinations = locatedQuests(slots, templates);
   const catalogue = new Map(templates.map(template => [template.templateId, template]));
   const history = [...completions].sort((a, b) => {
     const difference = b.completedAt.microsSinceUnixEpoch - a.completedAt.microsSinceUnixEpoch;
@@ -32,6 +35,7 @@ export function JournalPage() {
             <ol className="quest-history" aria-label="Completed adventures">
               {history.map(completion => {
                 const template = catalogue.get(completion.templateId);
+                const destination = completionMapLocation(completion, destinations);
                 return (
                   <li key={completion.completionId.toString()} className="panel quest-card">
                     <div className="quest-card-heading"><span className="quest-status">Completed</span><strong className="quest-earned">+{completion.xpAwarded.toLocaleString()} XP earned</strong></div>
@@ -39,6 +43,7 @@ export function JournalPage() {
                     {template ? <p className="quest-meta">{template.category.tag} / {template.difficulty.tag}</p> : <p>The template is no longer available. Your accomplishment remains recorded.</p>}
                     <p className="quest-completed-date">Completed <QuestDate timestamp={completion.completedAt} /></p>
                     {template?.locationName && <p className="field-help">Location: {template.locationName}</p>}
+                    {destination && <p><Link to={questMapPath(destination.slot)}>View completed quest on map</Link></p>}
                     <details className="quest-details">
                       <summary>Revisit adventure</summary>
                       <p>{template?.description ?? 'The original objective is unavailable.'}</p>

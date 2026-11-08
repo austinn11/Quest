@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
 import { QuestDate } from '../questboard/QuestDate';
 import { QuestMap, type MapViewRequest, type PlayerLocation } from '../map/QuestMap';
 import { directionsUrl, locatedQuests, validCoordinates } from '../map/quest-locations';
+import { questMapPath, resolveQuestMapTarget } from '../map/quest-navigation';
+import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
+import { QuestCooldown } from '../questboard/QuestCooldown';
 
 export function WorldMapPage() {
-  const { slots, templates, ready, hasSnapshot, subscriptionError } = useQuestboard();
+  const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, now, refreshing } = useQuestboard();
   const quests = useMemo(() => locatedQuests(slots, templates), [slots, templates]);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const selected = quests.find(quest => quest.key === selectedKey);
+  const { search, key: routeKey } = useLocation();
+  const navigateTo = useNavigate();
+  const target = resolveQuestMapTarget(search, slots, quests);
+  const selected = hasSnapshot && target.kind === 'selected' ? target.quest : undefined;
+  const selectedKey = selected?.key;
+  const canComplete = connected && ready && !initializing && !error && !subscriptionError && !refreshing;
   const [view, setView] = useState<MapViewRequest>({ target: 'default', sequence: 0 });
   const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(null);
   const [locationPending, setLocationPending] = useState(false);
@@ -18,9 +25,12 @@ export function WorldMapPage() {
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const select = useCallback((key: string) => {
-    setSelectedKey(key);
-    setView(current => ({ target: 'quest', questKey: key, sequence: current.sequence + 1 }));
-  }, []);
+    const quest = quests.find(row => row.key === key);
+    if (quest) navigateTo(questMapPath(quest.slot), { replace: true });
+  }, [quests, navigateTo]);
+  useEffect(() => {
+    if (selectedKey) setView(current => ({ target: 'quest', questKey: selectedKey, sequence: current.sequence + 1 }));
+  }, [selectedKey, routeKey]);
   const navigate = (target: MapViewRequest['target']) => setView(current => ({ target, sequence: current.sequence + 1 }));
 
   function locatePlayer() {
@@ -80,9 +90,15 @@ export function WorldMapPage() {
                 <p className="field-help">{selected.coordinates[1].toFixed(5)}, {selected.coordinates[0].toFixed(5)}</p>
                 {selected.slot.completedAt && <p>Completed <QuestDate timestamp={selected.slot.completedAt} /></p>}
                 {selected.slot.refreshAt && <p>Replacement eligible <QuestDate timestamp={selected.slot.refreshAt} /></p>}
+                <QuestCooldown slot={selected.slot} now={now} refreshing={refreshing} />
+                <CompleteQuestButton key={selected.key} slot={selected.slot} disabled={!canComplete} />
                 <div className="map-detail-links"><Link to={`/questboard#quest-slot-${selected.slot.slotIndex}`}>View this quest on your Questboard</Link><a href={directionsUrl(selected)} target="_blank" rel="noopener noreferrer">Walking directions in Google Maps ↗</a></div>
               </>
-            ) : <p>{selectedKey ? 'That assignment has changed or no longer has a location. Select a current quest to continue.' : 'Select a quest marker or destination to inspect its objective and rewards.'}</p>}
+            ) : target.kind === 'none' ? <p>Select a quest marker or destination to inspect its objective and rewards.</p>
+              : !ready ? <p>Waiting for current quest data before opening this adventure.</p>
+              : target.kind === 'invalid' ? <p>This quest map link is invalid. Choose a current destination from the list.</p>
+              : target.kind === 'unmapped' ? <p>This quest has no fixed map location. <Link to={`/questboard#quest-slot-${target.slot.slotIndex}`}>View it on your Questboard</Link>.</p>
+              : <p>That assignment has changed or is no longer on your board. Select a current quest to continue.</p>}
           </section>
         </aside>
       </div>

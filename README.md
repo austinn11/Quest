@@ -225,6 +225,16 @@ The style URL must serve a MapLibre JSON style with CORS enabled. MapLibre's wor
 
 F11 appends optional `location_name` and `location_type` fields with empty defaults and adds six [curated Dallas-area quests](docs/map-locations.md). It labels the existing campus point without moving it or altering its objective or reward. Existing players retain their assignments; geographic templates become eligible for future initialization or replacements. A board with only non-geographic quests legitimately has no map markers. History retains its template reference and resolves the destination through the retained catalogue. Deactivate historical templates rather than moving or deleting them.
 
+## Unified Map, Questboard, and Journal flow (F13)
+
+Location-based Questboard cards have a **View on map** link. Links include the slot index and the exact assignment timestamp, so a refresh or deep link selects the same subscribed quest and centers its marker. Selecting another marker updates that target in the URL. Links never supply coordinates, player identity, XP, or difficulty. Non-geographic cards have no map link, and manually opening an unmapped assignment offers a return to its Questboard card.
+
+Map details reuse the Questboard's `CompleteQuestButton` and existing `completeQuest` reducer. Completion is disabled until the connection and subscription are current, and while initialization or refresh is pending. The subscribed cooldown state updates the marker and details; XP and Journal history update through their existing subscriptions. No additional completion API, optimistic quest record, or duplicate XP logic is added.
+
+When a slot is replaced, the old marker and selected completion control disappear. The old URL reports that its assignment changed instead of silently selecting the replacement. A current map quest links back to its exact Questboard card. Journal entries offer **View completed quest on map** only while the matching template, slot, and completion timestamp still identify that slot's current cooldown quest. Once replaced, that map link disappears while the accomplishment and awarded XP remain in history.
+
+F13 is frontend-only and uses the already-published tables, views, and reducers. Tests cover assignment-specific links, malformed or stale targets, repeated templates, unmapped quests, current Journal links, subscription readiness, and the complete/replace gameplay flow.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:

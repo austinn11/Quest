@@ -83,6 +83,44 @@ test('world map lists only assigned geographic quests and retains non-geographic
   assert.ok(renderPage('/map', { ready: true }).includes('Your current quests have no fixed map destinations'));
 });
 
+test('quest cards link only valid destinations and map deep links open the same completable assignment', () => {
+  const slots = [
+    { slotId: 'test:0', slotIndex: 0, templateId: 'campus', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Available' }, difficulty: { tag: 'Easy' } },
+    { slotId: 'test:1', slotIndex: 1, templateId: 'craft', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Available' }, difficulty: { tag: 'Easy' } },
+  ];
+  const templates = [
+    { templateId: 'campus', title: 'A mapped adventure', description: 'Explore a local landmark.', category: { tag: 'Exploration' }, xpReward: 50, latitude: 32.9858, longitude: -96.7501 },
+    { templateId: 'craft', title: 'A craft anywhere', description: 'Fold a paper charm.', category: { tag: 'Crafting' }, xpReward: 50 },
+  ];
+  const board = { ready: true, slots, templates };
+  const cards = renderPage('/questboard', board);
+  assert.equal((cards.match(/>View on map<\/a>/g) ?? []).length, 1);
+  assert.ok(cards.includes('/map?slot=0&amp;assignedAt=0'));
+  const map = renderPage('/map?slot=0&assignedAt=0', board);
+  assert.ok(map.includes('<h3>A mapped adventure</h3>'));
+  assert.ok(map.includes('Complete quest'));
+  assert.ok(map.includes('/questboard#quest-slot-0'));
+  const offline = renderPage('/map?slot=0&assignedAt=0', { ...board, connected: false, ready: false, hasSnapshot: true });
+  assert.match(offline, /<button type="button" disabled="" aria-busy="false">Complete quest<\/button>/);
+  assert.ok(renderPage('/map?slot=0&assignedAt=1', board).includes('That assignment has changed'));
+  const unmapped = renderPage('/map?slot=1&assignedAt=0', board);
+  assert.ok(unmapped.includes('This quest has no fixed map location'));
+  assert.ok(!unmapped.includes('Complete quest'));
+});
+
+test('Journal links a matching cooldown completion to the map and removes that link after replacement', () => {
+  const slot = { slotId: 'test:0', slotIndex: 0, templateId: 'campus', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Cooldown' }, difficulty: { tag: 'Easy' }, completedAt: new Timestamp(1000n), refreshAt: new Timestamp(2000n) };
+  const templates = [{ templateId: 'campus', title: 'A completed expedition', description: 'Visit a landmark.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, latitude: 32, longitude: -96 }];
+  const completion = { completionId: 1n, templateId: 'campus', slotIndex: 0, xpAwarded: 50, completedAt: slot.completedAt };
+  const board = { ready: true, templates, completions: [completion] };
+  assert.ok(renderPage('/journal', { ...board, slots: [slot] }).includes('View completed quest on map'));
+  const refreshed = { ...slot, status: { tag: 'Available' }, assignedAt: new Timestamp(3000n), completedAt: undefined, refreshAt: undefined };
+  const journal = renderPage('/journal', { ...board, slots: [refreshed] });
+  assert.ok(!journal.includes('View completed quest on map'));
+  assert.ok(journal.includes('+50 XP earned'));
+  assert.ok(journal.includes('A completed expedition'));
+});
+
 test('questboard displays loading and retryable initialization errors', () => {
   assert.ok(renderPage('/questboard').includes('Preparing your Questboard...'));
   const html = renderPage('/questboard', { slots: [], templates: [], ready: false, error: 'Not enough active Easy quest templates.', retry: () => {} });

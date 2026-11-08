@@ -4,6 +4,7 @@ import { createServer } from 'vite';
 import { spacetimedbModuleTestPlugin } from 'spacetimedb/server/test-utils/vitest';
 import { locatedQuests, validCoordinates, directionsUrl } from '../src/map/quest-locations.ts';
 import { parchmentStyle } from '../src/map/parchment-style.ts';
+import { completionMapLocation, questMapPath, resolveQuestMapTarget } from '../src/map/quest-navigation.ts';
 import { Timestamp } from 'spacetimedb';
 
 let server;
@@ -72,6 +73,56 @@ test('location projection deduplicates assignments, preserves inactive assigned 
   assert.equal(url.origin, 'https://www.google.com');
   assert.equal(url.searchParams.get('destination'), '0,0');
   assert.equal(url.searchParams.has('origin'), false);
+});
+
+test('map links identify exact subscribed assignments, survive completion, and do not expose player identities', () => {
+  const db = createPlayerHarness();
+  const auth = db.auth('linked-adventurer');
+  db.seedTemplates(); db.ensure(auth);
+  db.putSlotFixture(auth, 'easy-white-rock-scout', 0);
+  const slot = db.slots(auth)[0];
+  const href = questMapPath(slot);
+  assert.ok(!href.includes(slot.playerIdentity.toHexString()));
+  const search = new URL(href, 'https://quest.example').search;
+  const selection = () => resolveQuestMapTarget(search, db.slots(auth), locatedQuests(db.slots(auth), db.templates()));
+  assert.equal(selection().kind, 'selected');
+  assert.equal(selection().quest.slot.status.tag, 'Available');
+  db.complete(auth, 0);
+  assert.equal(selection().kind, 'selected');
+  assert.equal(selection().quest.slot.status.tag, 'Cooldown');
+  assert.equal(completionMapLocation(db.completions(auth)[0], locatedQuests(db.slots(auth), db.templates())).key, selection().quest.key);
+  db.advanceClock(2n * 3_600_000_000n);
+  db.refresh(auth);
+  assert.equal(selection().kind, 'stale');
+  assert.equal(completionMapLocation(db.completions(auth)[0], locatedQuests(db.slots(auth), db.templates())), undefined);
+});
+
+test('stale map targets never select replacement quests, even when a template is repeated', () => {
+  const slot = { slotId: 'player:0', slotIndex: 0, templateId: 'one', assignedAt: new Timestamp(9007199254740993n), status: { tag: 'Available' } };
+  const template = { templateId: 'one', latitude: 32, longitude: -96 };
+  const href = questMapPath(slot);
+  const search = new URL(href, 'https://quest.example').search;
+  assert.ok(href.includes('9007199254740993'));
+  assert.equal(resolveQuestMapTarget(search, [slot], locatedQuests([slot], [template])).kind, 'selected');
+  const replacement = { ...slot, assignedAt: new Timestamp(9007199254740994n) };
+  assert.equal(resolveQuestMapTarget(search, [replacement], locatedQuests([replacement], [template])).kind, 'stale');
+  assert.equal(resolveQuestMapTarget(search, [slot], []).kind, 'unmapped');
+  assert.equal(resolveQuestMapTarget('?latitude=32&longitude=-96', [slot], []).kind, 'none');
+});
+
+test('malformed map links fail safely without selecting an unrelated quest', () => {
+  for (const search of ['?slot=6&assignedAt=0', '?slot=-1&assignedAt=0', '?slot=0', '?assignedAt=0', '?slot=0&assignedAt=1.5', '?slot=0&assignedAt=9223372036854775808', '?slot=0&assignedAt=abc', '?slot=0&assignedAt=0&slot=1']) {
+    assert.equal(resolveQuestMapTarget(search, [], []).kind, 'invalid');
+  }
+  assert.equal(resolveQuestMapTarget('', [], []).kind, 'none');
+});
+
+test('historical map links are not reused for later completions of the same slot and template', () => {
+  const slot = { slotId: 'player:0', slotIndex: 0, templateId: 'one', assignedAt: new Timestamp(100n), completedAt: new Timestamp(200n), status: { tag: 'Cooldown' } };
+  const template = { templateId: 'one', latitude: 32, longitude: -96 };
+  const history = { templateId: 'one', slotIndex: 0, completedAt: new Timestamp(50n) };
+  assert.equal(completionMapLocation(history, locatedQuests([slot], [template])), undefined);
+  assert.ok(completionMapLocation({ ...history, completedAt: slot.completedAt }, locatedQuests([slot], [template])));
 });
 
 test('geographic catalogue seeds named, validated locations without overwriting existing assignments or metadata', () => {

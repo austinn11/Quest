@@ -6,10 +6,13 @@ import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
 import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
 import { QuestCooldown } from '../questboard/QuestCooldown';
 import { PlayerProgress } from '../player/PlayerProgress';
+import { locatedQuests } from '../map/quest-locations';
+import { questMapPath } from '../map/quest-navigation';
 
 export function QuestboardPage() {
   const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, retry, now, refreshing, refreshSlots } = useQuestboard();
   const catalogue = new Map(templates.map(template => [template.templateId, template]));
+  const destinations = new Map(locatedQuests(slots, templates).map(quest => [quest.slot.slotId, quest]));
   const { hash } = useLocation();
   const canInteract = connected && ready && !initializing && !error && !subscriptionError;
 
@@ -38,6 +41,7 @@ export function QuestboardPage() {
           {[...slots].sort((a, b) => a.slotIndex - b.slotIndex).map(slot => {
             const template = catalogue.get(slot.templateId);
             const cooldown = slot.status.tag === 'Cooldown';
+            const destination = destinations.get(slot.slotId);
             return (
               <li key={slot.slotId} id={`quest-slot-${slot.slotIndex}`} tabIndex={-1} className={`panel quest-card difficulty-${slot.difficulty.tag.toLowerCase()}${cooldown ? ' quest-card-cooldown' : ''}`}>
                 <div className="quest-card-heading"><p className="eyebrow">Slot {slot.slotIndex + 1} / {slot.difficulty.tag}</p><span className={`quest-status${cooldown ? ' is-cooldown' : ''}`}>{slot.status.tag}</span></div>
@@ -50,6 +54,7 @@ export function QuestboardPage() {
                 ) : <p>This quest's template is unavailable. Your assignment is still saved.</p>}
                 {cooldown && <p className="field-help">This adventure is complete. The slot is awaiting a replacement.</p>}
                 <QuestCooldown slot={slot} now={now} refreshing={refreshing} />
+                {destination && <p><Link to={questMapPath(slot)}>View on map</Link></p>}
                 <details className="quest-details">
                   <summary>Inspect quest</summary>
                   <dl>
