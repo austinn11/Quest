@@ -233,3 +233,13 @@ test('players can star and unstar their own captures and journal entries, privat
   assert.throws(() => db.toggleFavorite(alice, 'player', 1n), /Only captures and journal entries/);
   assert.deepEqual(db.favorites(bob), []);
 });
+
+test('boards made by an older quest generator regenerate once without travelling', () => {
+  const { db, alice } = setup();
+  db.applyArea(alice, ...UTD, placesAround(UTD, 'Campus'));
+  assert.ok(db.area(alice).generatorVersion >= 1);
+  db.markAreaFromOldGenerator(alice);
+  assert.equal(db.checkArea(alice, ...NEARBY).needsPlaces, true);
+  assert.equal(db.applyArea(alice, ...NEARBY, placesAround(NEARBY, 'Campus')).reloaded, true);
+  assert.equal(db.checkArea(alice, ...NEARBY).needsPlaces, false);
+});

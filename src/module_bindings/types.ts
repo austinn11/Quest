@@ -392,6 +392,7 @@ export const PlayerQuestArea = __t.object("PlayerQuestArea", {
   longitude: __t.f64(),
   updatedAt: __t.timestamp(),
   placeCount: __t.u32(),
+  generatorVersion: __t.u32(),
 });
 export type PlayerQuestArea = __Infer<typeof PlayerQuestArea>;
 

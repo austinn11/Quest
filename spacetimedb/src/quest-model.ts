@@ -64,6 +64,7 @@ export const playerQuestArea = table({ name: 'player_quest_area' }, {
   longitude: t.f64(),
   updatedAt: t.timestamp(),
   placeCount: t.u32(),
+  generatorVersion: t.u32().default(0),
 });
 
 // Private: quests generated from places near one player. Never deleted, so history resolves.

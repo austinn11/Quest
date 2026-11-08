@@ -12,6 +12,9 @@ type Random = (n: number) => number;
 const away = (meters: number) => meters < 950 ? `about ${Math.max(100, Math.round(meters / 100) * 100)} m away` : `about ${(meters / 1000).toFixed(1)} km away`;
 const pickOne = <T>(options: readonly T[], random: Random) => options[random(options.length)];
 const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const withArticle = (kind: string) => `${/^[aeiou]/i.test(kind) ? 'an' : 'a'} ${kind}`;
+// Names alone can mislead ("Big Bend" is also a national park), so always say what kind of place it is.
+const describe = (place: Place) => `${place.name} (${withArticle(place.kind)}), ${away(place.distance)}`;
 
 // Places fall into groups that suggest what a quest there should ask for.
 type Group = 'view' | 'water' | 'culture' | 'history' | 'art' | 'green';
@@ -48,22 +51,22 @@ const EXPLORE_TITLES: Record<Difficulty, ((name: string) => string)[]> = {
 };
 
 // Crafting: make something inspired by the place, then photograph what you made.
-const CRAFT: Record<Difficulty, ((place: Place, distance: string) => Recipe)[]> = {
+const CRAFT: Record<Difficulty, ((place: Place, where: string) => Recipe)[]> = {
   Easy: [
-    (place, distance) => GROUP[place.kind] === 'art'
-      ? { title: `Echo of ${place.name}`, description: `Visit ${place.name}, ${distance}, and draw your own version of it. Photograph your drawing.`, photoGoal: 'A hand-drawn sketch or drawing on paper.' }
-      : { title: `Sketch of ${place.name}`, description: `Visit ${place.name}, ${distance}, and draw a quick sketch of it. Photograph your sketch, with the place behind it if you can.`, photoGoal: 'A hand-drawn sketch or drawing on paper.' },
-    (place, distance) => GROUP[place.kind] === 'history'
-      ? { title: `Words of ${place.name}`, description: `At ${place.name}, ${distance}, copy the inscription or the most interesting line from its plaque by hand. Photograph your page.`, photoGoal: 'Handwritten text copied onto paper.' }
-      : { title: `Leaf and Line at ${place.name}`, description: `At ${place.name}, ${distance}, find a plant or tree and sketch one of its leaves without picking it. Photograph your sketch.`, photoGoal: 'A hand-drawn sketch of a leaf or plant on paper.' },
+    (place, where) => GROUP[place.kind] === 'art'
+      ? { title: `Echo of ${place.name}`, description: `Visit ${where}, and draw your own version of it. Photograph your drawing.`, photoGoal: 'A hand-drawn sketch or drawing on paper.' }
+      : { title: `Sketch of ${place.name}`, description: `Visit ${where}, and draw a quick sketch of it. Photograph your sketch, with the place behind it if you can.`, photoGoal: 'A hand-drawn sketch or drawing on paper.' },
+    (place, where) => GROUP[place.kind] === 'history'
+      ? { title: `Words of ${place.name}`, description: `At ${where}, copy the inscription or the most interesting line from its plaque by hand. Photograph your page.`, photoGoal: 'Handwritten text copied onto paper.' }
+      : { title: `Leaf and Line at ${place.name}`, description: `At ${where}, find a plant or tree and sketch one of its leaves without picking it. Photograph your sketch.`, photoGoal: 'A hand-drawn sketch of a leaf or plant on paper.' },
   ],
   Medium: [
-    (place, distance) => ({ title: `Field Guide Page: ${place.name}`, description: `Create a one-page field guide to ${place.name}, ${distance}: a drawing plus three handwritten notes about what you saw. Photograph the page.`, photoGoal: 'A handmade page with a drawing and handwritten notes.' }),
-    (place, distance) => ({ title: `Postcard from ${place.name}`, description: `Visit ${place.name}, ${distance}, then design a postcard of it by hand: a drawing on one side, a short message on the other. Photograph your postcard.`, photoGoal: 'A handmade postcard with a drawing or a handwritten message.' }),
+    (place, where) => ({ title: `Field Guide Page: ${place.name}`, description: `Create a one-page field guide to ${where}: a drawing plus three handwritten notes about what you saw. Photograph the page.`, photoGoal: 'A handmade page with a drawing and handwritten notes.' }),
+    (place, where) => ({ title: `Postcard from ${place.name}`, description: `Visit ${where}, then design a postcard of it by hand: a drawing on one side, a short message on the other. Photograph your postcard.`, photoGoal: 'A handmade postcard with a drawing or a handwritten message.' }),
   ],
   Hard: [
-    (place, distance) => ({ title: `A Map of ${place.name}`, description: `Explore ${place.name}, ${distance}, and draw your own map of it with at least five labelled features. Photograph the finished map.`, photoGoal: 'A hand-drawn map with written labels.' }),
-    (place, distance) => ({ title: `The ${place.name} Chronicle`, description: `Spend time at ${place.name}, ${distance}, and make an illustrated journal spread: at least two drawings and a short account of your visit. Photograph it.`, photoGoal: 'A handmade journal page with drawings and handwriting.' }),
+    (place, where) => ({ title: `A Map of ${place.name}`, description: `Explore ${where}, and draw your own map of it with at least five labelled features. Photograph the finished map.`, photoGoal: 'A hand-drawn map with written labels.' }),
+    (place, where) => ({ title: `The ${place.name} Chronicle`, description: `Spend time at ${where}, and make an illustrated journal spread: at least two drawings and a short account of your visit. Photograph it.`, photoGoal: 'A handmade journal page with drawings and handwriting.' }),
   ],
 };
 
@@ -73,7 +76,7 @@ function exploreRecipe(place: Place, difficulty: Difficulty, random: Random): Re
   const care = difficulty === 'Hard' ? ' Check opening hours and trail conditions first.' : ' Stay on public paths.';
   return {
     title: pickOne(EXPLORE_TITLES[difficulty], random)(place.name),
-    description: `${place.name} is a ${place.kind} ${away(place.distance)}. ${route}, ${goal.task}.${care}`,
+    description: `${place.name} is ${withArticle(place.kind)} ${away(place.distance)}. ${route}, ${goal.task}.${care}`,
     photoGoal: goal.photo,
   };
 }
@@ -83,7 +86,7 @@ function bountyRecipe(place: Place, difficulty: Difficulty, random: Random): Rec
   const intro = difficulty === 'Hard' ? 'A rare bounty is posted at' : 'A bounty is posted at';
   return {
     title: `Wanted: ${bounty.target}`,
-    description: `${intro} ${place.name}, ${away(place.distance)}. Capture ${bounty.detail} on camera there. Keep your distance, stay on paths and never feed wildlife.`,
+    description: `${intro} ${describe(place)}. Capture ${bounty.detail} on camera there. Keep your distance, stay on paths and never feed wildlife.`,
     photoGoal: `${capitalise(bounty.detail)}, photographed in the wild (not a pet, toy or picture of a screen).`,
     bountyTarget: bounty.target,
   };
@@ -95,7 +98,7 @@ function recipeFor(category: Category, difficulty: Difficulty, place: Place, ran
   // Mapping needs ground to walk around: only parks, gardens, woods and shores get map quests.
   const walkable = GROUP[place.kind] === 'green' || GROUP[place.kind] === 'water';
   const options = difficulty === 'Hard' && !walkable ? CRAFT.Hard.slice(1) : CRAFT[difficulty];
-  return pickOne(options, random)(place, away(place.distance));
+  return pickOne(options, random)(place, describe(place));
 }
 
 // Each difficulty aims for a distance band, scoring places closest to its sweet spot highest.

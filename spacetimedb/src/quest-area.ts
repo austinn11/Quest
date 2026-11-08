@@ -3,7 +3,7 @@ import { SenderError } from 'spacetimedb/server';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { distanceMeters, roundCoordinate, validLatitudeLongitude } from '../../shared/geo';
-import { AREA_RELOAD_METERS, PLACE_SEARCH_METERS, sanitizePlaces, type PlaceInput } from '../../shared/nearby-places';
+import { AREA_RELOAD_METERS, LOCAL_QUEST_VERSION, PLACE_SEARCH_METERS, sanitizePlaces, type PlaceInput } from '../../shared/nearby-places';
 import { generateLocalQuests } from './local-quests';
 import { applyCompletion, prepareCompletion } from './quest-completion';
 import { AREA_COORDINATE_DECIMALS, PHOTO_MAX_ATTEMPTS_PER_HOUR, PHOTO_MIN_SECONDS_BETWEEN_ATTEMPTS } from './quest-config';
@@ -26,7 +26,7 @@ export function checkQuestArea(ctx: Ctx, latitude: number, longitude: number): A
   const area = ctx.db.playerQuestArea.playerIdentity.find(ctx.sender);
   if (!area) return { needsPlaces: true, hadArea: false, distanceMoved: 0 };
   const distanceMoved = distanceMeters(area.latitude, area.longitude, latitude, longitude);
-  return { needsPlaces: distanceMoved > AREA_RELOAD_METERS, hadArea: true, distanceMoved };
+  return { needsPlaces: distanceMoved > AREA_RELOAD_METERS || area.generatorVersion < LOCAL_QUEST_VERSION, hadArea: true, distanceMoved };
 }
 
 function newLocalQuestId(ctx: Ctx): string {
@@ -62,6 +62,7 @@ export function applyQuestArea(ctx: Ctx, latitude: number, longitude: number, pl
     longitude: roundCoordinate(longitude, AREA_COORDINATE_DECIMALS),
     updatedAt: ctx.timestamp,
     placeCount: places.length,
+    generatorVersion: LOCAL_QUEST_VERSION,
   };
   if (ctx.db.playerQuestArea.playerIdentity.find(ctx.sender)) ctx.db.playerQuestArea.playerIdentity.update(area);
   else ctx.db.playerQuestArea.insert(area);

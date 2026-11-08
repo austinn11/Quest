@@ -6,6 +6,8 @@ export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 // A board reloads when the player moves farther than this from its area centre.
 export const AREA_RELOAD_METERS = 10_000;
+// Bump when local quest wording changes so existing boards regenerate once without travelling.
+export const LOCAL_QUEST_VERSION = 1;
 // Places are searched within this radius; each difficulty uses a distance band inside it.
 export const PLACE_SEARCH_METERS = 8_000;
 

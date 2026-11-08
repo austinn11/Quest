@@ -3,7 +3,7 @@ import { useReducer } from 'spacetimedb/react';
 import { reducers } from '../module_bindings';
 import type { PlayerQuestArea } from '../module_bindings/types';
 import { distanceMeters } from '../../shared/geo';
-import { AREA_RELOAD_METERS, OVERPASS_URL, PLACE_SEARCH_METERS, overpassQuery, parseOverpassPlaces, type Place } from '../../shared/nearby-places';
+import { AREA_RELOAD_METERS, LOCAL_QUEST_VERSION, OVERPASS_URL, PLACE_SEARCH_METERS, overpassQuery, parseOverpassPlaces, type Place } from '../../shared/nearby-places';
 
 const OVERPASS_MIRROR_URL = 'https://overpass.private.coffee/api/interpreter';
 
@@ -91,7 +91,7 @@ export function useQuestArea({ area, enabled }: { area: PlayerQuestArea | null; 
     if (signal.aborted || busy.current === signal) return;
     const current = areaRef.current;
     const moved = current ? distanceMeters(current.latitude, current.longitude, latitude, longitude) : Infinity;
-    if (current && moved <= AREA_RELOAD_METERS) {
+    if (current && moved <= AREA_RELOAD_METERS && current.generatorVersion >= LOCAL_QUEST_VERSION) {
       setStatus({ kind: 'ready', message: `Quests near you · ${current.placeCount} places within ${formatKm(PLACE_SEARCH_METERS)}` });
       return;
     }

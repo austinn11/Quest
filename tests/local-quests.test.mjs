@@ -186,6 +186,8 @@ test('exploration and crafting wording fits the kind of place and varies', () =>
     let next = 0;
     for (const quest of generator.generateLocalQuests(places, random, () => `local-${String(next++).padStart(12, '0')}`)) {
       titles.add(quest.title);
+      const kindNamed = { 'Ridge Overlook': 'a viewpoint', 'History Museum': 'a museum', 'Founders Plaque': 'a memorial' }[quest.locationName];
+      assert.ok(quest.description.includes(kindNamed), `${quest.title} should say the place is ${kindNamed}: ${quest.description}`);
       assert.equal(model.validateTemplate(quest), null, quest.title);
       if (quest.category.tag !== 'Exploration') continue;
       if (quest.locationName === 'Ridge Overlook') assert.match(quest.photoGoal, /view/);

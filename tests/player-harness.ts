@@ -49,6 +49,13 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     },
     localQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myLocalQuests(harness.viewContext(auth)); },
     area(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestArea(harness.viewContext(auth)); },
+    markAreaFromOldGenerator(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      const identity = module.myQuestArea(harness.viewContext(auth))!.playerIdentity;
+      harness.withReducerTx(TestAuth.internal(), ctx => {
+        const area = ctx.db.playerQuestArea.playerIdentity.find(identity)!;
+        ctx.db.playerQuestArea.playerIdentity.update({ ...area, generatorVersion: 0 });
+      });
+    },
     beginPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
       return harness.withReducerTx(auth, ctx => questArea.beginPhotoCheck(configuredContext(ctx), {
         slotIndex,
