@@ -242,11 +242,12 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .notice:focus { outline: none; }
 .notice:focus-visible, .notice:target { outline: 2px solid var(--primary); outline-offset: 4px; }
 .notice-sheet {
-  display: flex; flex-direction: column; gap: 1.5rem;
-  height: 100%; min-height: 20rem; padding: 1.5rem; background: var(--card);
-  border: 1px solid var(--border); border-radius: var(--radius);
+  position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 1.25rem;
+  min-height: 20rem; padding: 2rem 1.25rem 1.25rem; background: var(--notice);
+  clip-path: polygon(1px 2px, 8% 0, 17% 2px, 28% 1px, 39% 3px, 51% 0, 64% 2px, 76% 1px, 88% 3px, calc(100% - 2px) 1px, 100% 13%, calc(100% - 2px) 28%, 100% 43%, calc(100% - 1px) 59%, 100% 76%, calc(100% - 2px) 91%, calc(100% - 1px) calc(100% - 2px), 89% 100%, 77% calc(100% - 2px), 65% 100%, 53% calc(100% - 3px), 41% calc(100% - 1px), 29% 100%, 17% calc(100% - 2px), 7% 100%, 2px calc(100% - 1px), 0 87%, 2px 72%, 0 57%, 2px 41%, 0 26%, 2px 12%);
 }
-.notice-body > h2 { font-size: 1.15rem; letter-spacing: -.025em; line-height: 1.35; }
+.notice-sheet::before { content: ""; position: absolute; inset: 0; z-index: -1; background: url("./assets/notice-paper.jpg") center / cover; opacity: .7; mix-blend-mode: multiply; pointer-events: none; }
+.notice-pin { position: absolute; top: .75rem; left: 50%; width: 6px; height: 6px; border-radius: 50%; transform: translateX(-50%); background: color-mix(in oklab, var(--primary) 60%, transparent); }
 .notice-footer { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
 .notice-footer > p { margin: 0; }
 .noticeboard .quest-reward { width: 100%; }
