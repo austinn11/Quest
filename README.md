@@ -70,7 +70,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | `/` | Dashboard / Home |
 | `/map` | World Map placeholder |
 | `/questboard` | Personal six-slot Questboard |
-| `/journal` | Personal quests placeholder |
+| `/journal` | Completed adventures and historical XP |
 | `/profile` | Player profile, progression, and username editor |
 
 The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
@@ -161,6 +161,16 @@ All six assignments are committed in one transaction. Insufficient active templa
 
 To verify F06 manually, sign in and open **Questboard**. Confirm six distinct quests in the 3/2/1 layout, then refresh and sign out/back in: the same assignments must return. A different Google account should receive its own board; two players may share templates, but their slot records remain independent. Completing quests and refilling cooldown slots are not implemented yet.
 
+## Questboard and Journal UI (F07)
+
+The Questboard displays current assignments in a single grid: two rows of three cards on desktop, two columns on narrower screens, and one column on mobile. Each card resolves its title, objective, category, difficulty, and reward from the SpacetimeDB catalogue. **Inspect quest** expands assignment dates and optional location coordinates. Cooldown cards display their stored state and completion/replacement-eligibility dates when present; F07 does not calculate countdowns or trigger replacements.
+
+The Quest Journal shows only historical completions, newest first, with repeated completions preserved as separate accomplishments. Earned XP comes from each completion's `xp_awarded` snapshot, rather than the template's current reward. Dates come from `completed_at`; titles and objectives resolve through the catalogue, including inactive templates. Missing templates do not hide saved assignments or erase historical XP and dates.
+
+A single managed subscription in `QuestboardProvider` reads `quest_templates`, `my_quest_slots`, and `my_quest_completions`. It stays mounted across page navigation, listens for inserts/updates/deletes, and waits for `onApplied` before treating data as current. The SDK replays the same subscription on reconnect. Subscription failures have a retry action, and disconnected or resyncing pages label any cached records as potentially stale. The Journal can load independently of a board-initialization error.
+
+Both pages include loading and empty states and links to one another. The Journal will initially be empty because F08 has not introduced quest completion yet. Completion and XP mutations remain server-side work for F08; refresh scheduling belongs to F09. F07 adds no backend reducers or schema changes.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:
@@ -212,7 +222,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, six-slot generation, inactive-template exclusion, repeat avoidance and fallback, atomic failure/retry, reconnect persistence, owner isolation, idempotent seeding, XP preservation, and level boundaries. Route tests cover Questboard loading, errors, and assigned quest rendering. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
+`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, six-slot generation, inactive-template exclusion, repeat avoidance and fallback, atomic failure/retry, reconnect persistence, owner isolation, idempotent seeding, XP preservation, and level boundaries. UI tests cover the single quest grid, expandable details, cooldown dates, historical ordering and awarded XP, missing templates, and loading/empty/offline/error states. Subscription tests verify live cache updates, replay, failures, and listener cleanup. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
 
 To verify F02 end to end:
 
@@ -234,7 +244,7 @@ Quest/
     layout/                 Shared header, navigation, and page outlet
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
-    questboard/             Questboard initialization and private subscriptions
+    questboard/             Initialization, managed quest subscriptions, and shared quest UI
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks

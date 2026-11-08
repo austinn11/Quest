@@ -6,9 +6,14 @@ import { Identity, Timestamp } from 'spacetimedb';
 import { AppRoutes } from '../src/App';
 import { DbConnection } from '../src/module_bindings';
 import { PlayerContext } from '../src/player/PlayerProvider';
-import { QuestboardContext } from '../src/questboard/QuestboardProvider';
+import { QuestboardContext, type QuestboardState } from '../src/questboard/QuestboardProvider';
 
-export function renderPage(path: string, board = { slots: [], templates: [], ready: false, error: null as string | null, retry: () => {} }) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}) {
+  const questState: QuestboardState = {
+    slots: [], templates: [], completions: [], connected: true, ready: false,
+    hasSnapshot: board.ready ?? false, initializing: false, error: null,
+    subscriptionError: null, retry: () => {}, ...board,
+  };
   return renderToStaticMarkup(
     <StaticRouter location={path}>
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
@@ -19,7 +24,7 @@ export function renderPage(path: string, board = { slots: [], templates: [], rea
             error: null,
             retry: () => {},
           }}>
-            <QuestboardContext.Provider value={board}><AppRoutes /></QuestboardContext.Provider>
+            <QuestboardContext.Provider value={questState}><AppRoutes /></QuestboardContext.Provider>
           </PlayerContext.Provider>
         </SpacetimeDBProvider>
       </AuthProvider>

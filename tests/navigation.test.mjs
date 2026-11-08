@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
+import { Timestamp } from 'spacetimedb';
 import { postLoginPath } from '../src/auth/return-path.ts';
 
 let server;
@@ -64,6 +65,7 @@ test('questboard renders six assigned quests in slot order with catalogue object
   const slots = difficulties.map((difficulty, slotIndex) => ({
     slotId: `owner:${slotIndex}`, slotIndex, difficulty: { tag: difficulty },
     templateId: `template-${slotIndex}`, status: { tag: 'Available' },
+    assignedAt: Timestamp.UNIX_EPOCH,
   }));
   const templates = slots.map(slot => ({
     templateId: slot.templateId, title: `Adventure ${slot.slotIndex + 1}`,
@@ -72,14 +74,99 @@ test('questboard renders six assigned quests in slot order with catalogue object
   }));
   const html = renderPage('/questboard', { slots: slots.reverse(), templates, ready: true, error: null, retry: () => {} });
   assert.equal((html.match(/<li\b/g) ?? []).length, 6);
-  assert.equal((html.match(/Available<\/p>/g) ?? []).length, 6);
+  assert.equal((html.match(/class="quest-status">Available<\/span>/g) ?? []).length, 6);
+  assert.equal((html.match(/<ol class="questboard"/g) ?? []).length, 1);
+  assert.ok(!html.includes('Questboard overview'));
+  assert.ok(!html.includes('Assigned slots'));
+  for (const difficulty of ['Easy', 'Medium', 'Hard']) assert.ok(!html.includes(`${difficulty} quests</h2>`));
+  assert.equal((html.match(/<summary>Inspect quest<\/summary>/g) ?? []).length, 6);
   assert.ok(html.indexOf('Adventure 1') < html.indexOf('Adventure 6'));
   for (const template of templates) {
     assert.ok(html.includes(template.title));
     assert.ok(html.includes(template.description));
-    assert.ok(html.includes(`${template.xpReward} XP`));
+    assert.ok(html.includes(`${template.xpReward} XP reward`));
   }
   assert.ok(!html.includes('Preparing your Questboard...'));
+});
+
+test('cooldown slots show recorded status and dates without a countdown or completion action', () => {
+  const html = renderPage('/questboard', {
+    ready: true,
+    slots: [{ slotId: 'test:5', slotIndex: 5, difficulty: { tag: 'Hard' }, templateId: 'hard-template', status: { tag: 'Cooldown' }, assignedAt: Timestamp.UNIX_EPOCH, completedAt: new Timestamp(1000000n), refreshAt: new Timestamp(2000000n) }],
+    templates: [{ templateId: 'hard-template', title: 'The old watchtower', description: 'Explore a safe local landmark.', category: { tag: 'Exploration' }, xpReward: 200, isActive: false, latitude: 32.9858, longitude: -96.7501 }],
+  });
+  assert.ok(html.includes('Cooldown'));
+  assert.ok(html.includes('Eligible for replacement'));
+  assert.ok(html.includes('1970-01-01T00:00:02.000Z'));
+  assert.ok(html.includes('32.98580, -96.75010'));
+  assert.ok(html.includes('The old watchtower'));
+  assert.ok(!html.includes('Complete quest'));
+});
+
+test('journal has its own loading and empty states and does not list current assignments', () => {
+  assert.ok(renderPage('/journal').includes('Opening your Quest Journal...'));
+  const html = renderPage('/journal', {
+    ready: true,
+    slots: [{ templateId: 'assigned', slotIndex: 0 }],
+    templates: [{ templateId: 'assigned', title: 'Current quest should stay on the board' }],
+  });
+  assert.ok(html.includes('Your story is unwritten'));
+  assert.ok(html.includes('Explore your assigned quests'));
+  assert.ok(!html.includes('Current quest should stay on the board'));
+});
+
+test('journal orders history by completion time, preserves repeat completions, and uses awarded XP', () => {
+  const completions = [
+    { completionId: 1n, templateId: 'old', slotIndex: 0, xpAwarded: 37, completedAt: new Timestamp(1000000n) },
+    { completionId: 2n, templateId: 'new', slotIndex: 3, xpAwarded: 83, completedAt: new Timestamp(2000000n) },
+    { completionId: 3n, templateId: 'old', slotIndex: 1, xpAwarded: 41, completedAt: new Timestamp(3000000n) },
+  ];
+  const templates = [
+    { templateId: 'old', title: 'First adventure', description: 'A remembered walk.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 999, isActive: false },
+    { templateId: 'new', title: 'Second adventure', description: 'A completed craft.', category: { tag: 'Crafting' }, difficulty: { tag: 'Medium' }, xpReward: 888 },
+  ];
+  const html = renderPage('/journal', { ready: true, completions, templates });
+  const timestamps = [...html.matchAll(/<time dateTime="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(timestamps, ['1970-01-01T00:00:03.000Z', '1970-01-01T00:00:02.000Z', '1970-01-01T00:00:01.000Z']);
+  assert.equal((html.match(/<h3>First adventure<\/h3>/g) ?? []).length, 2);
+  for (const xp of [37, 83, 41]) assert.ok(html.includes(`+${xp} XP earned`));
+  assert.ok(html.includes('<dd>161</dd>'));
+  assert.ok(!html.includes('999'));
+  assert.ok(!html.includes('888'));
+  assert.ok(!html.includes('Your story is unwritten'));
+  assert.deepEqual(completions.map(completion => completion.completionId), [1n, 2n, 3n]);
+});
+
+test('missing template information preserves saved assignments and historical rewards', () => {
+  const board = renderPage('/questboard', { ready: true, slots: [{ slotId: 'test:0', slotIndex: 0, difficulty: { tag: 'Easy' }, status: { tag: 'Available' }, templateId: 'missing', assignedAt: Timestamp.UNIX_EPOCH }] });
+  assert.ok(board.includes('Quest details unavailable'));
+  assert.ok(board.includes('Your assignment is still saved'));
+  const journal = renderPage('/journal', { ready: true, completions: [{ completionId: 99n, templateId: 'missing', slotIndex: 0, xpAwarded: 50, completedAt: Timestamp.UNIX_EPOCH }] });
+  assert.ok(journal.includes('An accomplished adventure'));
+  assert.ok(journal.includes('+50 XP earned'));
+  assert.ok(journal.includes('Your accomplishment remains recorded'));
+});
+
+test('disconnected and failed subscriptions do not masquerade as an empty journal', () => {
+  for (const path of ['/questboard', '/journal']) {
+    const offline = renderPage(path, { connected: false, ready: false });
+    assert.ok(offline.includes('Waiting for the database connection'));
+    const failed = renderPage(path, { subscriptionError: 'Subscription denied', ready: false });
+    assert.ok(failed.includes('Subscription denied'));
+    assert.ok(failed.includes(path === '/questboard' ? 'Retry Questboard' : 'Retry Journal'));
+    assert.ok(!failed.includes('Your story is unwritten'));
+  }
+  const cached = renderPage('/journal', { connected: false, hasSnapshot: true, completions: [{ completionId: 1n, templateId: 'missing', slotIndex: 0, xpAwarded: 50, completedAt: Timestamp.UNIX_EPOCH }] });
+  assert.ok(cached.includes('may be out of date'));
+  assert.ok(cached.includes('+50 XP earned'));
+});
+
+test('journal remains readable if board initialization fails and links back to the board', () => {
+  const html = renderPage('/journal', { ready: true, error: 'Not enough templates', initializing: false });
+  assert.ok(html.includes('Your story is unwritten'));
+  assert.ok(html.includes('Return to your Questboard'));
+  assert.ok(!html.includes('Not enough templates'));
+  assert.ok(renderPage('/questboard', { ready: true }).includes('Your board awaits'));
 });
 
 test('unknown paths show a recovery link inside the shared layout', () => {

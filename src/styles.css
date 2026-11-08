@@ -53,8 +53,42 @@ button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
 .username-editor { margin: 1.25rem 0; }
 .field-help { color: #645d51; font-size: .85rem; margin-top: 0; }
 summary { cursor: pointer; }
-.questboard { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem; }
+.questboard { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .questboard .panel { margin: 0; overflow-wrap: anywhere; }
+.quest-completed-date { color: #645d51; font-size: .9rem; }
+.quest-card { border-top: 3px solid #68805a; }
+.quest-card.difficulty-medium { border-top-color: #977127; }
+.quest-card.difficulty-hard { border-top-color: #8b4c3a; }
+.quest-card h2, .quest-card h3 { font-family: Georgia, serif; font-size: 1.35rem; line-height: 1.35; margin: .8rem 0; }
+.quest-card-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.quest-card-heading .eyebrow { margin: 0; }
+.quest-status { display: inline-block; background: #e3eadc; color: #2e4b34; border: 1px solid #bbc9ac; border-radius: 1rem; padding: .15rem .6rem; font-size: .8rem; font-weight: 600; }
+.quest-status.is-cooldown { background: #eee6d5; color: #6c5129; border-color: #d4c09e; }
+.quest-card-cooldown { background: #f7f2e8; }
+.quest-meta { display: flex; flex-wrap: wrap; gap: .35rem 1rem; color: #645d51; font-size: .9rem; }
+.quest-meta strong, .quest-earned { color: #3c503e; }
+.quest-objective { white-space: pre-wrap; }
+.quest-details { border-top: 1px solid #d8cdb8; margin-top: 1rem; padding-top: .75rem; }
+.quest-details summary { color: #31563a; font-weight: 600; width: fit-content; }
+.quest-details dl { margin-bottom: 0; }
+.quest-details dl > div { margin-top: .75rem; }
+.quest-details dt { font-size: .8rem; color: #645d51; }
+.quest-details dd { margin: .15rem 0 0; }
+.quest-summary { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; padding: 1rem 1.5rem; border: 1px solid #d8cdb8; border-radius: .5rem; background: #ede5d4; }
+.quest-summary dt { color: #645d51; font-size: .85rem; }
+.quest-summary dd { margin: .15rem 0 0; font-family: Georgia, serif; font-size: 1.5rem; font-weight: 700; }
+.quest-history { list-style: none; padding: 0; }
+.quest-history .quest-card { overflow-wrap: anywhere; border-top-color: #977127; }
+.sync-notice { border-left: 3px solid #977127; }
+.empty-state { padding-block: 2rem; }
+
+@media (max-width: 900px) {
+  .questboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .questboard { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 480px) {
   .foundation { margin: 1.5rem auto; }
