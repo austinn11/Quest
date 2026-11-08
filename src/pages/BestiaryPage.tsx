@@ -16,7 +16,7 @@ export function BestiaryPage() {
   const rewards = new Map(completions.map(completion => [completion.completionId.toString(), completion.xpAwarded]));
   const collection = filterCaptures(captures, filters, favorites.captures, capture => rewards.get(capture.completionId.toString()) ?? 0);
   const kinds = new Set(captures.map(capture => capture.creature.toLowerCase())).size;
-  const active = filters.search.trim() !== '' || filters.check !== 'all' || filters.favoritesOnly;
+  const active = filters.search.trim() !== '' || filters.favoritesOnly;
   const update = (changes: Partial<BestiaryFilters>) => setFilters(current => ({ ...current, ...changes }));
   const clear = () => setFilters(current => ({ ...DEFAULT_BESTIARY_FILTERS, sort: current.sort }));
   return (
@@ -29,16 +29,13 @@ export function BestiaryPage() {
         <>
           <p className="bestiary-summary">
             <span><strong>{captures.length}</strong> {captures.length === 1 ? 'capture' : 'captures'}</span>
-            <span><strong>{kinds}</strong> {kinds === 1 ? 'kind of creature' : 'kinds of creature'}</span>
+            <span><strong>{kinds}</strong> species</span>
             <span><strong>{favorites.captures.size}</strong> {favorites.captures.size === 1 ? 'favorite' : 'favorites'}</span>
           </p>
           <CollectionToolbar
             label="Search and filter your captures"
             search={filters.search} onSearch={search => update({ search })} placeholder="Search creatures, bounties or places"
             selects={[
-              { id: 'check', label: 'AI check', value: filters.check, onChange: check => update({ check: check as BestiaryFilters['check'] }), options: [
-                { value: 'all', label: 'All captures' }, { value: 'verified', label: 'Verified by the guild' }, { value: 'unchecked', label: 'Not AI-checked' },
-              ] },
               { id: 'sort', label: 'Sort', value: filters.sort, onChange: sort => update({ sort: sort as BestiaryFilters['sort'] }), options: [
                 { value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }, { value: 'name', label: 'Name A–Z' }, { value: 'reward', label: 'Biggest reward' },
               ] },

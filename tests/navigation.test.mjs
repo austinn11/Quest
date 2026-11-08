@@ -409,7 +409,7 @@ test('the Bestiary page lists private captures with photos, newest first, and ha
   const html = renderPage('/bestiary', { ready: true, captures });
   assert.ok(html.includes('<h1>Bestiary</h1>'));
   assert.ok(html.includes('<strong>3</strong> captures'));
-  assert.ok(html.includes('<strong>2</strong> kinds of creature'));
+  assert.ok(html.includes('<strong>2</strong> species'));
   const names = [...html.matchAll(/<h2>([^<]+)<\/h2>/g)].map(match => match[1]);
   assert.deepEqual(names, ['northern cardinal', 'Red-eared Slider', 'Northern Cardinal']);
   assert.equal((html.match(/<img src="data:image\/jpeg;base64,QUJD"/g) ?? []).length, 3);
