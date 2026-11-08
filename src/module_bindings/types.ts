@@ -24,6 +24,15 @@ export const CreatureCaptures = __t.object("CreatureCaptures", {
 });
 export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
 
+export const Favorite = __t.object("Favorite", {
+  favoriteId: __t.u64(),
+  playerIdentity: __t.identity(),
+  kind: __t.string(),
+  itemId: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type Favorite = __Infer<typeof Favorite>;
+
 export const FriendCard = __t.object("FriendCard", {
   friendshipId: __t.u64(),
   username: __t.string(),
@@ -193,6 +202,9 @@ export type LocalQuests = __Infer<typeof LocalQuests>;
 
 export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
 export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
+
+export const MyFavorites = __t.object("MyFavorites", {});
+export type MyFavorites = __Infer<typeof MyFavorites>;
 
 export const MyFriendRequests = __t.object("MyFriendRequests", {});
 export type MyFriendRequests = __Infer<typeof MyFriendRequests>;

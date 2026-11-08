@@ -4,6 +4,7 @@ import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
 import { friendRequest, friendRequestRows, friendRows, friendship, party, partyInvite, partyInviteRows, partyMember, partyMemberRows, partyRow, beginPartyPhotoCheck, finishPartyQuest, createParty as createPartyHandler, inviteToParty as inviteToPartyHandler, leaveParty as leavePartyHandler, removeFriend as removeFriendHandler, respondFriendRequest as respondFriendRequestHandler, respondPartyInvite as respondPartyInviteHandler, sendFriendRequest as sendFriendRequestHandler, setPartyQuest as setPartyQuestHandler } from './social';
 import type { QuestTemplate } from './quest-model';
+import { favorite, toggleFavorite as toggleFavoriteHandler } from './favorites';
 import { guildQuest, guildQuestContribution, guildQuestRows, refreshGuildQuests as refreshGuildQuestsHandler } from './guild-quests';
 import { guild, guildInvite, guildMembership, guildStats, memberRows, createGuild as createGuildHandler, joinGuildByCode as joinGuildByCodeHandler, joinOpenGuild as joinOpenGuildHandler, leaveGuild as leaveGuildHandler, setGuildOpen as setGuildOpenHandler } from './guilds';
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
@@ -54,6 +55,7 @@ const spacetimedb = schema({
   party,
   partyMember,
   partyInvite,
+  favorite,
 }, { env: {
   SPACETIMEAUTH_CLIENT_ID: t.string(),
   // Photo judge: any OpenAI-compatible chat completions API, Google Gemini by default.
@@ -534,6 +536,14 @@ export const submitPartyQuestPhoto = spacetimedb.procedure(
     }
     return { accepted: true, message: `Party quest complete! Everyone in your party earned +${xpEach} ${quest.category.tag} XP.`, observation: verdict.observation, creature: verdict.creature };
   }
+);
+
+// Favorites: star your own Bestiary captures and Quest Journal entries.
+export const toggleFavorite = spacetimedb.reducer({ kind: t.string(), itemId: t.u64() }, toggleFavoriteHandler);
+export const myFavorites = spacetimedb.view(
+  { name: 'my_favorites', public: true },
+  t.array(favorite.rowType),
+  ctx => [...ctx.db.favorite.playerIdentity.filter(ctx.sender)]
 );
 
 export const init = spacetimedb.init(ctx => {

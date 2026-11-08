@@ -54,6 +54,7 @@ import SetGuildOpenReducer from "./set_guild_open_reducer";
 import SetPartyQuestReducer from "./set_party_quest_reducer";
 import SetQuestAreaReducer from "./set_quest_area_reducer";
 import SetUsernameReducer from "./set_username_reducer";
+import ToggleFavoriteReducer from "./toggle_favorite_reducer";
 
 // Import all procedure arg schemas
 import * as SubmitPartyQuestPhotoProcedure from "./submit_party_quest_photo_procedure";
@@ -63,6 +64,7 @@ import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 import GuildRow from "./guild_table";
 import GuildDirectoryRow from "./guild_directory_table";
 import MyCreatureCapturesRow from "./my_creature_captures_table";
+import MyFavoritesRow from "./my_favorites_table";
 import MyFriendRequestsRow from "./my_friend_requests_table";
 import MyFriendsRow from "./my_friends_table";
 import MyGuildRow from "./my_guild_table";
@@ -131,6 +133,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyCreatureCapturesRow),
+  myFavorites: __table({
+    name: 'my_favorites',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFavoritesRow),
   myFriendRequests: __table({
     name: 'my_friend_requests',
     indexes: [
@@ -246,6 +255,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_party_quest", SetPartyQuestReducer),
   __reducerSchema("set_quest_area", SetQuestAreaReducer),
   __reducerSchema("set_username", SetUsernameReducer),
+  __reducerSchema("toggle_favorite", ToggleFavoriteReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

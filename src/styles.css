@@ -301,7 +301,7 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .bestiary-summary { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin: 0 0 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
 .bestiary-summary strong { font-family: var(--font-mono); font-weight: 500; }
 .bestiary-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); }
-.capture-card { margin: 0; overflow: hidden; }
+.capture-card { position: relative; margin: 0; overflow: hidden; }
 .capture-card > img { border-radius: var(--radius); }
 .capture-card img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--muted); }
 .capture-card figcaption { padding: 1rem 0; overflow-wrap: anywhere; }
@@ -490,3 +490,16 @@ input:disabled { opacity: .6; cursor: not-allowed; }
   .level-up-notice { animation: none; }
   :where(button:hover:enabled, .button-link:hover) { transform: none; }
 }
+
+/* Collection search, filters and favorites (Bestiary and Quest Journal) */
+.collection-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 1.25rem; }
+.collection-search { flex: 1 1 14rem; min-width: 0; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card, var(--background)); color: inherit; font: inherit; }
+.collection-select select { padding: .5rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card, var(--background)); color: inherit; font: inherit; }
+.collection-favorites { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.collection-favorites.is-on { background: #f5c542; border-color: #d4a017; color: #3a2a00; }
+.collection-count { flex-basis: 100%; margin: 0; color: var(--muted-foreground); font-size: .8rem; }
+.link-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.favorite-star { width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--card, var(--background)); color: #b58900; font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.favorite-star.is-starred { background: #f5c542; border-color: #d4a017; color: #3a2a00; }
+.capture-card .favorite-star { position: absolute; top: .5rem; right: .5rem; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
+.journal-entry-actions { display: inline-flex; flex-shrink: 0; align-items: center; gap: .5rem; }

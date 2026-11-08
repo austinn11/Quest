@@ -10,8 +10,10 @@ import { QuestboardContext, type QuestboardState } from '../src/questboard/Quest
 import { getTotalPlayerXp, levelForXp, type SkillXp } from '../shared/progression';
 import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
 import { SocialContext, type SocialState } from '../src/social/SocialProvider';
+import { FavoritesContext, type FavoritesState } from '../src/collection/FavoritesProvider';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}, socialState: Partial<SocialState> = {}) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}, socialState: Partial<SocialState> = {}, favoritesState: Partial<FavoritesState> = {}) {
+  const favorites: FavoritesState = { captures: new Set(), completions: new Set(), toggle: async () => {}, error: null, ...favoritesState };
   const social: SocialState = {
     friends: [], requests: [], invites: [], party: null, partyMembers: [], ready: true,
     sendFriendRequest: async () => {}, respondFriendRequest: async () => {}, removeFriend: async () => {}, createParty: async () => {},
@@ -42,7 +44,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
             error: null,
             retry: () => {},
           }}>
-            <QuestboardContext.Provider value={questState}><GuildContext.Provider value={guild}><SocialContext.Provider value={social}><AppRoutes /></SocialContext.Provider></GuildContext.Provider></QuestboardContext.Provider>
+            <QuestboardContext.Provider value={questState}><GuildContext.Provider value={guild}><SocialContext.Provider value={social}><FavoritesContext.Provider value={favorites}><AppRoutes /></FavoritesContext.Provider></SocialContext.Provider></GuildContext.Provider></QuestboardContext.Provider>
           </PlayerContext.Provider>
         </SpacetimeDBProvider>
       </AuthProvider>

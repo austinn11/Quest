@@ -11,6 +11,7 @@ import { GuildPage } from './pages/GuildPage';
 import { GuildProvider } from './guild/GuildProvider';
 import { FriendsPage } from './pages/FriendsPage';
 import { SocialProvider } from './social/SocialProvider';
+import { FavoritesProvider } from './collection/FavoritesProvider';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -33,5 +34,5 @@ export function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter><PlayerProvider><QuestboardProvider><GuildProvider><SocialProvider><AppRoutes /></SocialProvider></GuildProvider></QuestboardProvider></PlayerProvider></BrowserRouter>;
+  return <BrowserRouter><PlayerProvider><QuestboardProvider><GuildProvider><SocialProvider><FavoritesProvider><AppRoutes /></FavoritesProvider></SocialProvider></GuildProvider></QuestboardProvider></PlayerProvider></BrowserRouter>;
 }

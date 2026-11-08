@@ -216,3 +216,20 @@ test('catalogue Bestiary quests carry bounty targets and older catalogues are ba
   db.connect(alice);
   assert.equal(db.templates().find(template => template.templateId === 'easy-birdwatch').bountyTarget, 'Wild Bird');
 });
+
+test('players can star and unstar their own captures and journal entries, privately', () => {
+  const { db, alice, bob } = setup();
+  assert.equal(db.favoriteVisibility, 'Private');
+  db.putSlotFixture(alice, 'easy-birdwatch', 0);
+  db.finishPhoto(alice, 0, 'A grackle', undefined, { photo: 'data:image/jpeg;base64,QUJD', creature: 'Grackle', verified: true });
+  const [capture] = db.captures(alice);
+  const [completion] = db.completions(alice);
+  db.toggleFavorite(alice, 'capture', capture.captureId);
+  db.toggleFavorite(alice, 'completion', completion.completionId);
+  assert.deepEqual(db.favorites(alice).map(row => [row.kind, row.itemId]).sort(), [['capture', capture.captureId], ['completion', completion.completionId]]);
+  db.toggleFavorite(alice, 'capture', capture.captureId);
+  assert.deepEqual(db.favorites(alice).map(row => row.kind), ['completion'], 'toggling again removes the star');
+  assert.throws(() => db.toggleFavorite(bob, 'completion', completion.completionId), /not in your collection/);
+  assert.throws(() => db.toggleFavorite(alice, 'player', 1n), /Only captures and journal entries/);
+  assert.deepEqual(db.favorites(bob), []);
+});

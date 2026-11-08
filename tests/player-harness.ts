@@ -62,6 +62,11 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
       }, note, capture));
     },
     captures(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myCreatureCaptures(harness.viewContext(auth)); },
+    toggleFavorite(auth: ReturnType<typeof TestAuth.fromJwtPayload>, kind: string, itemId: bigint) {
+      return harness.withReducerTx(auth, ctx => module.toggleFavorite(configuredContext(ctx), { kind, itemId }));
+    },
+    favorites(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myFavorites(harness.viewContext(auth)); },
+    favoriteVisibility: module.default.schemaType.tables.favorite.tableDef.tableAccess.tag,
     createGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>, name: string, options: { motto?: string; crest?: string; isOpen?: boolean } = {}) {
       return harness.withReducerTx(auth, ctx => module.createGuild(configuredContext(ctx), { name, motto: options.motto ?? '', crest: options.crest ?? 'moss', isOpen: options.isOpen ?? true }));
     },

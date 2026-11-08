@@ -26,6 +26,7 @@ import SetGuildOpenReducer from "../set_guild_open_reducer";
 import SetPartyQuestReducer from "../set_party_quest_reducer";
 import SetQuestAreaReducer from "../set_quest_area_reducer";
 import SetUsernameReducer from "../set_username_reducer";
+import ToggleFavoriteReducer from "../toggle_favorite_reducer";
 
 export type CompleteQuestParams = __Infer<typeof CompleteQuestReducer>;
 export type CreateGuildParams = __Infer<typeof CreateGuildReducer>;
@@ -47,4 +48,5 @@ export type SetGuildOpenParams = __Infer<typeof SetGuildOpenReducer>;
 export type SetPartyQuestParams = __Infer<typeof SetPartyQuestReducer>;
 export type SetQuestAreaParams = __Infer<typeof SetQuestAreaReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
+export type ToggleFavoriteParams = __Infer<typeof ToggleFavoriteReducer>;
 
