@@ -8,11 +8,15 @@ export function refreshQuestSlots(ctx: Ctx): void {
   const authError = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
   if (authError) throw new SenderError(authError);
   if (!ctx.db.player.identity.find(ctx.sender)) throw new SenderError('Create your player profile before refreshing your Questboard.');
+  refreshOwnedSlots(ctx);
+}
 
+export function refreshOwnedSlots(ctx: Ctx, onlySlotId?: string): void {
   const board = [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)].sort((a, b) => a.slotIndex - b.slotIndex);
   const recent = mostRecentCompletionTemplate(ctx);
   for (let index = 0; index < board.length; index++) {
     const slot = board[index];
+    if (onlySlotId !== undefined && slot.slotId !== onlySlotId) continue;
     if (slot.status.tag !== 'Cooldown') continue;
     if (!slot.playerIdentity.equals(ctx.sender)) throw new SenderError('This quest slot does not belong to you.');
     const original = resolveQuest(ctx, ctx.sender, slot.templateId);
@@ -36,6 +40,7 @@ export function refreshQuestSlots(ctx: Ctx): void {
     const replacementError = validateSlot(replacement, template, ctx.timestamp);
     if (replacementError) throw new SenderError(replacementError);
     ctx.db.playerQuestSlots.slotId.update(replacement);
+    ctx.db.questRefreshTimer.slotId.delete(slot.slotId);
     board[index] = replacement;
   }
 }

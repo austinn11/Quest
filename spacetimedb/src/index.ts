@@ -20,6 +20,7 @@ import { initializePlayerSkills } from './player-progression';
 import { locations, discoveryCache, discoveryLimit, discoveryBudget } from './adventure-model';
 import { discoverRegion, searchRegions } from './adventure-region';
 import { rerollQuest as rerollQuestHandler } from './quest-reroll';
+import { questRefreshTimer, restoreQuestRefreshSchedules, runQuestRefresh } from './quest-schedule';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -53,7 +54,7 @@ const playerAvatar = table(
 const AVATAR_MAX_DATA_URL_LENGTH = 150_000;
 
 const spacetimedb = schema({
-  player, playerAvatar, locations, discoveryCache, discoveryLimit, discoveryBudget,
+  player, playerAvatar, locations, discoveryCache, discoveryLimit, discoveryBudget, questRefreshTimer,
   questTemplates,
   playerQuestSlots,
   questCompletions,
@@ -252,6 +253,10 @@ export const completeQuest = spacetimedb.reducer(
 );
 
 export const refreshQuestSlots = spacetimedb.reducer(refreshQuestSlotsHandler);
+export const refreshScheduledQuest = spacetimedb.reducer(
+  { onSchedule: questRefreshTimer }, { timer: questRefreshTimer.rowType },
+  (ctx, { timer }) => runQuestRefresh(ctx, timer)
+);
 export const rerollQuest = spacetimedb.reducer({ slotIndex: t.u8(), expectedAssignedAt: t.timestamp() }, rerollQuestHandler);
 
 export const searchAdventureRegions = spacetimedb.procedure({ query: t.string() }, t.string(), (ctx, { query }) => searchRegions(ctx, query));
@@ -591,4 +596,5 @@ export const init = spacetimedb.init(ctx => {
 export const onConnect = spacetimedb.clientConnected(ctx => {
   // Existing databases do not rerun init on publish. Only fixed, missing samples are inserted.
   seedQuestTemplates(ctx);
+  restoreQuestRefreshSchedules(ctx);
 });

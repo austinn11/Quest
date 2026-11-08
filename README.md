@@ -3,6 +3,10 @@
 Quest turns real-world activities into fantasy RPG quests. Adventurers receive a personal six-slot Questboard and will earn XP as they complete its adventures.
 
 
+## Production deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Railway Docker/Caddy configuration, required public build variables, OAuth redirects, local production checks, and the separate manual Maincloud release. Nothing is deployed automatically. Run `npm run spacetime:check` before releasing; it currently reports the pending profile-avatar and offline-scheduler backend update.
+
 ## Prerequisites
 
 - Node.js 22.12+ within version 22, or Node.js 24+; npm is included.
@@ -78,7 +82,7 @@ The signed-in application uses React Router with a shared header and navigation:
 
 The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
 
-You can open or refresh any page directly. A signed-out deep link is restored after login, while the OAuth callback remains `/callback`. Vite supports these paths during development. Any future static hosting must rewrite application routes to `index.html` so deep-link refreshes work there too.
+You can open or refresh any page directly. A signed-out deep link is restored after login, while the OAuth callback remains `/callback`. Vite supports these paths during development. The production Caddyfile rewrites application routes to `index.html` while returning 404 for missing static assets.
 
 ## SpacetimeAuth and Google setup
 
@@ -232,7 +236,7 @@ Cooldown configuration is centralized in `spacetimedb/src/quest-config.ts`:
 
 `refreshQuestSlots()` takes no arguments. It uses the server timestamp to replace only the caller's expired Cooldown slots. Replacements use active templates of the fixed slot difficulty, exclude templates held by all other current slots, and prefer to avoid the completed template and most recent historical completion. Recent-history preferences can be relaxed when needed; simultaneous duplicates remain forbidden. An exhausted catalogue leaves the affected slot on Cooldown while other eligible slots can refresh. Replacement resets completion/refresh fields and stores a new assignment timestamp, preserving XP and all history.
 
-F09 uses lazy refresh, with no background scheduler. The frontend checks after initialization, on reconnect or revisiting the board, when the window regains focus, and when a countdown expires. **Check for new quests** provides a manual check. Unresolved expired slots retry at a 30-second interval to avoid request loops. Local countdowns are approximate displays and request triggers; changing the browser clock cannot bypass the server's cooldown check. A slot remains Cooldown until a server replacement arrives. Refreshes and re-login do not restart persisted cooldowns.
+The F16 code adds private native SpacetimeDB refresh timers so replacements execute even while players are offline; this backend change still needs manual publication. Browser-triggered refresh remains a recovery path. The frontend checks after initialization, on reconnect or revisiting the board, when the window regains focus, and when a countdown expires. **Check for new quests** provides a manual check. Unresolved expired slots retry at a 30-second interval to avoid request loops. Local countdowns are approximate displays and request triggers; changing the browser clock cannot bypass the server's cooldown check. A slot remains Cooldown until a server replacement arrives. Refreshes and re-login do not restart persisted cooldowns.
 
 For a manual demo, complete one Available quest and verify its XP on Profile and its dated entry in the Journal. Repeated clicks or re-login must preserve one reward and the original cooldown deadline. A second account's board and XP must remain unchanged. The automated datastore tests advance the server test clock to verify all cooldown boundaries without waiting for real hours; no test clock or time-bypass reducer is published.
 

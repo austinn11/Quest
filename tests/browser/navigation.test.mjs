@@ -94,6 +94,8 @@ test('all grouped links use existing routes, close after selection, and retain t
   for (const [label, route] of [['Home', '/'], ['World Map', '/map'], ['Profile', '/profile']]) {
     await page.getByRole('navigation').getByRole('link', { name: label, exact: true }).click();
     await page.waitForURL(url => url.pathname === route);
+    // History changes before React commits navigation state; wait for the active link.
+    await page.waitForFunction(route => document.querySelector('.app-nav-link[aria-current="page"]')?.getAttribute('href') === route, route);
     assert.equal(await page.locator('.app-nav-trigger.active').count(), 0);
   }
 });

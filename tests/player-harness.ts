@@ -220,6 +220,11 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
         for (const slot of ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)) ctx.db.playerQuestSlots.slotId.delete(slot.slotId);
       });
     },
+    timers: () => [...harness.db.questRefreshTimer.iter()],
+    runTimer(timer: Parameters<typeof module.refreshScheduledQuest>[1]['timer'], auth = TestAuth.internal()) {
+      return harness.withReducerTx(auth, ctx => module.refreshScheduledQuest(configuredContext(ctx), { timer }));
+    },
+    removeTimersForTest() { harness.withReducerTx(TestAuth.internal(), ctx => { for (const timer of ctx.db.questRefreshTimer.iter()) ctx.db.questRefreshTimer.scheduledId.delete(timer.scheduledId); }); },
     now: () => harness.clock.now(),
     advanceClock(micros: bigint) { harness.clock.set(new Timestamp(harness.clock.now().microsSinceUnixEpoch + micros)); },
     model,

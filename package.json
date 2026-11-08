@@ -14,7 +14,8 @@
     "spacetime:generate": "spacetime generate --lang typescript --out-dir src/module_bindings --module-path spacetimedb",
     "spacetime:check": "node scripts/check-backend.mjs",
     "spacetime:publish:local": "spacetime publish --module-path spacetimedb --server local",
-    "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud"
+    "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud",
+    "production:check": "node scripts/check-static.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^6.17.0",

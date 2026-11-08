@@ -482,6 +482,15 @@ export const QuestDifficulty = __t.enum("QuestDifficulty", {
 });
 export type QuestDifficulty = __Infer<typeof QuestDifficulty>;
 
+export const QuestRefreshTimer = __t.object("QuestRefreshTimer", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  slotId: __t.string(),
+  playerIdentity: __t.identity(),
+  expectedAssignedAt: __t.timestamp(),
+});
+export type QuestRefreshTimer = __Infer<typeof QuestRefreshTimer>;
+
 // The tagged union or sum type for the algebraic type `QuestSlotStatus`.
 export const QuestSlotStatus = __t.enum("QuestSlotStatus", {
   Available: __t.unit(),
