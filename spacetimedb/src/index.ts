@@ -5,7 +5,7 @@ import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile'
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
 import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
-import { DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL } from './quest-config';
+import { AI_REQUEST_TIMEOUT_MS, DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL, FALLBACK_AI_MODEL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
 import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
@@ -244,25 +244,31 @@ export const submitQuestPhoto = spacetimedb.procedure(
     if (!apiKey) {
       verdict = { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '', creature: '' };
     } else {
-      const model = ctx.env.AI_MODEL || DEFAULT_AI_MODEL;
+      // With the default provider, a busy or slow model falls back to a lighter one.
+      const models = ctx.env.AI_MODEL ? [ctx.env.AI_MODEL] : [DEFAULT_AI_MODEL, FALLBACK_AI_MODEL];
       const baseUrl = (ctx.env.AI_BASE_URL || DEFAULT_AI_BASE_URL).replace(/\/+$/, '');
-      const unavailable = { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '', creature: '' };
-      try {
-        const response = ctx.http.fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify(buildJudgeRequest(quest, image, model)),
-          timeout: TimeDuration.fromMillis(45_000),
-        });
-        if (response.status < 200 || response.status >= 300) {
-          console.warn(`AI judge returned HTTP ${response.status}: ${response.text().slice(0, 300)}`);
-          return unavailable;
+      let judged: JudgeVerdict | undefined;
+      for (const model of models) {
+        try {
+          const response = ctx.http.fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify(buildJudgeRequest(quest, image, model)),
+            timeout: TimeDuration.fromMillis(AI_REQUEST_TIMEOUT_MS),
+          });
+          if (response.status >= 200 && response.status < 300) {
+            judged = parseJudgeResponse(response.text());
+            break;
+          }
+          console.warn(`AI judge (${model}) returned HTTP ${response.status}: ${response.text().slice(0, 300)}`);
+          // Client errors such as a bad key or model will not improve with another model.
+          if (response.status !== 429 && response.status < 500) break;
+        } catch (error) {
+          console.warn(`AI judge (${model}) request failed: ${error instanceof Error ? error.message : String(error)}`);
         }
-        verdict = parseJudgeResponse(response.text());
-      } catch (error) {
-        console.warn(`AI judge request failed: ${error instanceof Error ? error.message : String(error)}`);
-        return unavailable;
       }
+      if (!judged) return { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '', creature: '' };
+      verdict = judged;
     }
     if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation, creature: verdict.creature };
     const accepted = verdict;

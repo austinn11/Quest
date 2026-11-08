@@ -25,6 +25,9 @@ export const PHOTO_MIN_SECONDS_BETWEEN_ATTEMPTS = 5;
 export const PHOTO_MAX_DATA_URL_LENGTH = 2_000_000;
 // Google Gemini's OpenAI-compatible endpoint. Override with AI_BASE_URL and AI_MODEL for another provider.
 export const DEFAULT_AI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
-export const DEFAULT_AI_MODEL = 'gemini-3.8-flash';
+// gemini-2.5-flash answered real-size photos in about 2 s; newer models were slower or returned 503 when busy.
+export const DEFAULT_AI_MODEL = 'gemini-2.5-flash';
+export const FALLBACK_AI_MODEL = 'gemini-3.1-flash-lite';
+export const AI_REQUEST_TIMEOUT_MS = 25_000;
 // Bestiary captures keep a smaller copy of the photo (about 640 px) in the player's private collection.
 export const CAPTURE_PHOTO_MAX_DATA_URL_LENGTH = 400_000;

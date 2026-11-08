@@ -39,7 +39,8 @@ export function buildJudgeRequest(quest: QuestTemplate, image: string, model: st
   return {
     model,
     temperature: 0,
-    max_tokens: 300,
+    // Thinking models spend hidden tokens before answering; a low cap truncates the JSON verdict.
+    max_tokens: 2048,
     messages: [
       { role: 'system', content: JUDGE_SYSTEM_PROMPT },
       { role: 'user', content: [

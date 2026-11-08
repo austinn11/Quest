@@ -260,7 +260,7 @@ Photos for other quests are not stored; Bestiary bounties keep one (see below). 
 | Variable | Meaning |
 | --- | --- |
 | `AI_API_KEY` | A Google Gemini API key. Without it, any valid photo is accepted with "AI check not configured" (local development). With it, the one-click `completeQuest` reducer is refused so the photo check cannot be skipped. |
-| `AI_MODEL` | Optional. Defaults to `gemini-3.8-flash`. `gemini-2.5-flash` answers faster (about 1 s instead of 5 s). |
+| `AI_MODEL` | Optional. Defaults to `gemini-2.5-flash` (about 2–3 s per photo), falling back to `gemini-3.1-flash-lite` when Google is busy. Setting it disables the fallback. |
 | `AI_BASE_URL` | Optional. Defaults to Gemini's OpenAI-compatible endpoint, `https://generativelanguage.googleapis.com/v1beta/openai`. Any OpenAI-compatible provider with vision models works with a matching `AI_MODEL`. |
 
 List the models your key can use, then publish with the key as a shell variable, which overrides `spacetime.json` and is not written to it:
