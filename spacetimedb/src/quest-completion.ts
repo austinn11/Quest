@@ -6,6 +6,8 @@ import { cooldownMicrosFor } from './quest-config';
 import { resolveQuest } from './quest-selection';
 import { recordGuildProgress } from './guild-quests';
 import { slotDifficulty, slotIdFor, validateNewCompletion, validateSlot, validateTemplate, type PlayerQuestSlot, type QuestCompletion, type QuestTemplate } from './quest-model';
+import { skillXpAfterReward } from '../../shared/progression';
+import { initializePlayerSkills } from './player-progression';
 
 type CompletionArgs = { slotIndex: number; expectedAssignedAt: Timestamp };
 
@@ -13,8 +15,9 @@ type CompletionArgs = { slotIndex: number; expectedAssignedAt: Timestamp };
 export function prepareCompletion(ctx: Ctx, { slotIndex, expectedAssignedAt }: CompletionArgs) {
   const authError = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
   if (authError) throw new SenderError(authError);
-  const player = ctx.db.player.identity.find(ctx.sender);
-  if (!player) throw new SenderError('Create your player profile before completing a quest.');
+  const existing = ctx.db.player.identity.find(ctx.sender);
+  if (!existing) throw new SenderError('Create your player profile before completing a quest.');
+  const player = initializePlayerSkills(ctx, existing);
   if (!slotDifficulty(slotIndex)) throw new SenderError('Slot index must be an integer from 0 to 5.');
   const slot = ctx.db.playerQuestSlots.slotId.find(slotIdFor(ctx.sender, slotIndex));
   if (!slot || !slot.playerIdentity.equals(ctx.sender) || slot.slotIndex !== slotIndex) {
@@ -29,13 +32,14 @@ export function prepareCompletion(ctx: Ctx, { slotIndex, expectedAssignedAt }: C
   if (!template) throw new SenderError('The assigned quest template is unavailable.');
   const templateError = validateTemplate(template);
   if (templateError) throw new SenderError(templateError);
-  const xp = player.xp + template.xpReward;
-  if (!Number.isSafeInteger(xp) || xp > 0xffff_ffff) throw new SenderError('Your XP total cannot receive this reward.');
-  return { player, slot, template, xp };
+  let skills;
+  try { skills = skillXpAfterReward(player, template.category.tag, template.xpReward); }
+  catch { throw new SenderError('Your XP total cannot receive this reward.'); }
+  return { player, slot, template, skills };
 }
 
 export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: string): { template: QuestTemplate; completion: QuestCompletion } {
-  const { player, slot, template, xp } = prepareCompletion(ctx, args);
+  const { player, slot, template, skills } = prepareCompletion(ctx, args);
   const completedSlot: PlayerQuestSlot = {
     ...slot,
     status: { tag: 'Cooldown' },
@@ -55,7 +59,7 @@ export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: stri
 
   // These writes commit together. A duplicate invocation sees Cooldown and awards nothing.
   const inserted = ctx.db.questCompletions.insert(completion);
-  ctx.db.player.identity.update({ ...player, xp });
+  ctx.db.player.identity.update({ ...player, explorationXp: skills.explorationXp, bestiaryXp: skills.bestiaryXp, craftingXp: skills.craftingXp });
   ctx.db.playerQuestSlots.slotId.update(completedSlot);
   // The same transaction advances the player's guild quests and pays any guild reward once.
   recordGuildProgress(ctx, template, template.xpReward);

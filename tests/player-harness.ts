@@ -175,12 +175,22 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     templateVisibility: module.default.schemaType.tables.questTemplates.tableDef.tableAccess.tag,
     slotVisibility: module.default.schemaType.tables.playerQuestSlots.tableDef.tableAccess.tag,
     completionVisibility: module.default.schemaType.tables.questCompletions.tableDef.tableAccess.tag,
-    // Simulate XP awarded by a future trusted gameplay reducer, then reconnect.
+    // Test-only progression fixtures; no player-callable XP setter exists.
     awardXp(auth: ReturnType<typeof TestAuth.fromJwtPayload>, xp: number) {
       harness.withReducerTx(auth, ctx => {
         const row = ctx.db.player.identity.find(ctx.sender)!;
-        ctx.db.player.identity.update({ ...row, xp });
+        ctx.db.player.identity.update({ ...row, explorationXp: xp, bestiaryXp: 0, craftingXp: 0 });
       });
+    },
+    storedPlayer(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return harness.db.player.identity.find(harness.viewContext(auth).sender); },
+    patchPlayerForTest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, changes: Record<string, unknown>) {
+      harness.withReducerTx(auth, ctx => {
+        const row = ctx.db.player.identity.find(ctx.sender)!;
+        ctx.db.player.identity.update({ ...row, ...changes });
+      });
+    },
+    removeTemplateForTest(templateId: string) {
+      harness.withReducerTx(TestAuth.internal(), ctx => { ctx.db.questTemplates.templateId.delete(templateId); });
     },
     rowCount: () => Number(harness.db.player.count()),
     playerVisibility: module.default.schemaType.tables.player.tableDef.tableAccess.tag,

@@ -7,10 +7,11 @@ import { AppRoutes } from '../src/App';
 import { DbConnection } from '../src/module_bindings';
 import { PlayerContext } from '../src/player/PlayerProvider';
 import { QuestboardContext, type QuestboardState } from '../src/questboard/QuestboardProvider';
-import { levelForXp } from '../shared/progression';
+import { getTotalPlayerXp, levelForXp, type SkillXp } from '../shared/progression';
 import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, guildState: Partial<GuildState> = {}) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}) {
+  xp = getTotalPlayerXp(skills);
   const guild: GuildState = {
     guild: null, members: [], directory: [], quests: [], ready: true, refreshGuildQuests: async () => {},
     createGuild: async () => {}, joinOpenGuild: async () => {}, joinGuildByCode: async () => {}, leaveGuild: async () => {}, setGuildOpen: async () => {},
@@ -28,7 +29,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
         <SpacetimeDBProvider connectionBuilder={DbConnection.builder().withUri('http://localhost:3000').withDatabaseName('test')}>
           <PlayerContext.Provider value={{
-            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH },
+            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH, ...skills, progressionReady: true },
             ready: true,
             error: null,
             retry: () => {},

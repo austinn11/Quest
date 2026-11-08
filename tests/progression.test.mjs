@@ -1,6 +1,57 @@
 import assert from 'node:assert/strict';
+import { getSkillTitle, getTotalPlayerXp, skillProgressionForXp, skillXpAfterReward, progressionUpdateBetween } from '../shared/progression.ts';
 import test from 'node:test';
 import { MAX_TOTAL_XP, levelForXp, levelUpBetween, progressionForXp, totalXpForLevel, xpRequiredForNextLevel } from '../shared/progression.ts';
+
+test('skills award one category, sum their total, and reject invalid counters or overflow', () => {
+  const zero = { explorationXp: 0, bestiaryXp: 0, craftingXp: 0 };
+  for (const [category, key] of [['Exploration', 'explorationXp'], ['Bestiary', 'bestiaryXp'], ['Crafting', 'craftingXp']]) {
+    const result = skillXpAfterReward(zero, category, 50);
+    assert.deepEqual(result, { ...zero, [key]: 50 });
+    assert.equal(getTotalPlayerXp(result), 50);
+  }
+  assert.equal(getTotalPlayerXp({ explorationXp: 200, bestiaryXp: 300, craftingXp: 400 }), 900);
+  assert.throws(() => skillXpAfterReward(zero, 'Fitness', 50));
+  for (const value of [-1, NaN, Infinity, 1.5]) assert.throws(() => getTotalPlayerXp({ ...zero, craftingXp: value }));
+  assert.throws(() => getTotalPlayerXp({ ...zero, explorationXp: MAX_TOTAL_XP, craftingXp: 1 }));
+});
+
+test('every skill title is correct at all fifty levels and rejects invalid levels', () => {
+  const ranges = [[1, 4, 'Beginner'], [5, 9, 'Novice'], [10, 14, 'Apprentice'], [15, 19, 'Adept'], [20, 24, 'Journeyman'], [25, 29, 'Expert'], [30, 34, 'Veteran'], [35, 39, 'Master'], [40, 44, 'Grandmaster'], [45, 49, 'Legendary'], [50, 50, 'Mythic']];
+  for (const [start, end, title] of ranges) for (let level = start; level <= end; level++) assert.equal(getSkillTitle(level), title);
+  for (const level of [0, 51, 1.5, NaN, Infinity]) assert.throws(() => getSkillTitle(level));
+});
+
+test('skills cap at fifty with a full bar and no level fifty-one requirement while total continues', () => {
+  const cap = totalXpForLevel(50);
+  assert.equal(cap, 127400);
+  assert.equal(skillProgressionForXp(cap - 1).level, 49);
+  for (const xp of [cap, cap + 1, cap + 50000, MAX_TOTAL_XP]) {
+    const skill = skillProgressionForXp(xp);
+    assert.equal(skill.level, 50);
+    assert.equal(skill.title, 'Mythic');
+    assert.equal(skill.totalXp, xp);
+    assert.equal(skill.progressPercent, 100);
+    assert.equal(skill.nextLevel, null);
+    assert.equal(skill.nextLevelXp, null);
+    assert.equal(skill.xpRemaining, 0);
+  }
+  assert.ok(levelForXp(cap + 50000) > 50);
+});
+
+test('progression feedback handles skill and overall level jumps, title unlocks and capped gains', () => {
+  const before = { explorationXp: 199, bestiaryXp: 0, craftingXp: 0 };
+  const update = progressionUpdateBetween(before, { ...before, explorationXp: 1599 });
+  assert.equal(update.xpGained, 1400);
+  assert.deepEqual(update.adventurer, { fromLevel: 1, toLevel: 5, levelsGained: 4 });
+  assert.deepEqual(update.skills, [{ category: 'Exploration', xpGained: 1400, fromLevel: 1, toLevel: 5, newTitle: 'Novice' }]);
+  assert.equal(progressionUpdateBetween(before, before), null);
+  assert.equal(progressionUpdateBetween(before, { ...before, explorationXp: 0 }), null);
+  const capped = { explorationXp: totalXpForLevel(50), bestiaryXp: 0, craftingXp: 0 };
+  const gain = progressionUpdateBetween(capped, { ...capped, explorationXp: capped.explorationXp + 200 });
+  assert.equal(gain.skills[0].toLevel, 50);
+  assert.equal(gain.skills[0].newTitle, null);
+});
 
 test('progression follows both supplied cumulative and per-level formulas', () => {
   for (const [level, threshold, required] of [[1, 0, 200], [2, 200, 300], [3, 500, 400], [4, 900, 500], [5, 1400, 600], [10, 5400, 1100]]) {

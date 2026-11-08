@@ -3,6 +3,7 @@ import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
 import { Timestamp } from 'spacetimedb';
 import { postLoginPath } from '../src/auth/return-path.ts';
+import { totalXpForLevel } from '../shared/progression.ts';
 
 let server;
 let renderPage;
@@ -51,6 +52,30 @@ test('profile route retains the username editor and progression display', () => 
   assert.ok(html.includes('Edit username'));
   assert.ok(html.includes('Total XP'));
   assert.ok(html.includes('150'));
+});
+
+test('profile displays independently derived skill titles, XP and accessible progress', () => {
+  const html = renderPage('/profile', {}, 0, { explorationXp: 199, bestiaryXp: 200, craftingXp: 1400 });
+  assert.ok(html.includes('<dt>Total XP</dt><dd>1,799</dd>'));
+  for (const [name, level, title, xp] of [['Exploration', 1, 'Beginner', '199'], ['Bestiary', 2, 'Beginner', '200'], ['Crafting', 5, 'Novice', '1,400']]) {
+    const card = html.match(new RegExp(`<article[^>]*aria-label="${name} progression"[\\s\\S]*?<\\/article>`))?.[0];
+    assert.ok(card);
+    assert.ok(card.includes(`Level ${level}`));
+    assert.ok(card.includes(title));
+    assert.ok(card.includes(`${xp} XP`));
+    assert.ok(card.includes('role="progressbar"'));
+  }
+});
+
+test('maximum skill progression shows Mythic and a full bar without a level 51 requirement', () => {
+  const html = renderPage('/profile', {}, 0, { explorationXp: totalXpForLevel(50) + 50000, bestiaryXp: 0, craftingXp: 0 });
+  const card = html.match(/<article[^>]*aria-label="Exploration progression"[\s\S]*?<\/article>/)?.[0];
+  assert.ok(card.includes('Level 50'));
+  assert.ok(card.includes('Mythic'));
+  assert.ok(card.includes('Maximum level reached'));
+  assert.ok(card.includes('aria-valuemax="100" aria-valuenow="100"'));
+  assert.ok(card.includes('width:100%'));
+  assert.ok(!card.includes('level 51'));
 });
 
 test('Profile, Dashboard and Questboard show identical XP-derived level and next-level progress', () => {
@@ -386,7 +411,7 @@ test('without a guild, the Guild page offers invite codes, founding, and the ope
     { guildId: 1n, name: 'Owl Watch', motto: 'Eyes open.', crest: 'dusk', isOpen: true, memberCount: 3, totalXp: 900n, foundedAt: new Timestamp(1n) },
     { guildId: 2n, name: 'Fox Den', motto: '', crest: 'ember', isOpen: false, memberCount: 1, totalXp: 2000n, foundedAt: new Timestamp(1n) },
   ];
-  const html = renderPage('/guild', {}, 150, { directory });
+  const html = renderPage('/guild', {}, 150, undefined, { directory });
   assert.ok(html.includes('<h1>Guild</h1>'));
   assert.ok(html.includes('Join with an invite code'));
   assert.ok(html.includes('Found a guild'));
@@ -394,7 +419,7 @@ test('without a guild, the Guild page offers invite codes, founding, and the ope
   assert.ok(html.includes('3 members · 900 XP'));
   assert.equal((html.match(/>Join<\/button>/g) ?? []).length, 1, 'only open guilds can be joined from the directory');
   assert.ok(html.includes('Invite only'));
-  assert.ok(renderPage('/guild', {}, 150, { ready: false }).includes('Opening the guild hall...'));
+  assert.ok(renderPage('/guild', {}, 150, undefined, { ready: false }).includes('Opening the guild hall...'));
 });
 
 test('members see their guild, invite code, and roster with the leader first', () => {
@@ -403,7 +428,7 @@ test('members see their guild, invite code, and roster with the leader first', (
     { memberId: 'b', name: 'Bob', xp: 750, level: 3, role: 'Member', joinedAt: new Timestamp(2n), isYou: false },
     { memberId: 'a', name: 'Alice', xp: 350, level: 2, role: 'Leader', joinedAt: new Timestamp(1n), isYou: true },
   ];
-  const html = renderPage('/guild', {}, 150, { guild, members });
+  const html = renderPage('/guild', {}, 150, undefined, { guild, members });
   assert.ok(html.includes('The Wandering Owls</h2>'));
   assert.ok(html.includes('<span class="guild-crest crest-dusk crest-lg" aria-hidden="true">WO</span>'));
   assert.ok(html.includes('<code class="guild-code">K7Q2MX</code>'));
@@ -411,7 +436,7 @@ test('members see their guild, invite code, and roster with the leader first', (
   assert.ok(html.includes('Make the guild invite only'));
   assert.ok(html.includes('Leave guild'));
   assert.ok(!html.includes('Found a guild'));
-  const member = renderPage('/guild', {}, 150, { guild: { ...guild, role: 'Member' }, members });
+  const member = renderPage('/guild', {}, 150, undefined, { guild: { ...guild, role: 'Member' }, members });
   assert.ok(!member.includes('Make the guild invite only'));
 });
 
@@ -422,7 +447,7 @@ test('guild members see shared guild quests with progress, their share and rewar
     { guildQuestId: 1n, kind: 'Bestiary', title: 'The Great Hunt', description: 'Claim 5 Bestiary bounties as a guild.', target: 5, progress: 2, rewardXp: 100, startedAt: new Timestamp(1n), endsAt: far, completedAt: undefined, yourContribution: 1, contributors: 2 },
     { guildQuestId: 2n, kind: 'Experience', title: 'Strength in Numbers', description: 'Earn 450 quest XP together this week.', target: 450, progress: 450, rewardXp: 150, startedAt: new Timestamp(1n), endsAt: far, completedAt: new Timestamp(2n), yourContribution: 200, contributors: 2 },
   ];
-  const html = renderPage('/guild', {}, 150, { guild, quests });
+  const html = renderPage('/guild', {}, 150, undefined, { guild, quests });
   assert.ok(html.includes('Guild quests'));
   assert.ok(html.includes('The Great Hunt'));
   assert.ok(html.includes('2 / 5'));
@@ -432,5 +457,5 @@ test('guild members see shared guild quests with progress, their share and rewar
   assert.ok(html.includes('+150 XP paid to 2 members'));
   assert.ok(html.includes('Completed'));
   assert.match(html, /\d days? left/);
-  assert.ok(renderPage('/guild', {}, 150, { guild, quests: [] }).includes('Posting this week'));
+  assert.ok(renderPage('/guild', {}, 150, undefined, { guild, quests: [] }).includes('Posting this week'));
 });

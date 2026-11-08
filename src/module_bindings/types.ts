@@ -216,6 +216,10 @@ export const Player = __t.object("Player", {
   createdAt: __t.timestamp(),
   username: __t.string(),
   usernameKey: __t.string(),
+  explorationXp: __t.u32(),
+  bestiaryXp: __t.u32(),
+  craftingXp: __t.u32(),
+  progressionReady: __t.bool(),
 });
 export type Player = __Infer<typeof Player>;
 
@@ -240,6 +244,10 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   createdAt: __t.timestamp(),
   username: __t.string(),
   level: __t.u32(),
+  explorationXp: __t.u32(),
+  bestiaryXp: __t.u32(),
+  craftingXp: __t.u32(),
+  progressionReady: __t.bool(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
 
