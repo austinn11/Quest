@@ -50,6 +50,12 @@ export function CategoryIcon({ category, className }: { category: string; classN
   return <FootprintsIcon className={className} />;
 }
 
+export function SkillIcon({ skill }: { skill: string }) {
+  if (skill === 'Crafting') return <HammerIcon className="icon-lg" />;
+  if (skill === 'Bestiary') return <Icon className="icon-lg"><ellipse cx="7" cy="7" rx="2" ry="3" /><ellipse cx="17" cy="7" rx="2" ry="3" /><ellipse cx="3" cy="12" rx="1.5" ry="2.5" /><ellipse cx="21" cy="12" rx="1.5" ry="2.5" /><path d="M6 19c0-3 3-7 6-7s6 4 6 7c0 2-3 2-6 1-3 1-6 1-6-1Z" /></Icon>;
+  return <Icon className="icon-lg"><circle cx="12" cy="12" r="9" /><path d="m16 8-2 6-6 2 2-6Z" /></Icon>;
+}
+
 export function CameraIcon(props: IconProps) {
   return <Icon {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></Icon>;
 }

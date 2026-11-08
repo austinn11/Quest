@@ -10,6 +10,8 @@ import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
 import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
 import { mostRecentCompletionTemplate, selectQuestTemplate } from './quest-selection';
+import { getTotalPlayerXp } from '../../shared/progression';
+import { initializePlayerSkills } from './player-progression';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -17,11 +19,15 @@ const player = table(
   {
     identity: t.identity().primaryKey(),
     displayName: t.string(),
-    xp: t.u32(),
+    xp: t.u32(), // Frozen legacy audit value; rewards now update skill counters only.
     createdAt: t.timestamp(),
     // Appended defaults preserve profiles created before username setup existed.
     username: t.string().default(''),
     usernameKey: t.string().index('btree').default(''),
+    explorationXp: t.u32().default(0),
+    bestiaryXp: t.u32().default(0),
+    craftingXp: t.u32().default(0),
+    progressionReady: t.bool().default(false),
   }
 );
 
@@ -104,6 +110,10 @@ const playerProfile = t.row('PlayerProfile', {
   createdAt: t.timestamp(),
   username: t.string(),
   level: t.u32(),
+  explorationXp: t.u32(),
+  bestiaryXp: t.u32(),
+  craftingXp: t.u32(),
+  progressionReady: t.bool(),
 });
 
 export const myPlayer = spacetimedb.view(
@@ -115,10 +125,14 @@ export const myPlayer = spacetimedb.view(
     return {
       identity: row.identity,
       displayName: row.displayName,
-      xp: row.xp,
+      xp: getTotalPlayerXp(row),
       createdAt: row.createdAt,
       username: row.username,
-      level: levelForXp(row.xp),
+      level: levelForXp(getTotalPlayerXp(row)),
+      explorationXp: row.explorationXp,
+      bestiaryXp: row.bestiaryXp,
+      craftingXp: row.craftingXp,
+      progressionReady: row.progressionReady,
     };
   }
 );
@@ -126,7 +140,8 @@ export const myPlayer = spacetimedb.view(
 export const ensurePlayer = spacetimedb.reducer(ctx => {
   const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
   if (error) throw new SenderError(error);
-  if (ctx.db.player.identity.find(ctx.sender)) return;
+  const existing = ctx.db.player.identity.find(ctx.sender);
+  if (existing) { initializePlayerSkills(ctx, existing); return; }
 
   const claims = ctx.senderAuth.jwt!.fullPayload;
   const name = claims.name ?? claims.preferred_username;
@@ -137,6 +152,7 @@ export const ensurePlayer = spacetimedb.reducer(ctx => {
     createdAt: ctx.timestamp,
     username: '',
     usernameKey: '',
+    explorationXp: 0, bestiaryXp: 0, craftingXp: 0, progressionReady: true,
   });
 });
 
@@ -272,7 +288,7 @@ export const submitQuestPhoto = spacetimedb.procedure(
     } catch (error) {
       return refusal(error);
     }
-    const message = quest.category.tag === 'Bestiary' ? `Bounty claimed! +${quest.xpReward} XP` : `Quest complete! +${quest.xpReward} XP`;
+    const message = `${quest.category.tag === 'Bestiary' ? 'Bounty claimed!' : 'Quest complete!'} +${quest.xpReward} ${quest.category.tag} XP (+${quest.xpReward} total XP).`;
     return { accepted: true, message, observation: verdict.observation, creature: verdict.creature || (quest.category.tag === 'Bestiary' ? quest.bountyTarget ?? '' : '') };
   }
 );

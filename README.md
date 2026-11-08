@@ -114,7 +114,7 @@ Database owners retain administrative access to private tables.
 
 ### Adventurer profiles (F03)
 
-On the first authenticated connection, the app creates a private player record. The profile shows your username, total XP, derived level, next-level progress, join date, and account ID. The existing `xp` column holds authoritative cumulative XP; level and progress use the F10 curve below and are never stored as independent player state.
+On the first authenticated connection, the app creates a private player record. The profile shows your username, combined XP, Adventurer level, three skill progressions, join date, and account ID. The authoritative counters are `exploration_xp`, `bestiary_xp`, and `crafting_xp`. Overall XP is always their sum; levels and titles are derived.
 
 Choose an adventurer username in the profile, then use **Edit username** to change it. Usernames use 3 to 24 ASCII letters, numbers, or underscores. Capitalization is preserved for display, but uniqueness is checked without regard to case. A rename releases the old name. Duplicate or invalid names are rejected by the server without changing the saved profile.
 
@@ -134,9 +134,21 @@ To check F03 in the browser, choose a name, refresh, edit it, and sign out/back 
 | 4 | 900 | 500 |
 | 5 | 1,400 | 600 |
 
-The server's private player view derives level from saved total XP. Profile, Dashboard, and Questboard all use the same shared helper and reusable progress display, showing current level, total XP, remaining XP, and XP earned within the current level. For example, 350 total XP means level 2 with 150/300 XP toward level 3 and 150 XP remaining. No client-side reward or progression mutation is added.
+The server's private player view derives overall XP from the three skill counters and derives the Adventurer level from that sum. Profile, Dashboard, and Questboard use the same shared helpers. Each skill uses the same curve and caps its displayed level at 50; XP keeps accumulating and the Adventurer level continues beyond 50. The existing combined u32 XP limit (4,294,967,295) remains enforced transactionally to prevent overflow.
 
-A single notice in the application layout observes authoritative profile subscription updates and announces any level gains, including multiple levels in one update. Initial loading, page refreshes, username changes, and switching accounts do not replay past level-ups. Notifications dismiss automatically or manually, and animations respect reduced-motion preferences. Reconnects and refreshes preserve progression because total XP remains in SpacetimeDB. Applying F10 preserves XP and recalculates existing players' derived levels using the new curve.
+A single notice observes authoritative profile subscription updates and announces skill XP, combined XP, Adventurer level gains, skill level gains, and title unlocks. Multiple gains in one update are handled together. Initial loading, page refreshes, username changes, and switching accounts do not replay past rewards. Notices dismiss automatically or manually and respect reduced-motion preferences. Level and title unlocks never award additional XP.
+
+Skills use these shared, derived titles: levels 1–4 Beginner, 5–9 Novice, 10–14 Apprentice, 15–19 Adept, 20–24 Journeyman, 25–29 Expert, 30–34 Veteran, 35–39 Master, 40–44 Grandmaster, 45–49 Legendary, and 50 Mythic. A level-50 skill has a full progress bar and no level-51 requirement.
+
+### Existing-player migration
+
+Four columns are appended with migration-safe defaults: the three skill counters and the internal `progression_ready` flag. The original `xp` column is retained unchanged as an audit value; it is no longer updated by completion. The `xp` field returned by `my_player` is a derived sum, not that legacy column.
+
+On the next authenticated `ensurePlayer` call (or completion), the server sums each historical completion's actual `xp_awarded` into the category of its preserved public or owner-private template. It commits this split once only when its sum exactly equals the old `xp` value. Zero-XP accounts migrate with no completions. Identity, username, timestamps, quest assignments, cooldowns, photos, and history are preserved. New accounts start with three zero counters and are already marked ready.
+
+Historical categories were not snapshotted in older completion rows. Migration therefore relies on the preserved template category; the application does not provide an API to change those categories. If a template is missing or historical rewards do not reconcile with the legacy total, the server leaves the original record untouched, reports that review is required, and blocks progression awards for that account. The UI waits for a successful migration rather than showing a guessed or reset total. An administrator must resolve the discrepancy using evidence; there is no automatic arbitrary redistribution.
+
+This changes the private player schema and `my_player` wire layout. Regenerate bindings and publish the matching backend before reloading the frontend. Keep database deletion disabled; existing clients need to reconnect with the new bindings.
 
 Tests cover every reachable u32 level threshold immediately before, at, and after it, current-level progress, multiple-level gains, invalid inputs, persistent server profiles, and consistent displays across all three pages.
 

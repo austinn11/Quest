@@ -264,6 +264,19 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .journal-entry .quest-meta { margin-top: .25rem; color: var(--muted-foreground); }
 
 /* Profile */
+.skills-section { margin-top: 3rem; }
+.skills-section > h2 { margin-bottom: 1.25rem; font-size: 1.4rem; letter-spacing: -.025em; }
+.skill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.skill-card { min-width: 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.skill-heading { display: flex; align-items: center; gap: .6rem; }
+.skill-heading h3 { font-size: .9rem; }
+.skill-heading > .icon { color: var(--primary); }
+.skill-level { margin-left: auto; white-space: nowrap; font-family: var(--font-mono); font-size: .65rem; }
+.skill-title { color: var(--muted-foreground); font-size: .85rem; }
+.skill-total { margin-top: 1.25rem; font-family: var(--font-mono); font-size: 1.15rem; }
+.skill-next { font-size: .75rem; color: var(--muted-foreground); }
+.skill-gain + .skill-gain { margin-top: .75rem; }
+@media (max-width: 800px) { .skill-grid { grid-template-columns: minmax(0, 1fr); } }
 .profile-identity { padding-block: 1.5rem; border-block: 1px solid var(--border); }
 .profile-name { font-size: 1.65rem; font-weight: 400; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .profile-identity p { color: var(--muted-foreground); font-size: .85rem; }

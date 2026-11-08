@@ -30,7 +30,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isActive, ensurePlayer, attempt]);
 
   return (
-    <PlayerContext.Provider value={{ player: players[0], ready: isActive && profileReady, error, retry: () => setAttempt(value => value + 1) }}>
+    <PlayerContext.Provider value={{ player: players[0], ready: isActive && profileReady && !!players[0]?.progressionReady, error, retry: () => setAttempt(value => value + 1) }}>
       {children}
     </PlayerContext.Provider>
   );

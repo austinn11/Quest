@@ -1,11 +1,11 @@
-import { progressionForXp } from '../../shared/progression';
+import { getTotalPlayerXp, progressionForXp } from '../../shared/progression';
 import { usePlayer } from './PlayerProvider';
 
 export function PlayerProgress() {
   const { player, ready, error } = usePlayer();
   if (error) return <p className="field-help">Progression is unavailable until your player profile loads.</p>;
   if (!ready || !player) return <p role="status">Loading your progression...</p>;
-  const progress = progressionForXp(player.xp);
+  const progress = progressionForXp(getTotalPlayerXp(player));
   return (
     <div className="player-progression" aria-label="Player progression">
       <dl className="progression-stats">

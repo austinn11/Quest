@@ -2,6 +2,7 @@ import { usePlayer } from '../player/PlayerProvider';
 import { UsernameEditor } from './UsernameEditor';
 import { PlayerProgress } from '../player/PlayerProgress';
 import { useQuestboard } from '../questboard/QuestboardProvider';
+import { SkillProgress } from '../player/SkillProgress';
 
 export function PlayerAccount() {
   const { player, ready, error: profileError, retry } = usePlayer();
@@ -28,6 +29,7 @@ export function PlayerAccount() {
       <section className="profile-name-editor" aria-label="Your name">
         <UsernameEditor username={player.username} disabled={!ready} />
       </section>
+      <SkillProgress />
       <section className="level-section" aria-label="Adventurer progression"><PlayerProgress /></section>
       <details className="account-details">
         <summary>Account details</summary>
