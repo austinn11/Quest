@@ -20,8 +20,10 @@ export function QuestAreaNotice() {
       {status.kind === 'ready' && (
         <>
           <span className="area-notice-text">{status.message}</span>
-          <button type="button" className="link-button" onClick={location.disable}>Stop using my location</button>
         </>
+      )}
+      {(status.kind === 'locating' || status.kind === 'scouting' || status.kind === 'ready' || status.kind === 'error') && (
+        <button type="button" className="link-button" onClick={location.disable}>Stop using my location</button>
       )}
       {status.kind === 'error' && (
         <>

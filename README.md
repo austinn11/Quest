@@ -332,6 +332,10 @@ Restart Vite after changing environment values. Local and Maincloud databases ha
 
 ## Validation
 
+After switching branches or publishing a backend, run `npm run spacetime:check` while online. It uses the frontend's configured host/database and generated bindings to exercise the real profile and quest subscriptions with a fresh anonymous identity. It checks that private views return no other player's data; it does not sign in as a player or call reducers. Connection lifecycle hooks still run as they do for any client.
+
+The check exits unsuccessfully for a missing view, incompatible row layout, or connection failure. A local build alone cannot detect an outdated Maincloud deployment. Keep the backend, generated bindings, and frontend on compatible versions; generating bindings does not publish a database update. Never delete database data to fix a branch mismatch.
+
 ```powershell
 npm test
 npm run typecheck

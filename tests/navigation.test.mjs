@@ -295,6 +295,16 @@ test('nearby quests are opt-in and each notice says what photo proves it', () =>
   assert.ok(!located.includes('Find quests near me'));
 });
 
+test('location use can be stopped while finding places or recovering from an error', () => {
+  for (const kind of ['locating', 'scouting', 'error']) {
+    const html = renderPage('/questboard', {
+      ready: true,
+      location: { status: { kind, message: 'Lookup failed' }, enable() {}, disable() {}, retry() {} },
+    });
+    assert.ok(html.includes('Stop using my location'), `${kind} must allow cancellation`);
+  }
+});
+
 test('the journal shows what the AI judge saw in an accepted photo', () => {
   const completions = [{ completionId: 1n, templateId: 'local-000000000001', slotIndex: 0, xpAwarded: 50, completedAt: new Timestamp(1000000n), proofNote: 'A grackle on a fence' }];
   const templates = [{ templateId: 'local-000000000001', title: 'Wildlife of Duck Pond', description: 'Photograph a bird.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50 }];

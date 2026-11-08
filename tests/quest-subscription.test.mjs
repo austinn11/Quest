@@ -57,6 +57,41 @@ function setup({ failSubscribe = false } = {}) {
   };
 }
 
+test('stalled initial sync reports a retryable timeout and can still recover on late application', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const state = setup();
+  t.after(state.cleanup);
+  t.mock.timers.tick(19_999);
+  assert.deepEqual(state.received.errors, []);
+  t.mock.timers.tick(1);
+  assert.match(state.received.errors[0], /did not finish syncing/);
+  state.apply();
+  assert.equal(state.received.applied.length, 1);
+});
+
+test('successful application, failure, and cleanup cancel the initial-sync watchdog', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const success = setup();
+  const failed = setup();
+  const stopped = setup();
+  t.after(() => { success.cleanup(); failed.cleanup(); stopped.cleanup(); });
+  success.apply();
+  failed.error('View unavailable');
+  stopped.cleanup();
+  t.mock.timers.tick(30_000);
+  assert.deepEqual(success.received.errors, []);
+  assert.deepEqual(failed.received.errors, ['View unavailable']);
+  assert.deepEqual(stopped.received.errors, []);
+});
+
+test('missing deployed views identify a branch/backend mismatch', () => {
+  const state = setup();
+  state.error('no such table: `my_creature_captures`');
+  assert.match(state.received.errors[0], /requires a database update/);
+  assert.match(state.received.errors[0], /my_creature_captures/);
+  state.cleanup();
+});
+
 test('quest subscription reads only the public catalogue and caller-bound views, and waits for application', () => {
   const state = setup();
   assert.deepEqual(state.querySql, ['SELECT * FROM "my_quest_slots"', 'SELECT * FROM "quest_templates"', 'SELECT * FROM "my_quest_completions"', 'SELECT * FROM "my_local_quests"', 'SELECT * FROM "my_quest_area"', 'SELECT * FROM "my_creature_captures"']);
