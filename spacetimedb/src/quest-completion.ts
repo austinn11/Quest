@@ -52,6 +52,8 @@ export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: stri
   const completion: QuestCompletion = {
     completionId: 0n, playerIdentity: ctx.sender, templateId: template.templateId,
     slotIndex: args.slotIndex, xpAwarded: template.xpReward, completedAt: ctx.timestamp,
+    locationId: slot.locationId, questTitle: template.title, questObjective: template.description,
+    locationName: template.locationName, latitude: template.latitude, longitude: template.longitude,
     proofNote: proofNote?.trim() ? proofNote.trim().slice(0, 200) : undefined,
   };
   const completionError = validateNewCompletion(completion, completedSlot, template);

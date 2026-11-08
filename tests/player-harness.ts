@@ -4,7 +4,9 @@ import * as module from '../spacetimedb/src/index';
 import * as model from '../spacetimedb/src/quest-model';
 import * as questArea from '../spacetimedb/src/quest-area';
 import * as social from '../spacetimedb/src/social';
-import type { PlaceInput } from '../shared/nearby-places';
+import { sanitizePlaces, type PlaceInput } from '../shared/nearby-places';
+import { searchRegions, discoverRegion, saveRegion } from '../spacetimedb/src/adventure-region';
+import { resolveQuest } from '../spacetimedb/src/quest-selection';
 
 const clientId = 'quest-test-client';
 let nextConnection = 1n;
@@ -35,18 +37,41 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     initialize(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return harness.withReducerTx(auth, ctx => module.initializeQuestboard(configuredContext(ctx)));
     },
+    reroll(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
+      return harness.withReducerTx(auth, ctx => module.rerollQuest(configuredContext(ctx), {
+        slotIndex,
+        expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
+      }));
+    },
     complete(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
       return harness.withReducerTx(auth, ctx => module.completeQuest(configuredContext(ctx), {
         slotIndex,
         expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
       }));
     },
-    checkArea(auth: ReturnType<typeof TestAuth.fromJwtPayload>, latitude: number, longitude: number) {
-      return harness.withReducerTx(auth, ctx => questArea.checkQuestArea(configuredContext(ctx), latitude, longitude));
+    discover(auth: ReturnType<typeof TestAuth.fromJwtPayload>, args: Parameters<typeof discoverRegion>[1], responder: Parameters<ReturnType<typeof harness.procedureContextBuilder>['http']>[0]) {
+      return discoverRegion(new Proxy(harness.procedureContextBuilder(auth).http(responder).build(), {
+        get(target, key) {
+          if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
+          if (key === 'withTx') return <T>(fn: (ctx: Parameters<typeof module.ensurePlayer>[0]) => T) => target.withTx(tx => fn(configuredContext(tx)));
+          const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }), args);
     },
-    applyArea(auth: ReturnType<typeof TestAuth.fromJwtPayload>, latitude: number, longitude: number, places: PlaceInput[]) {
-      return harness.withReducerTx(auth, ctx => questArea.applyQuestArea(configuredContext(ctx), latitude, longitude, places));
+    searchRegions(auth: ReturnType<typeof TestAuth.fromJwtPayload>, query: string, responder: Parameters<ReturnType<typeof harness.procedureContextBuilder>['http']>[0]) {
+      const procedure = harness.procedureContextBuilder(auth).http(responder).build();
+      return searchRegions(new Proxy(procedure, { get(target, key) {
+        if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
+        if (key === 'withTx') return <T>(fn: (ctx: Parameters<typeof module.ensurePlayer>[0]) => T) => target.withTx(tx => fn(configuredContext(tx)));
+        const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value;
+      } }), query);
     },
+    saveRegion(auth: ReturnType<typeof TestAuth.fromJwtPayload>, latitude: number, longitude: number, places: PlaceInput[], label = 'Test region') {
+      return harness.withReducerTx(auth, ctx => saveRegion(configuredContext(ctx), { latitude, longitude, label, radiusMeters: 8000 }, sanitizePlaces(places, latitude, longitude, 8000)));
+    },
+    destinations(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myLocations(harness.viewContext(auth)); },
+    resolved(auth: ReturnType<typeof TestAuth.fromJwtPayload>, templateId: string) { return harness.withReducerTx(auth, ctx => resolveQuest(configuredContext(ctx), ctx.sender, templateId)); },
+    locationVisibility: module.default.schemaType.tables.locations.tableDef.tableAccess.tag,
     localQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myLocalQuests(harness.viewContext(auth)); },
     area(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestArea(harness.viewContext(auth)); },
     beginPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
@@ -164,7 +189,7 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
           slotId: model.slotIdFor(ctx.sender, slotIndex), playerIdentity: ctx.sender,
           slotIndex, difficulty: template.difficulty, templateId,
           status: { tag: 'Available' }, assignedAt: ctx.timestamp,
-          completedAt: undefined, refreshAt: undefined, ...changes,
+          completedAt: undefined, refreshAt: undefined, locationId: undefined, ...changes,
         };
         if (!slot.playerIdentity.equals(ctx.sender)) throw new Error('Fixture owner mismatch.');
         const error = model.validateSlot(slot, template, ctx.timestamp);
@@ -180,7 +205,7 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
         const template = ctx.db.questTemplates.templateId.find(slot.templateId)!;
         const completion: model.QuestCompletion = {
           completionId: 0n, playerIdentity: ctx.sender, templateId: template.templateId,
-          slotIndex, xpAwarded: template.xpReward, completedAt: slot.completedAt!, proofNote: undefined,
+          slotIndex, xpAwarded: template.xpReward, completedAt: slot.completedAt!, proofNote: undefined, locationId: undefined, questTitle: undefined, questObjective: undefined, locationName: undefined, latitude: undefined, longitude: undefined,
         };
         const error = model.validateNewCompletion(completion, slot, template);
         if (error) throw new Error(error);

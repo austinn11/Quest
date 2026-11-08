@@ -174,7 +174,7 @@ export function generateLocalQuests(places: readonly Place[], random: Random, ne
         if (!chosen.some(other => other.id === place.id)) chosen.push(place);
         const recipe = recipeFor(category, difficulty, place, random);
         quests.push({
-          templateId: newId(),
+          templateId: newId(), questType: { tag: 'Location' }, requiredLocationType: undefined,
           title: recipe.title.slice(0, 100),
           description: recipe.description,
           photoGoal: recipe.photoGoal,

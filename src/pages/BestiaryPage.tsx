@@ -8,7 +8,7 @@ import { DEFAULT_BESTIARY_FILTERS, filterCaptures, type BestiaryFilters } from '
 import { CollectionToolbar, NoMatches } from '../collection/CollectionToolbar';
 import { FavoriteStar, useFavorites } from '../collection/FavoritesProvider';
 
-// The player's private collection of creatures captured for Bestiary bounties.
+// The player's private collection of creatures captured for Bestiary quests.
 export function BestiaryPage() {
   const { captures, completions, ready, hasSnapshot, subscriptionError } = useQuestboard();
   const favorites = useFavorites();
@@ -22,7 +22,7 @@ export function BestiaryPage() {
   return (
     <>
       <PageHeading title="Bestiary">
-        <Link to="/questboard">See open bounties</Link>
+        <Link to="/questboard">See available quests</Link>
       </PageHeading>
       <QuestSyncNotice page="Bestiary" />
       {hasSnapshot && captures.length > 0 && (
@@ -53,7 +53,6 @@ export function BestiaryPage() {
                     <FavoriteStar kind="capture" itemId={capture.captureId} name={capture.creature} />
                     <figcaption>
                       <h2>{capture.creature}</h2>
-                      <p className="capture-bounty">Bounty: {capture.bountyTarget}</p>
                       {capture.locationName && <p>{capture.locationName}</p>}
                       <p className="capture-date"><QuestDate timestamp={capture.capturedAt} /></p>
                       <span className={`capture-badge${capture.verified ? ' is-verified' : ''}`}>{capture.verified ? 'Verified by the guild' : 'Not AI-checked'}</span>
@@ -68,8 +67,8 @@ export function BestiaryPage() {
       {ready && !subscriptionError && captures.length === 0 && (
         <section className="empty-state">
           <h2>No creatures captured yet</h2>
-          <p>Claim a Bestiary bounty on your Questboard by photographing the wanted creature. Every capture and its photo is kept here, visible only to you.</p>
-          <Link to="/questboard">See open bounties</Link>
+          <p>Complete a Bestiary quest on your Questboard by photographing its subject. Every capture and its photo is kept here, visible only to you.</p>
+          <Link to="/questboard">See available quests</Link>
         </section>
       )}
     </>

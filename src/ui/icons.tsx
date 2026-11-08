@@ -19,6 +19,10 @@ export function CheckIcon(props: IconProps) {
   return <Icon {...props}><path d="M20 6 9 17l-5-5" /></Icon>;
 }
 
+export function RerollIcon(props: IconProps) {
+  return <Icon {...props}><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 7a7 7 0 0 1 11-1l3 6M4 12l3 6a7 7 0 0 0 11-1" /></Icon>;
+}
+
 function LeafIcon(props: IconProps) {
   return <Icon {...props}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" /><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" /></Icon>;
 }

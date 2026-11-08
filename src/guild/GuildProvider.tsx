@@ -21,12 +21,12 @@ export type GuildState = {
 
 export const GuildContext = createContext<GuildState | null>(null);
 
-// Guild data comes from three views: your guild, its members, and the public directory.
+// Wait for all four views, including the shared quests, before enabling guild actions.
 export function GuildProvider({ children }: { children: ReactNode }) {
   const [mine, mineReady] = useTable(tables.myGuild);
   const [members, membersReady] = useTable(tables.myGuildMembers);
   const [directory, directoryReady] = useTable(tables.guildDirectory);
-  const [quests] = useTable(tables.myGuildQuests);
+  const [quests, questsReady] = useTable(tables.myGuildQuests);
   const create = useReducer(reducers.createGuild);
   const joinOpen = useReducer(reducers.joinOpenGuild);
   const joinByCode = useReducer(reducers.joinGuildByCode);
@@ -39,14 +39,14 @@ export function GuildProvider({ children }: { children: ReactNode }) {
     members,
     directory,
     quests,
-    ready: mineReady && membersReady && directoryReady,
+    ready: mineReady && membersReady && directoryReady && questsReady,
     createGuild: args => create(args),
     joinOpenGuild: guildId => joinOpen({ guildId }),
     joinGuildByCode: joinCode => joinByCode({ joinCode }),
     leaveGuild: () => leave(),
     setGuildOpen: isOpen => setOpen({ isOpen }),
     refreshGuildQuests: () => refreshQuests(),
-  }), [mine, members, directory, quests, mineReady, membersReady, directoryReady, create, joinOpen, joinByCode, leave, setOpen, refreshQuests]);
+  }), [mine, members, directory, quests, mineReady, membersReady, directoryReady, questsReady, create, joinOpen, joinByCode, leave, setOpen, refreshQuests]);
 
   return <GuildContext.Provider value={value}>{children}</GuildContext.Provider>;
 }

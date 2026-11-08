@@ -4,7 +4,7 @@ import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
 import { QuestDate } from '../questboard/QuestDate';
 import { QuestMap, type MapViewRequest, type PlayerLocation } from '../map/QuestMap';
-import { directionsUrl, locatedQuests, validCoordinates } from '../map/quest-locations';
+import { directionsUrl, locatedQuests, historicalQuests, validCoordinates } from '../map/quest-locations';
 import { questMapPath, resolveQuestMapTarget } from '../map/quest-navigation';
 import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
 import { QuestCooldown } from '../questboard/QuestCooldown';
@@ -12,12 +12,18 @@ import { CheckIcon } from '../ui/icons';
 import { PageHeading } from '../ui/PageHeading';
 
 export function WorldMapPage() {
-  const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, now, refreshing } = useQuestboard();
-  const quests = useMemo(() => locatedQuests(slots, templates), [slots, templates]);
+  const { slots, templates, completions, ready, connected, hasSnapshot, initializing, error, subscriptionError, now, refreshing } = useQuestboard();
+  const currentQuests = useMemo(() => locatedQuests(slots, templates), [slots, templates]);
+  const history = useMemo(() => historicalQuests(completions, templates), [completions, templates]);
+  const [showHistory, setShowHistory] = useState(false);
   const { search, key: routeKey } = useLocation();
   const navigateTo = useNavigate();
-  const target = resolveQuestMapTarget(search, slots, quests);
-  const selected = hasSnapshot && target.kind === 'selected' ? target.quest : undefined;
+  const completedId = new URLSearchParams(search).get('completed');
+  const historic = completedId ? history.find(quest => quest.slot.slotId === 'history:' + completedId) : undefined;
+  const quests = useMemo(() => [...currentQuests, ...(showHistory ? history : historic ? [historic] : [])], [currentQuests, showHistory, history, historic]);
+  const target = resolveQuestMapTarget(search, slots, currentQuests);
+  const selected = hasSnapshot ? historic ?? (target.kind === 'selected' ? target.quest : undefined) : undefined;
+  const isHistorical = selected?.slot.slotId.startsWith('history:') ?? false;
   const selectedKey = selected?.key;
   const canComplete = connected && ready && !initializing && !error && !subscriptionError && !refreshing;
   const [view, setView] = useState<MapViewRequest>({ target: 'default', sequence: 0 });
@@ -28,7 +34,7 @@ export function WorldMapPage() {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const select = useCallback((key: string) => {
     const quest = quests.find(row => row.key === key);
-    if (quest) navigateTo(questMapPath(quest.slot), { replace: true });
+    if (quest) navigateTo(quest.slot.slotId.startsWith('history:') ? '/map?completed=' + quest.slot.slotId.slice(8) : questMapPath(quest.slot), { replace: true });
   }, [quests, navigateTo]);
   useEffect(() => {
     if (selectedKey) setView(current => ({ target: 'quest', questKey: selectedKey, sequence: current.sequence + 1 }));
@@ -63,6 +69,7 @@ export function WorldMapPage() {
       </PageHeading>
       <QuestSyncNotice page="Questboard" />
       <div className="map-toolbar" aria-label="Map controls">
+        <button type="button" className="secondary" aria-pressed={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Hide completed places' : 'Show completed places'}</button>
         <button type="button" className="secondary" onClick={() => navigate('default')}>Default area</button>
         <button type="button" className="secondary" disabled={!quests.length} onClick={() => navigate('quests')}>Show quest locations</button>
         <button type="button" className="secondary" disabled={locationPending} onClick={locatePlayer}>{locationPending ? 'Finding your position...' : 'My location'}</button>
@@ -88,7 +95,7 @@ export function WorldMapPage() {
               </ul>
             )}
             {ready && !subscriptionError && !quests.length && <p>Your current quests have no fixed map destinations. New location-based adventures can appear when your slots refresh.</p>}
-            {hasSnapshot && slots.length > quests.length && <p className="field-help">{slots.length - quests.length} assigned {slots.length - quests.length === 1 ? 'quest has' : 'quests have'} no mapped destination. You can still work on them from your Questboard.</p>}
+            {hasSnapshot && slots.length > currentQuests.length && <p className="field-help">{slots.length - currentQuests.length} assigned {slots.length - quests.length === 1 ? 'quest has' : 'quests have'} no mapped destination. You can still work on them from your Questboard.</p>}
             <p><Link to="/questboard">Open your Questboard</Link></p>
           </section>
         </div>
@@ -104,9 +111,9 @@ export function WorldMapPage() {
               <p className="field-help">{selected.coordinates[1].toFixed(5)}, {selected.coordinates[0].toFixed(5)}</p>
               {selected.slot.completedAt && <p>Completed <QuestDate timestamp={selected.slot.completedAt} /></p>}
               {selected.slot.refreshAt && <p>Replacement eligible <QuestDate timestamp={selected.slot.refreshAt} /></p>}
-              <QuestCooldown slot={selected.slot} now={now} refreshing={refreshing} />
-              <CompleteQuestButton key={selected.key} slot={selected.slot} disabled={!canComplete} bounty={selected.template.category.tag === 'Bestiary'} />
-              <div className="map-detail-links"><Link to={`/questboard#quest-slot-${selected.slot.slotIndex}`}>View this quest on your Questboard</Link><a href={directionsUrl(selected)} target="_blank" rel="noopener noreferrer">Walking directions in Google Maps ↗</a></div>
+              {!isHistorical && <QuestCooldown slot={selected.slot} now={now} refreshing={refreshing} />}
+              {!isHistorical && <CompleteQuestButton key={selected.key} slot={selected.slot} disabled={!canComplete} saveCapture={selected.template.category.tag === 'Bestiary'} />}
+              <div className="map-detail-links">{isHistorical ? <Link to="/journal">View your Quest Journal</Link> : <Link to={`/questboard#quest-slot-${selected.slot.slotIndex}`}>View this quest on your Questboard</Link>}<a href={directionsUrl(selected)} target="_blank" rel="noopener noreferrer">Walking directions in Google Maps ↗</a></div>
             </>
           ) : target.kind === 'none' ? <p>Select a quest marker or destination to inspect its objective and rewards.</p>
             : !ready ? <p>Waiting for current quest data before opening this adventure.</p>

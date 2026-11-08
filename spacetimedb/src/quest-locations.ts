@@ -12,7 +12,7 @@ const locations = [
   ['hard-cedar-hill', 'The Prairie Field Chronicle', 'Across three visits to Cedar Hill State Park, compare plants and wildlife from permitted trails. Check entry requirements and trail conditions before each visit.', 'Bestiary', 'Hard', 'Cedar Hill State Park', 'State park', 32.5721, -96.9862, 'Prairie, trail or wildlife in a park landscape, or handwritten field notes.'],
 ] as const;
 
-export const geographicTemplates: QuestTemplate[] = locations.map(([templateId, title, description, category, difficulty, locationName, locationType, latitude, longitude, photoGoal]) => ({
+export const geographicTemplates: Omit<QuestTemplate, 'questType' | 'requiredLocationType'>[] = locations.map(([templateId, title, description, category, difficulty, locationName, locationType, latitude, longitude, photoGoal]) => ({
   templateId, title, description, category: { tag: category }, difficulty: { tag: difficulty },
   xpReward: rewardForDifficulty({ tag: difficulty }), locationName, locationType, latitude, longitude, isActive: true, photoGoal, bountyTarget: undefined,
 }));

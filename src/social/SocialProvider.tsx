@@ -26,9 +26,9 @@ export const SocialContext = createContext<SocialState | null>(null);
 export function SocialProvider({ children }: { children: ReactNode }) {
   const [friends, friendsReady] = useTable(tables.myFriends);
   const [requests, requestsReady] = useTable(tables.myFriendRequests);
-  const [invites] = useTable(tables.myPartyInvites);
+  const [invites, invitesReady] = useTable(tables.myPartyInvites);
   const [party, partyReady] = useTable(tables.myParty);
-  const [partyMembers] = useTable(tables.myPartyMembers);
+  const [partyMembers, membersReady] = useTable(tables.myPartyMembers);
   const sendRequest = useReducer(reducers.sendFriendRequest);
   const respondRequest = useReducer(reducers.respondFriendRequest);
   const remove = useReducer(reducers.removeFriend);
@@ -41,7 +41,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SocialState>(() => ({
     friends, requests, invites, party: party[0] ?? null, partyMembers,
-    ready: friendsReady && requestsReady && partyReady,
+    ready: friendsReady && requestsReady && invitesReady && partyReady && membersReady,
     sendFriendRequest: username => sendRequest({ username }),
     respondFriendRequest: (requestId, accept) => respondRequest({ requestId, accept }),
     removeFriend: username => remove({ username }),
@@ -51,7 +51,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     leaveParty: () => leave(),
     setPartyQuest: templateId => setQuest({ templateId }),
     submitPartyQuestPhoto: image => submitPhoto({ image }),
-  }), [friends, requests, invites, party, partyMembers, friendsReady, requestsReady, partyReady, sendRequest, respondRequest, remove, create, invite, respondInvite, leave, setQuest, submitPhoto]);
+  }), [friends, requests, invites, party, partyMembers, friendsReady, requestsReady, invitesReady, partyReady, membersReady, sendRequest, respondRequest, remove, create, invite, respondInvite, leave, setQuest, submitPhoto]);
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
 }

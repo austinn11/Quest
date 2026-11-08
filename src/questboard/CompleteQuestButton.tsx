@@ -1,3 +1,4 @@
+import { questText } from './quest-copy';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import { useProcedure } from 'spacetimedb/react';
@@ -8,8 +9,8 @@ import { CAPTURE_MAX_EDGE, CAPTURE_QUALITY, photoToDataUrl } from './photo';
 type Phase = 'idle' | 'preparing' | 'checking' | 'accepted' | 'rejected' | 'error';
 
 // Completing a quest means submitting a photo. The server's AI judge decides, then awards XP once.
-// A Bestiary bounty also keeps a smaller copy of the photo in the player's collection.
-export function CompleteQuestButton({ slot, disabled, bounty = false }: { slot: PlayerQuestSlots; disabled: boolean; bounty?: boolean }) {
+// A Bestiary quest also keeps a smaller copy of the photo in the player's collection.
+export function CompleteQuestButton({ slot, disabled, saveCapture = false }: { slot: PlayerQuestSlots; disabled: boolean; saveCapture?: boolean }) {
   const submitPhoto = useProcedure(procedures.submitQuestPhoto);
   const input = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -45,15 +46,15 @@ export function CompleteQuestButton({ slot, disabled, bounty = false }: { slot: 
     setPhase('preparing');
     try {
       const image = await photoToDataUrl(file);
-      const capturePhoto = bounty ? await photoToDataUrl(file, CAPTURE_MAX_EDGE, CAPTURE_QUALITY) : undefined;
+      const capturePhoto = saveCapture ? await photoToDataUrl(file, CAPTURE_MAX_EDGE, CAPTURE_QUALITY) : undefined;
       if (!stillCurrent()) return;
       setPreview(image);
       setPhase('checking');
       const verdict = await submitPhoto({ slotIndex: slot.slotIndex, expectedAssignedAt: slot.assignedAt, image, capturePhoto });
       if (!stillCurrent()) return;
       setPhase(verdict.accepted ? 'accepted' : 'rejected');
-      setMessage(verdict.message);
-      setObservation(verdict.observation || null);
+      setMessage(questText(verdict.message));
+      setObservation(verdict.observation ? questText(verdict.observation) : null);
       setCreature(verdict.creature || null);
     } catch (error) {
       if (!stillCurrent()) return;
@@ -63,7 +64,7 @@ export function CompleteQuestButton({ slot, disabled, bounty = false }: { slot: 
       setPhase('error');
       setMessage(ambiguous
         ? 'The connection changed before your photo was confirmed. Your quest may already be complete. Wait for your Questboard to sync before trying again.'
-        : serverMessage || 'Your photo could not be checked. Please try again.');
+        : questText(serverMessage) || 'Your photo could not be checked. Please try again.');
     } finally {
       if (stillCurrent()) inFlight.current = false;
     }
@@ -74,7 +75,7 @@ export function CompleteQuestButton({ slot, disabled, bounty = false }: { slot: 
       {slot.status.tag === 'Available' && phase !== 'accepted' && (
         <>
           <button type="button" disabled={disabled || busy} aria-busy={busy} onClick={() => input.current?.click()}>
-            {phase === 'preparing' ? 'Preparing photo...' : phase === 'checking' ? 'Checking photo...' : phase === 'rejected' || phase === 'error' ? 'Try another photo' : bounty ? 'Claim bounty' : 'Complete quest'}
+            {phase === 'preparing' ? 'Preparing photo...' : phase === 'checking' ? 'Checking photo...' : phase === 'rejected' || phase === 'error' ? 'Try another photo' : 'Complete quest'}
           </button>
           <input ref={input} className="visually-hidden" type="file" accept="image/*" capture="environment" tabIndex={-1} aria-hidden="true" onChange={event => { void onPhoto(event); }} />
         </>
@@ -83,7 +84,7 @@ export function CompleteQuestButton({ slot, disabled, bounty = false }: { slot: 
       {phase === 'checking' && <p className="field-help" role="status">The guild is inspecting your proof...</p>}
       {phase === 'accepted' && (
         <p className="success" role="status">
-          {message}{bounty && creature ? ` Captured: ${creature}.` : ''}{observation ? ` The guild saw: ${observation}.` : ''} {bounty
+          {message}{saveCapture && creature ? ` Captured: ${creature}.` : ''}{observation ? ` The guild saw: ${observation}.` : ''} {saveCapture
             ? <>It is filed in your <Link to="/bestiary">Bestiary</Link>.</>
             : <>It is recorded in your <Link to="/journal">Quest Journal</Link>.</>}
         </p>

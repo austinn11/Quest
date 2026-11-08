@@ -2,6 +2,12 @@ import { rewardForDifficulty, type QuestTemplate } from './quest-model';
 import { geographicTemplates } from './quest-locations';
 
 const definitions: readonly (readonly [string, string, string, 'Exploration' | 'Bestiary' | 'Crafting', 'Easy' | 'Medium' | 'Hard', string])[] = [
+  ['easy-cipher', 'A Coded Message', 'Learn a Caesar cipher and encode a short message on paper.', 'Exploration', 'Easy', 'A written coded message and its decoded text.'],
+  ['easy-thread', 'A Small Token', 'Make a simple bracelet or small decoration using materials you already own.', 'Crafting', 'Easy', 'A handmade bracelet or small decoration.'],
+  ['medium-chronicle', 'The Scholar Chronicle', 'Read a chapter of a book and write a page of notes explaining what you learned.', 'Exploration', 'Medium', 'A page of reading notes beside a book.'],
+  ['medium-recipe', 'The Traveling Cook', 'Cook a recipe you have never tried and record the ingredients and result.', 'Crafting', 'Medium', 'A meal prepared by the player with ingredient notes.'],
+  ['hard-study', 'Master a New Subject', 'Study a new subject across three sessions and create an illustrated guide explaining it.', 'Exploration', 'Hard', 'An illustrated study guide created by the player.'],
+  ['hard-model', 'The Artisan Model', 'Design and build a detailed model from reused materials and document each stage.', 'Crafting', 'Hard', 'A detailed handmade model made from reused materials.'],
   ['easy-campus-scout', 'Scout the Campus', 'Walk to a campus landmark you have not visited before and note one detail about it.', 'Exploration', 'Easy', 'A campus landmark, building sign or outdoor campus feature.'],
   ['easy-new-path', 'The Road Less Traveled', 'Take a different walking route on a familiar journey and record what you notice.', 'Exploration', 'Easy', 'An outdoor photo of a street, path or walking route.'],
   ['easy-birdwatch', 'A Feathered Encounter', 'Observe a bird from a distance and write down its colors, sounds, or behavior.', 'Bestiary', 'Easy', 'A bird photographed outdoors (it may be small or distant).'],
@@ -43,9 +49,29 @@ export const seedTemplates: QuestTemplate[] = withBounties([...definitions.map((
   locationName: templateId === 'easy-campus-scout' ? 'University of Texas at Dallas campus' : undefined,
   locationType: templateId === 'easy-campus-scout' ? 'Campus' : undefined,
   photoGoal,
-  bountyTarget: undefined,
-})), ...geographicTemplates]);
+  bountyTarget: undefined, questType: { tag: 'Anywhere' as const }, requiredLocationType: undefined,
+})), ...geographicTemplates.map(template => ({ ...template, questType: { tag: 'Location' as const }, requiredLocationType: undefined })), ...locationRecipes()]);
 
 function withBounties(templates: QuestTemplate[]): QuestTemplate[] {
-  return templates.map(template => ({ ...template, bountyTarget: BOUNTY_TARGETS[template.templateId] }));
+  return templates.map(template => ({ ...template, bountyTarget: template.bountyTarget ?? BOUNTY_TARGETS[template.templateId], questType: template.latitude !== undefined ? { tag: 'Location' } : template.questType, requiredLocationType: template.requiredLocationType }));
+}
+
+function locationRecipes(): QuestTemplate[] {
+  const recipes = [
+    ['green-scout', 'Explore {location}', 'Visit {location} using public paths and document the landscape.', 'Exploration', 'nature'],
+    ['culture-scout', 'Discover {location}', 'Visit {location} during public opening hours and record one interesting detail.', 'Exploration', 'any'],
+    ['field-bounty', 'Wildlife at {location}', 'Observe wildlife at {location} from public paths without disturbing or feeding animals.', 'Bestiary', 'nature'],
+    ['plant-study', 'The Flora of {location}', 'Document plants at {location} without picking or damaging them.', 'Bestiary', 'nature'],
+    ['sketch-place', 'Sketch {location}', 'Visit {location} and draw a sketch inspired by the place. Leave everything as you found it.', 'Crafting', 'any'],
+    ['map-place', 'Chart {location}', 'Visit {location} and draw a map of its public paths or features.', 'Crafting', 'nature'],
+  ] as const;
+  return (['Easy', 'Medium', 'Hard'] as const).flatMap(difficulty => recipes.map(([id, title, objective, category, requiredLocationType]) => ({
+    templateId: 'region-' + difficulty.toLowerCase() + '-' + id, title,
+    description: objective + (difficulty === 'Medium' ? ' Record five observations in your notes.' : difficulty === 'Hard' ? ' Make three visits and compile a detailed illustrated account.' : ' Record one observation.'),
+    category: { tag: category }, difficulty: { tag: difficulty }, xpReward: rewardForDifficulty({ tag: difficulty }),
+    latitude: undefined, longitude: undefined, isActive: true, locationName: undefined, locationType: undefined,
+    photoGoal: category === 'Crafting' ? 'A drawing or map made by the player, inspired by {location}.' : category === 'Bestiary' ? 'A plant or wild animal photographed outdoors at {location}.' : 'An outdoor feature or public sign at {location}.',
+    bountyTarget: category === 'Bestiary' ? (id === 'plant-study' ? 'Local Flora' : 'Local Wildlife') : undefined,
+    questType: { tag: 'Location' }, requiredLocationType,
+  })));
 }

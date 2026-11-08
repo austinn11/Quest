@@ -47,94 +47,87 @@ function setup(env) {
 const bySlot = slots => [...slots].sort((a, b) => a.slotIndex - b.slotIndex);
 const isLocal = templateId => templateId.startsWith('local-');
 
-test('quest areas and generated quests are private tables exposed only through per-player views', () => {
+
+test('adventure regions and normalized destinations are private to their owner', () => {
   const { db, alice, bob } = setup();
-  assert.equal(db.localQuestVisibility, 'Private');
+  db.saveRegion(alice, ...UTD, placesAround(UTD, 'Campus'));
+  assert.equal(db.locationVisibility, 'Private');
   assert.equal(db.areaVisibility, 'Private');
-  db.applyArea(alice, ...UTD, placesAround(UTD, 'Campus'));
-  assert.ok(db.localQuests(alice).length > 0);
-  assert.deepEqual(db.localQuests(bob), []);
+  assert.equal(db.destinations(alice).length, 8);
+  assert.deepEqual(db.destinations(bob), []);
   assert.equal(db.area(bob), undefined);
-  assert.ok(db.templates().every(template => !isLocal(template.templateId)));
+  assert.ok(db.destinations(alice).every(p => p.externalSource === 'OpenStreetMap'));
 });
 
-test('sharing a location stores a rounded area, generates local quests and reloads only Available slots', () => {
+test('explicit region changes preserve assignments, cooldowns, XP, history and rerolls', () => {
   const { db, alice } = setup();
-  db.complete(alice, 0);
-  const before = bySlot(db.slots(alice));
+  db.complete(alice, 0); db.advanceClock(1n); db.reroll(alice, 1);
+  const before = { board: bySlot(db.slots(alice)), player: db.profile(alice), history: db.completions(alice) };
+  db.saveRegion(alice, ...UTD, placesAround(UTD, 'Campus'));
   db.advanceClock(1_000_000n);
-  assert.deepEqual(db.checkArea(alice, ...UTD), { needsPlaces: true, hadArea: false, distanceMoved: 0 });
-  const result = db.applyArea(alice, ...UTD, placesAround(UTD, 'Campus'));
-  assert.equal(result.reloaded, true);
-  assert.ok(result.localQuestCount >= 6);
-  const area = db.area(alice);
-  assert.deepEqual([area.latitude, area.longitude, area.placeCount], [32.986, -96.75, 8]);
-
-  const after = bySlot(db.slots(alice));
-  assert.deepEqual(after[0], before[0], 'the completed Cooldown slot keeps its quest');
-  for (const slot of after.slice(1)) {
-    assert.equal(slot.status.tag, 'Available');
-    assert.equal(slot.assignedAt.microsSinceUnixEpoch, db.now().microsSinceUnixEpoch);
-  }
-  assert.ok(after.some(slot => isLocal(slot.templateId)), 'local quests are preferred for the board');
-  assert.equal(new Set(after.map(slot => slot.templateId)).size, 6, 'no quest appears twice');
-  const local = new Map(db.localQuests(alice).map(quest => [quest.templateId, quest]));
-  for (const slot of after.filter(slot => isLocal(slot.templateId))) {
-    assert.equal(local.get(slot.templateId).difficulty.tag, slot.difficulty.tag);
-    assert.equal(local.get(slot.templateId).isActive, true);
-  }
+  db.saveRegion(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin'));
+  db.initialize(db.auth('alice')); db.connect(db.auth('alice'));
+  assert.deepEqual({ board: bySlot(db.slots(alice)), player: db.profile(alice), history: db.completions(alice) }, before);
+  assert.equal(db.destinations(alice).length, 16, 'old referenced locations remain available');
 });
 
-test('a small move keeps the board while travelling far reloads it with the new area', () => {
+test('generation combines reusable recipes and genuine region destinations with Anywhere fallback', () => {
   const { db, alice } = setup();
-  db.applyArea(alice, ...UTD, placesAround(UTD, 'Campus'));
+  db.removeSlotsForTest(alice);
+  db.saveRegion(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin'));
+  db.initialize(alice);
   const board = bySlot(db.slots(alice));
-  const firstQuests = db.localQuests(alice).map(quest => quest.templateId);
-
-  const check = db.checkArea(alice, ...NEARBY);
-  assert.equal(check.needsPlaces, false);
-  assert.ok(check.distanceMoved > 900 && check.distanceMoved < 1100);
-  assert.equal(db.applyArea(alice, ...NEARBY, placesAround(NEARBY, 'Elsewhere')).reloaded, false);
-  assert.deepEqual(bySlot(db.slots(alice)), board);
-  assert.equal(db.localQuests(alice).length, firstQuests.length);
-
-  db.advanceClock(1_000_000n);
-  assert.equal(db.checkArea(alice, ...AUSTIN).needsPlaces, true);
-  assert.equal(db.applyArea(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin')).reloaded, true);
-  const quests = db.localQuests(alice);
-  assert.ok(quests.filter(quest => firstQuests.includes(quest.templateId)).every(quest => !quest.isActive), 'old area quests retire');
-  assert.ok(quests.filter(quest => !firstQuests.includes(quest.templateId)).every(quest => quest.isActive));
-  const campusIds = new Set(firstQuests);
-  const curatedDallas = new Set(db.templates().filter(template => template.latitude !== undefined).map(template => template.templateId));
-  for (const slot of db.slots(alice)) {
-    assert.ok(!campusIds.has(slot.templateId), 'no quest from the old area remains Available');
-    assert.ok(!curatedDallas.has(slot.templateId), 'curated Dallas quests are not offered in Austin');
+  assert.deepEqual(board.map(s => s.difficulty.tag), ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard']);
+  assert.equal(new Set(board.map(s => s.templateId)).size, 6);
+  assert.ok(board.some(slot => slot.locationId !== undefined));
+  for (const slot of board) {
+    const quest = db.resolved(alice, slot.templateId);
+    if (slot.locationId !== undefined) {
+      assert.match(quest.title, /Austin/); assert.ok(!quest.description.includes('{location}'));
+      const location = db.destinations(alice).find(p => p.locationId === slot.locationId);
+      assert.deepEqual([quest.latitude, quest.longitude], [location.latitude, location.longitude]);
+    } else assert.equal(quest.latitude, undefined);
   }
+  const before = bySlot(db.slots(alice));
+  db.advanceClock(1_000_000n); db.saveRegion(alice, ...UTD, []); db.initialize(db.auth('alice'));
+  assert.deepEqual(bySlot(db.slots(alice)), before);
+  db.removeSlotsForTest(alice); db.initialize(alice);
+  assert.ok(db.slots(alice).every(slot => slot.locationId === undefined));
 });
 
-test('local quests complete once, keep history after moving and refill from the new pool', () => {
-  const { db, alice } = setup();
-  db.applyArea(alice, ...UTD, placesAround(UTD, 'Campus'));
-  const slot = bySlot(db.slots(alice)).find(row => isLocal(row.templateId));
-  assert.ok(slot, 'the seeded board includes a local quest');
-  const quest = db.localQuests(alice).find(row => row.templateId === slot.templateId);
-  const xpBefore = db.profile(alice).xp;
+test('completion snapshots survive region changes and replacements and feed historical map markers', async () => {
+  const { historicalQuests } = await import('../src/map/quest-locations.ts');
+  const { db, alice, bob } = setup();
+  db.removeSlotsForTest(alice); db.saveRegion(alice, ...UTD, placesAround(UTD, 'Campus')); db.initialize(alice);
+  const slot = db.slots(alice).find(s => s.locationId !== undefined);
+  const quest = db.resolved(alice, slot.templateId);
+  const before = db.profile(alice).xp;
   db.complete(alice, slot.slotIndex);
+  assert.equal(db.profile(alice).xp, before + quest.xpReward);
   assert.throws(() => db.complete(alice, slot.slotIndex), /already completed|cooldown/);
-  assert.equal(db.profile(alice).xp, xpBefore + quest.xpReward);
+  const completion = db.completions(alice)[0];
+  assert.equal(completion.locationName, quest.locationName);
+  assert.equal(completion.questTitle, quest.title);
+  db.advanceClock(1n); db.saveRegion(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin'));
+  db.advanceClock(13n * 3_600_000_000n); db.refresh(alice);
+  assert.deepEqual(db.completions(alice)[0], completion);
+  const historical = historicalQuests(db.completions(alice), db.templates());
+  assert.deepEqual(historical[0].coordinates, [quest.longitude, quest.latitude]);
+  assert.equal(historical[0].template.title, quest.title);
+  assert.deepEqual(db.completions(bob), []);
+  const replacement = db.slots(alice).find(row => row.slotIndex === slot.slotIndex);
+  if (replacement.locationId !== undefined) assert.match(db.resolved(alice, replacement.templateId).title, /Austin/);
+  assert.ok(db.slots(alice).filter(row => row.slotIndex !== slot.slotIndex).some(row => row.locationId !== undefined), 'unfinished original-region quests remain assigned');
+});
 
-  db.advanceClock(1_000_000n);
-  db.applyArea(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin'));
-  const history = db.completions(alice);
-  assert.equal(history.length, 1);
-  assert.equal(history[0].templateId, quest.templateId);
-  assert.ok(db.localQuests(alice).some(row => row.templateId === quest.templateId), 'history still resolves');
-
-  db.advanceClock(13n * 60n * 60n * 1_000_000n);
-  db.refresh(alice);
-  const refilled = db.slots(alice).find(row => row.slotIndex === slot.slotIndex);
-  assert.equal(refilled.status.tag, 'Available');
-  assert.notEqual(refilled.templateId, quest.templateId);
+test('a forged cross-player destination cannot be used for photo checks or rewards', () => {
+  const { db, alice, bob } = setup();
+  db.saveRegion(bob, ...UTD, placesAround(UTD, 'Bob'));
+  db.patchSlotForTest(alice, 0, { locationId: db.destinations(bob)[0].locationId });
+  const xp = db.profile(alice).xp;
+  assert.throws(() => db.beginPhoto(alice, 0), /unavailable/);
+  assert.throws(() => db.complete(alice, 0), /unavailable/);
+  assert.equal(db.profile(alice).xp, xp);
 });
 
 test('photo checks are rate limited per player to protect AI credits', () => {
@@ -169,8 +162,8 @@ test('with an AI key configured, completion requires an accepted photo and store
 
 test('location and photo steps require a signed-in player and valid coordinates', () => {
   const { db, alice } = setup();
-  assert.throws(() => db.checkArea(db.internal(), ...UTD), /Sign in/);
-  assert.throws(() => db.checkArea(alice, 95, 0), /location could not be read/);
+  assert.throws(() => db.saveRegion(db.internal(), ...UTD, []), /Sign in/);
+  assert.throws(() => db.saveRegion(alice, 95, 0, []), /valid region/);
   assert.throws(() => db.beginPhoto(db.internal(), 0), /Sign in/);
 });
 
@@ -232,4 +225,106 @@ test('players can star and unstar their own captures and journal entries, privat
   assert.throws(() => db.toggleFavorite(bob, 'completion', completion.completionId), /not in your collection/);
   assert.throws(() => db.toggleFavorite(alice, 'player', 1n), /Only captures and journal entries/);
   assert.deepEqual(db.favorites(bob), []);
+});
+const response = (data, code = 200) => ({ code, headers: { entries: [] }, version: { tag: 'Http11' }, body: typeof data === 'string' ? data : JSON.stringify(data) });
+const regionArgs = { latitude: 32.9858, longitude: -96.7501, label: 'Dallas', radiusMeters: 8000 };
+const providerPlaces = { elements: [
+  { type: 'node', id: 123, lat: 32.987, lon: -96.75, tags: { name: 'Public Garden', leisure: 'garden' } },
+  { type: 'node', id: 124, lat: 32.987, lon: -96.75, tags: { name: 'Restricted Garden', leisure: 'garden', access: 'private' } },
+  { type: 'node', id: 125, lat: 32.987, lon: -96.75, tags: { name: 'Closed Museum', tourism: 'museum', disused: 'yes' } },
+  { type: 'node', id: 126, lat: 0, lon: 0, tags: { name: 'Faraway Park', leisure: 'park' } },
+] };
+
+test('trusted discovery filters provider places, rounds the region, caches across players, and never changes a board', () => {
+  const { db, alice, bob } = setup();
+  const before = bySlot(db.slots(alice));
+  let requests = 0;
+  const provider = (_test, request, body) => {
+    requests++; assert.equal(request.uri, 'https://overpass-api.de/api/interpreter');
+    assert.match(new TextDecoder().decode(body), /^data=/);
+    return response(providerPlaces);
+  };
+  assert.match(db.discover(alice, regionArgs, provider), /1 verified places/);
+  assert.equal(db.destinations(alice).length, 1);
+  assert.equal(db.destinations(alice)[0].externalPlaceId, 'node/123');
+  assert.deepEqual([db.area(alice).latitude, db.area(alice).longitude], [32.986, -96.75]);
+  assert.deepEqual(bySlot(db.slots(alice)), before);
+  db.discover(bob, regionArgs, provider);
+  assert.equal(requests, 1, 'second player reuses the same provider cache');
+  assert.ok(!db.destinations(alice)[0].playerIdentity.equals(db.destinations(bob)[0].playerIdentity));
+  assert.throws(() => db.discover(alice, regionArgs, provider), /wait 30 seconds/);
+});
+
+test('failed, partial, malformed, and oversized provider responses preserve region and all assignments', () => {
+  for (const result of [response('', 429), response('not json'), response({ remark: 'runtime error', elements: [] }), response({ hello: true }), response('x'.repeat(2_000_001))]) {
+    const { db, alice } = setup();
+    const before = bySlot(db.slots(alice));
+    assert.throws(() => db.discover(alice, regionArgs, () => result));
+    assert.equal(db.area(alice), undefined);
+    assert.deepEqual(db.destinations(alice), []);
+    assert.deepEqual(bySlot(db.slots(alice)), before);
+  }
+});
+
+test('sparse successful discovery saves an empty region and initializes six Anywhere quests', () => {
+  const { db, alice } = setup();
+  db.removeSlotsForTest(alice);
+  db.discover(alice, regionArgs, () => response({ elements: [] }));
+  db.initialize(alice);
+  assert.equal(db.slots(alice).length, 6);
+  assert.ok(db.slots(alice).every(slot => slot.locationId === undefined));
+  assert.ok(db.slots(alice).every(slot => db.resolved(alice, slot.templateId).latitude === undefined));
+});
+
+test('manual city search validates input, normalizes real results, caches responses and enforces provider-wide limits', () => {
+  const { db, alice, bob } = setup();
+  let calls = 0;
+  const provider = (_test, req) => { calls++; assert.match(req.uri, /name=Dallas/); return response({ results: [{ name: 'Dallas', admin1: 'Texas', country: 'United States', latitude: 32.78, longitude: -96.8 }, { name: 'Invalid', latitude: 120, longitude: 0 }] }); };
+  assert.throws(() => db.searchRegions(alice, 'x', provider), /between 2 and 100/);
+  const results = JSON.parse(db.searchRegions(alice, 'Dallas', provider));
+  assert.equal(results.length, 1); assert.equal(results[0].label, 'Dallas, Texas, United States');
+  assert.equal(db.searchRegions(bob, 'dallas', provider), JSON.stringify(results)); assert.equal(calls, 1);
+  db.advanceClock(1n);
+  assert.throws(() => db.searchRegions(bob, 'Austin', provider), /wait 30 seconds/);
+  assert.throws(() => db.searchRegions(db.internal(), 'Dallas', provider), /Sign in/);
+});
+
+test('location photo proof and party selection use the rendered destination and freeze party objectives', () => {
+  const { db, alice } = setup();
+  db.removeSlotsForTest(alice); db.saveRegion(alice, ...UTD, placesAround(UTD, 'Campus')); db.initialize(alice);
+  const slot = db.slots(alice).find(row => row.locationId !== undefined);
+  const quest = db.beginPhoto(alice, slot.slotIndex);
+  assert.match(quest.photoGoal, /Campus/); assert.ok(!quest.photoGoal.includes('{location}'));
+  db.setUsername(alice, 'Ranger'); db.social.createParty(alice); db.social.setPartyQuest(alice, slot.templateId);
+  assert.equal(db.social.party(alice).questTitle, quest.title);
+  db.advanceClock(1n); db.reroll(alice, slot.slotIndex);
+  db.saveRegion(alice, ...AUSTIN, placesAround(AUSTIN, 'Austin'));
+  assert.equal(db.social.party(alice).questTitle, quest.title);
+});
+test('a slow older discovery cannot overwrite a newer deliberate region selection', () => {
+  const { db, alice } = setup();
+  const before = bySlot(db.slots(alice));
+  assert.throws(() => db.discover(alice, regionArgs, () => {
+    db.advanceClock(31_000_000n);
+    db.discover(alice, { ...regionArgs, latitude: 30.2672, longitude: -97.7431, label: 'Austin' }, () => response({ elements: [] }));
+    return response(providerPlaces);
+  }), /newer region selection/);
+  assert.equal(db.area(alice).label, 'Austin');
+  assert.deepEqual(bySlot(db.slots(alice)), before);
+});
+
+test('app-wide provider budgets stop further requests without changing existing player data', () => {
+  const { db, alice } = setup();
+  const before = bySlot(db.slots(alice));
+  let calls = 0;
+  for (let index = 0; index < 250; index++) {
+    db.advanceClock(31_000_000n);
+    db.discover(alice, { ...regionArgs, latitude: 32 + index / 1000 }, () => { calls++; return response({ elements: [] }); });
+  }
+  const saved = db.area(alice);
+  db.advanceClock(31_000_000n);
+  assert.throws(() => db.discover(alice, { ...regionArgs, latitude: 34 }, () => { calls++; return response({ elements: [] }); }), /limit has been reached/);
+  assert.equal(calls, 250);
+  assert.deepEqual(db.area(alice), saved);
+  assert.deepEqual(bySlot(db.slots(alice)), before);
 });

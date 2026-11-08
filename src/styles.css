@@ -174,6 +174,17 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .quest-list-text { flex: 1; display: flex; flex-direction: column; }
 
 /* Questboard: quiet cards, with the same type and spacing as the home page. */
+.reroll-allowance { margin-bottom: 1.25rem; font-size: .85rem; }
+.reroll-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1.5rem; }
+.reroll-summary p { margin: .2rem 0; }
+.reroll-summary span { margin-left: .35rem; font-family: var(--font-mono); }
+.quest-reroll { gap: .4rem; font-size: .8rem; }
+.reroll-dialog { width: min(100% - 2rem, 28rem); padding: 1.75rem; border: 1px solid var(--border); border-radius: var(--radius); color: var(--foreground); background: var(--card); }
+.reroll-dialog::backdrop { background: oklch(0.25 0.02 55 / .35); }
+.reroll-dialog h2 { font-size: 1.5rem; letter-spacing: -.025em; }
+.reroll-quest-name { margin-top: 1rem; font-weight: 500; }
+.reroll-dialog #reroll-description { color: var(--muted-foreground); font-size: .9rem; }
+.reroll-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
 .questboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem; }
 .noticeboard { min-width: 0; }
 .questboard { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 1.25rem; }
@@ -219,7 +230,7 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 
 
 
-/* Questboard paper: torn notices pinned to a faint wooden board, and WANTED posters for bounties.
+/* Questboard paper: torn quest notices pinned to a faint wooden board.
    Scoped to the board so other pages keep the quieter card style. */
 .noticeboard {
   --notice: oklch(0.975 0.012 80);
@@ -284,7 +295,6 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .noticeboard .questboard { align-items: stretch; grid-auto-rows: 1fr; }
 .noticeboard .notice { display: flex; }
 .noticeboard .notice-sheet { flex: 1; }
-.bounty-tag { padding: 0 .45rem; border: 1px solid color-mix(in oklab, var(--primary) 45%, transparent); border-radius: 999px; color: var(--primary); font-size: .7rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
 .notice-capture { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 0; font-weight: 500; }
 .notice-capture img { width: 3.5rem; height: 2.6rem; object-fit: cover; border: 1px solid var(--border); border-radius: 3px; }
 /* Undo the card style's extra properties so the paper look is complete. */
@@ -503,3 +513,13 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .favorite-star.is-starred { background: #f5c542; border-color: #d4a017; color: #3a2a00; }
 .capture-card .favorite-star { position: absolute; top: .5rem; right: .5rem; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
 .journal-entry-actions { display: inline-flex; flex-shrink: 0; align-items: center; gap: .5rem; }
+
+/* Explicit adventure region controls */
+.region-heading, .region-search { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.region-heading { justify-content: space-between; }
+.region-search label { display: grid; gap: .35rem; min-width: 0; }
+.region-search input { max-width: 100%; }
+.region-results { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.region-results [aria-pressed=true] { font-weight: 700; text-decoration: underline; }
+.adventure-region small { display: block; margin-top: 1rem; }
+@media (max-width: 540px) { .region-search { align-items: stretch; } .region-search label { width: 100%; } }

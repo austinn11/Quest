@@ -139,7 +139,7 @@ test('every local Bestiary quest is a bounty for a creature suited to its place'
 });
 
 test('bounty targets are only allowed on Bestiary quests', () => {
-  const base = { templateId: 'local-000000000001', title: 'Scout the Park', description: 'Walk to the park and look around.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true };
+  const base = { questType: { tag: 'Anywhere' }, requiredLocationType: undefined, templateId: 'local-000000000001', title: 'Scout the Park', description: 'Walk to the park and look around.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true };
   assert.match(model.validateTemplate({ ...base, bountyTarget: 'Duck' }), /Only Bestiary quests/);
   assert.equal(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'Duck' }), null);
   assert.match(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'x' }), /2 to 60/);

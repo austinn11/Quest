@@ -9,7 +9,7 @@ import { guildQuest, guildQuestContribution, guildQuestRows, refreshGuildQuests 
 import { guild, guildInvite, guildMembership, guildStats, memberRows, createGuild as createGuildHandler, joinGuildByCode as joinGuildByCodeHandler, joinOpenGuild as joinOpenGuildHandler, leaveGuild as leaveGuildHandler, setGuildOpen as setGuildOpenHandler } from './guilds';
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
-import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
+import { beginPhotoCheck, finishPhotoCompletion } from './quest-area';
 import { AI_REQUEST_TIMEOUT_MS, DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL, FALLBACK_AI_MODEL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
@@ -17,6 +17,9 @@ import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
 import { mostRecentCompletionTemplate, selectQuestTemplate } from './quest-selection';
 import { getTotalPlayerXp } from '../../shared/progression';
 import { initializePlayerSkills } from './player-progression';
+import { locations, discoveryCache, discoveryLimit, discoveryBudget } from './adventure-model';
+import { discoverRegion, searchRegions } from './adventure-region';
+import { rerollQuest as rerollQuestHandler } from './quest-reroll';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -33,11 +36,13 @@ const player = table(
     bestiaryXp: t.u32().default(0),
     craftingXp: t.u32().default(0),
     progressionReady: t.bool().default(false),
+    rerollsUsed: t.u8().default(0),
+    rerollResetAt: t.option(t.timestamp()).default(undefined),
   }
 );
 
 const spacetimedb = schema({
-  player,
+  player, locations, discoveryCache, discoveryLimit, discoveryBudget,
   questTemplates,
   playerQuestSlots,
   questCompletions,
@@ -63,6 +68,8 @@ const spacetimedb = schema({
   AI_API_KEY: t.option(t.string()),
   AI_BASE_URL: t.option(t.string()),
   AI_MODEL: t.option(t.string()),
+  OVERPASS_ENDPOINT: t.option(t.string()),
+  GEOCODING_ENDPOINT: t.option(t.string()),
 } });
 export default spacetimedb;
 
@@ -73,6 +80,7 @@ function seedQuestTemplates(ctx: Ctx) {
     const existing = ctx.db.questTemplates.templateId.find(template.templateId);
     if (existing) {
       let updated = existing;
+      if (existing.questType.tag !== template.questType.tag) updated = { ...updated, questType: template.questType };
       // Label the existing campus point without moving it or altering its quest/reward.
       if (existing.templateId === 'easy-campus-scout' && existing.locationName === undefined && existing.latitude === template.latitude && existing.longitude === template.longitude) {
         updated = { ...updated, locationName: template.locationName, locationType: existing.locationType ?? template.locationType };
@@ -94,6 +102,8 @@ export const myQuestSlots = spacetimedb.view(
   t.array(playerQuestSlots.rowType),
   ctx => [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)]
 );
+
+export const myLocations = spacetimedb.view({ name: 'my_locations', public: true }, t.array(locations.rowType), ctx => [...ctx.db.locations.playerIdentity.filter(ctx.sender)]);
 
 export const myLocalQuests = spacetimedb.view(
   { name: 'my_local_quests', public: true },
@@ -130,6 +140,8 @@ const playerProfile = t.row('PlayerProfile', {
   bestiaryXp: t.u32(),
   craftingXp: t.u32(),
   progressionReady: t.bool(),
+  rerollsUsed: t.u8(),
+  rerollResetAt: t.option(t.timestamp()),
 });
 
 export const myPlayer = spacetimedb.view(
@@ -149,6 +161,8 @@ export const myPlayer = spacetimedb.view(
       bestiaryXp: row.bestiaryXp,
       craftingXp: row.craftingXp,
       progressionReady: row.progressionReady,
+      rerollsUsed: row.rerollsUsed,
+      rerollResetAt: row.rerollResetAt,
     };
   }
 );
@@ -169,6 +183,7 @@ export const ensurePlayer = spacetimedb.reducer(ctx => {
     username: '',
     usernameKey: '',
     explorationXp: 0, bestiaryXp: 0, craftingXp: 0, progressionReady: true,
+    rerollsUsed: 0, rerollResetAt: undefined,
   });
 });
 
@@ -204,7 +219,7 @@ export const initializeQuestboard = spacetimedb.reducer(ctx => {
       slotId: slotIdFor(ctx.sender, slotIndex), playerIdentity: ctx.sender, slotIndex,
       difficulty: template.difficulty, templateId: template.templateId,
       status: { tag: 'Available' as const }, assignedAt: ctx.timestamp,
-      completedAt: undefined, refreshAt: undefined,
+      completedAt: undefined, refreshAt: undefined, locationId: template.assignedLocationId,
     };
     const slotError = validateSlot(slot, template, ctx.timestamp);
     if (slotError) throw new SenderError(slotError);
@@ -220,23 +235,10 @@ export const completeQuest = spacetimedb.reducer(
 );
 
 export const refreshQuestSlots = spacetimedb.reducer(refreshQuestSlotsHandler);
+export const rerollQuest = spacetimedb.reducer({ slotIndex: t.u8(), expectedAssignedAt: t.timestamp() }, rerollQuestHandler);
 
-const PlaceInput = t.object('PlaceInput', {
-  id: t.string(),
-  name: t.string(),
-  kind: t.string(),
-  latitude: t.f64(),
-  longitude: t.f64(),
-});
-
-// The browser loads named places near the player from OpenStreetMap and sends them here.
-// A move of under 10 km keeps the board; a new area generates private local quests and reloads it.
-export const setQuestArea = spacetimedb.reducer(
-  { latitude: t.f64(), longitude: t.f64(), places: t.array(PlaceInput) },
-  (ctx, { latitude, longitude, places }) => {
-    applyQuestArea(ctx, latitude, longitude, places);
-  }
-);
+export const searchAdventureRegions = spacetimedb.procedure({ query: t.string() }, t.string(), (ctx, { query }) => searchRegions(ctx, query));
+export const setAdventureRegion = spacetimedb.procedure({ latitude: t.f64(), longitude: t.f64(), label: t.string(), radiusMeters: t.u32() }, t.string(), (ctx, args) => discoverRegion(ctx, args));
 
 const JUDGE_UNAVAILABLE = 'The guild judge is unavailable right now. Please try again in a minute.';
 
@@ -530,7 +532,7 @@ export const submitPartyQuestPhoto = spacetimedb.procedure(
     if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation, creature: verdict.creature };
     let xpEach: number;
     try {
-      xpEach = ctx.withTx(tx => finishPartyQuest(tx, quest.templateId, verdict.observation));
+      xpEach = ctx.withTx(tx => finishPartyQuest(tx, quest.templateId, verdict.observation, quest));
     } catch (error) {
       return refusal(error);
     }

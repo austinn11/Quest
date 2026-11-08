@@ -1,3 +1,4 @@
+import { questDisplay, questText } from '../questboard/quest-copy';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useQuestboard } from '../questboard/QuestboardProvider';
@@ -16,8 +17,12 @@ export function JournalPage() {
   const [filters, setFilters] = useState<JournalFilters>(DEFAULT_JOURNAL_FILTERS);
   const capturesByCompletion = new Map(captures.map(capture => [capture.completionId.toString(), capture]));
   const destinations = locatedQuests(slots, templates);
-  const catalogue = new Map(templates.map(template => [template.templateId, template]));
-  const history = filterCompletions(completions, filters, favorites.completions, completion => catalogue.get(completion.templateId));
+  const catalogue = new Map(templates.map(template => [template.templateId, questDisplay(template)]));
+  const historicalTemplate = (completion: (typeof completions)[number]) => {
+    const original = catalogue.get(completion.templateId);
+    return original && completion.questTitle ? questDisplay({ ...original, title: completion.questTitle, description: completion.questObjective ?? original.description, locationName: completion.locationName, latitude: completion.latitude, longitude: completion.longitude }) : original;
+  };
+  const history = filterCompletions(completions, filters, favorites.completions, historicalTemplate);
   const earnedXp = completions.reduce((total, completion) => total + completion.xpAwarded, 0);
   const active = filters.search.trim() !== '' || filters.category !== 'all' || filters.difficulty !== 'all' || filters.favoritesOnly;
   const update = (changes: Partial<JournalFilters>) => setFilters(current => ({ ...current, ...changes }));
@@ -56,10 +61,10 @@ export function JournalPage() {
           {history.length ? (
             <ol className="quest-history" aria-label="Completed adventures">
               {history.map(completion => {
-                const template = catalogue.get(completion.templateId);
+                const template = historicalTemplate(completion);
                 const destination = completionMapLocation(completion, destinations);
                 const capture = capturesByCompletion.get(completion.completionId.toString());
-                const title = template?.title ?? 'An accomplished adventure';
+                const title = questText(completion.questTitle ?? template?.title ?? 'An accomplished adventure');
                 return (
                   <li key={completion.completionId.toString()} className="journal-entry">
                     <p className="journal-date"><QuestDate timestamp={completion.completedAt} /></p>
@@ -74,7 +79,7 @@ export function JournalPage() {
                       {template
                         ? <p className="quest-meta">{template.category.tag} · {template.difficulty.tag}{template.locationName ? ` · ${template.locationName}` : ''}</p>
                         : <p>The template is no longer available. Your accomplishment remains recorded.</p>}
-                      {template && <p className="quest-objective">{template.description}</p>}
+                      {(completion.questObjective || template) && <p className="quest-objective">{questText(completion.questObjective ?? template?.description ?? '')}</p>}
                       {capture && (
                         <Link className="journal-capture" to="/bestiary">
                           <img src={capture.photo} alt={`Your photo of ${capture.creature}`} loading="lazy" />
@@ -82,7 +87,7 @@ export function JournalPage() {
                         </Link>
                       )}
                       {completion.proofNote && <p className="proof-note">The guild saw: {completion.proofNote}</p>}
-                      {destination && <p><Link to={questMapPath(destination.slot)}>View completed quest on map</Link></p>}
+                      {completion.latitude !== undefined && completion.longitude !== undefined ? <p><Link to={'/map?completed=' + completion.completionId}>View completed place on map</Link></p> : destination && <p><Link to={questMapPath(destination.slot)}>View completed quest on map</Link></p>}
                     </div>
                   </li>
                 );

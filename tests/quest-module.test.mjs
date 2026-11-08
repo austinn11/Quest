@@ -27,7 +27,7 @@ function setup() {
 }
 
 function templatesByDifficulty(db, difficulty) {
-  return db.templates().filter(template => template.difficulty.tag === difficulty);
+  return db.templates().filter(template => template.difficulty.tag === difficulty && template.questType.tag === 'Anywhere' && template.latitude === undefined);
 }
 
 function sixSlotFixtures(db, auth) {
@@ -39,12 +39,12 @@ function sixSlotFixtures(db, auth) {
   }
 }
 
-test('catalogue seeds twenty-one valid templates with seven choices per difficulty', () => {
+test('catalogue seeds forty-five valid templates with fifteen choices per difficulty', () => {
   const { db } = setup();
   const templates = db.templates();
-  assert.equal(templates.length, 21);
-  assert.equal(new Set(templates.map(template => template.templateId)).size, 21);
-  for (const difficulty of ['Easy', 'Medium', 'Hard']) assert.equal(templatesByDifficulty(db, difficulty).length, 7);
+  assert.equal(templates.length, 45);
+  assert.equal(new Set(templates.map(template => template.templateId)).size, 45);
+  for (const difficulty of ['Easy', 'Medium', 'Hard']) assert.equal(db.templates().filter(t => t.difficulty.tag === difficulty).length, 15);
   assert.deepEqual(new Set(templates.map(template => template.category.tag)), new Set(['Exploration', 'Bestiary', 'Crafting']));
   for (const template of templates) {
     assert.equal(db.model.validateTemplate(template), null);
@@ -86,7 +86,7 @@ test('two players can represent six independent slots using the same reusable te
   assert.ok(aliceSlots.every(slot => slot.playerIdentity.equals(db.profile(alice).identity)));
   assert.deepEqual(db.slots(db.auth('alice')), aliceSlots);
   assert.deepEqual(db.slots(db.auth('charlie')), []);
-  assert.equal(db.templates().length, 21);
+  assert.equal(db.templates().length, 45);
 });
 
 test('slot primary key keeps a single record per player and slot position', () => {
@@ -171,13 +171,15 @@ test('template validation rejects malformed content, invalid enums, forged rewar
   const invalid = [
     { templateId: '' }, { title: '  ' }, { title: 'x'.repeat(101) },
     { description: 'short' }, { description: 'x'.repeat(2001) },
+    { questType: { tag: 'Invented' } }, { requiredLocationType: 'invented' },
+    { questType: { tag: 'Location' }, requiredLocationType: undefined },
     { category: { tag: 'Knowledge' } }, { difficulty: { tag: 'Epic' } }, { xpReward: 99999 },
     { latitude: 1, longitude: undefined }, { latitude: undefined, longitude: 1 },
     { latitude: NaN, longitude: 0 }, { latitude: 0, longitude: Infinity },
     { latitude: 91, longitude: 0 }, { latitude: 0, longitude: -181 },
   ];
   for (const changes of invalid) assert.ok(db.model.validateTemplate({ ...template, ...changes }));
-  assert.equal(db.model.validateTemplate({ ...template, latitude: 90, longitude: -180 }), null);
+  assert.equal(db.model.validateTemplate({ ...template, questType: { tag: 'Location' }, latitude: 90, longitude: -180 }), null);
 });
 
 test('only non-personal templates are public and quest creation/acceptance APIs remain absent', () => {

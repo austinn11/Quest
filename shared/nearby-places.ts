@@ -4,7 +4,7 @@ import { distanceMeters, validLatitudeLongitude } from './geo';
 // Named outdoor and landmark places come from OpenStreetMap (Overpass API, no key required).
 export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-// A board reloads when the player moves farther than this from its area centre.
+// Legacy distance constant; travel never reloads the board.
 export const AREA_RELOAD_METERS = 10_000;
 // Places are searched within this radius; each difficulty uses a distance band inside it.
 export const PLACE_SEARCH_METERS = 8_000;
@@ -103,7 +103,10 @@ export function parseOverpassPlaces(body: string, latitude: number, longitude: n
     if (!element || typeof element !== 'object') continue;
     const { type, id, lat, lon, center, tags } = element as Record<string, unknown>;
     if (typeof type !== 'string' || typeof id !== 'number' || !tags || typeof tags !== 'object') continue;
-    const name = (tags as Record<string, unknown>).name;
+    const access = tags as Record<string, unknown>;
+    if (['private', 'no', 'customers', 'permit', 'military'].includes(String(access.access)) || ['private', 'no'].includes(String(access.foot)) || access.disused === 'yes' || access.abandoned === 'yes' || access.construction === 'yes' || access['disused:tourism'] || access['abandoned:leisure']) continue;
+    if (!['node', 'way', 'relation'].includes(type) || !Number.isSafeInteger(id) || id <= 0) continue;
+    const name = access.name;
     const point = typeof lat === 'number' && typeof lon === 'number' ? { lat, lon } : center as { lat?: unknown; lon?: unknown } | undefined;
     const kind = kindFor(tags as Record<string, unknown>);
     if (typeof name !== 'string' || !kind || !point || typeof point.lat !== 'number' || typeof point.lon !== 'number') continue;

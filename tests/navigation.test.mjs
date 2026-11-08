@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
-import { Timestamp } from 'spacetimedb';
+import { Identity, Timestamp } from 'spacetimedb';
 import { postLoginPath } from '../src/auth/return-path.ts';
 import { totalXpForLevel } from '../shared/progression.ts';
 import { isNavigationRouteActive, navigationPageTitle } from '../src/layout/navigation.ts';
@@ -182,6 +182,26 @@ test('questboard displays loading and retryable initialization errors', () => {
   assert.ok(!html.includes('Preparing your Questboard...'));
 });
 
+test('Questboard renders the subscribed reroll allowance, cooldown gating and confirmation controls', () => {
+  const slot = { slotId: 'me:0', slotIndex: 0, templateId: 'reroll-ui', difficulty: { tag: 'Easy' }, status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const template = { templateId: 'reroll-ui', title: 'A small adventure', description: 'Take a short walk outdoors.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50 };
+  const board = { ready: true, slots: [slot], templates: [template] };
+  const html = renderPage('/questboard', board);
+  assert.match(html, /Free Rerolls: <span>2 \/ 2<\/span>/);
+  assert.match(html, /class="secondary quest-reroll">/);
+  assert.ok(html.includes('Reroll this quest?'));
+  assert.ok(html.includes('Confirm Reroll'));
+  const rerolls = { rerollsUsed: 2, rerollResetAt: new Timestamp(BigInt(Date.now() + 3_600_000) * 1000n) };
+  const exhausted = renderPage('/questboard', board, 150, undefined, {}, {}, {}, rerolls);
+  assert.match(exhausted, /Free Rerolls: <span>0 \/ 2<\/span>/);
+  assert.match(exhausted, /class="secondary quest-reroll" disabled=""/);
+  assert.ok(exhausted.includes('Next reset:'));
+  const cooldown = renderPage('/questboard', { ...board, slots: [{ ...slot, status: { tag: 'Cooldown' }, completedAt: Timestamp.UNIX_EPOCH, refreshAt: new Timestamp(1000000n) }] });
+  assert.match(cooldown, /class="secondary quest-reroll" disabled=""/);
+  const offline = renderPage('/questboard', { ...board, connected: false });
+  assert.match(offline, /class="secondary quest-reroll" disabled=""/);
+});
+
 test('questboard renders six assigned quests in slot order with catalogue objectives and rewards', () => {
   const difficulties = ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard'];
   const slots = difficulties.map((difficulty, slotIndex) => ({
@@ -334,26 +354,27 @@ test('nearby quests are opt-in and each notice says what photo proves it', () =>
     photoGoal: 'A living bird photographed outdoors.',
   }];
   const html = renderPage('/questboard', { ready: true, slots: [slot], templates });
-  assert.ok(html.includes('Find quests near me'));
+  assert.ok(html.includes('Use my location'));
   assert.ok(html.includes('A living bird photographed outdoors.'));
   assert.match(html, /<input[^>]*type="file"[^>]*accept="image\/\*"[^>]*capture="environment"/);
-  assert.match(html, /<button type="button" aria-busy="false">Claim bounty<\/button>/);
+  assert.match(html, /<button type="button" aria-busy="false">Complete quest<\/button>/);
   const located = renderPage('/questboard', {
     ready: true, slots: [slot], templates,
     location: { status: { kind: 'ready', message: 'Quests near you · 12 places within 8.0 km' }, enable() {}, disable() {}, retry() {} },
   });
   assert.ok(located.includes('Quests near you · 12 places within 8.0 km'));
-  assert.ok(located.includes('Stop using my location'));
-  assert.ok(!located.includes('Find quests near me'));
+  assert.ok(located.includes('Existing quests, cooldowns, and rerolls stay unchanged'));
+
 });
 
-test('location use can be stopped while finding places or recovering from an error', () => {
+test('manual city fallback remains visible during location errors and discovery', () => {
   for (const kind of ['locating', 'scouting', 'error']) {
     const html = renderPage('/questboard', {
       ready: true,
       location: { status: { kind, message: 'Lookup failed' }, enable() {}, disable() {}, retry() {} },
     });
-    assert.ok(html.includes('Stop using my location'), `${kind} must allow cancellation`);
+    assert.ok(html.includes('City or region'), `${kind} retains manual fallback`);
+    if (kind !== 'error') assert.match(html, /disabled=""/);
   }
 });
 
@@ -371,15 +392,15 @@ const heronBounty = {
   locationName: 'Duck Pond', locationType: 'Lake or pond', photoGoal: 'A heron or egret, photographed in the wild.', bountyTarget: 'Heron or Egret',
 };
 
-test('Bestiary bounties are ordinary paper notices with a bounty tag, and show the capture once claimed', () => {
+test('Bestiary quests use ordinary notices and completion controls, retaining their captured photo', () => {
   const open = { slotId: 'me:5', slotIndex: 5, difficulty: { tag: 'Hard' }, templateId: heronBounty.templateId, status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
   const html = renderPage('/questboard', { ready: true, slots: [open], templates: [heronBounty] });
   assert.match(html, /class="notice-sheet"/);
   assert.ok(!html.includes('bounty-sheet') && !html.includes('bounty-wanted'), 'no wanted poster');
-  assert.ok(html.includes('<h2>Wanted: Heron or Egret</h2>'));
-  assert.ok(html.includes('<span class="bounty-tag">Bounty</span>'));
+  assert.ok(html.includes('<h2>Observe Heron or Egret</h2>'));
+  assert.doesNotMatch(html, /bounty/i);
   assert.ok(html.includes('200 XP reward'));
-  assert.match(html, /<button type="button" aria-busy="false">Claim bounty<\/button>/);
+  assert.match(html, /<button type="button" aria-busy="false">Complete quest<\/button>/);
 
   const completedAt = new Timestamp(5_000_000n);
   const claimed = { ...open, status: { tag: 'Cooldown' }, completedAt, refreshAt: new Timestamp(9_000_000_000n) };
@@ -388,16 +409,16 @@ test('Bestiary bounties are ordinary paper notices with a bounty tag, and show t
   const done = renderPage('/questboard', { ready: true, slots: [claimed], templates: [heronBounty], completions, captures });
   assert.ok(done.includes(`<img src="${PHOTO}" alt="Your capture: Great Egret"/>`));
   assert.ok(done.includes('Captured: Great Egret'));
-  assert.ok(done.includes('Bounty claimed'));
-  assert.ok(!done.includes('Claim bounty'));
+  assert.ok(done.includes('Completed'));
+  assert.ok(!done.includes('Complete quest'));
 });
 
-test('catalogue bounties keep their own title', () => {
+test('Bestiary quests retain their regular title without a separate type badge', () => {
   const birdwatch = { templateId: 'easy-birdwatch', title: 'A Feathered Encounter', description: 'Observe a bird from a distance.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true, bountyTarget: 'Wild Bird' };
   const slot = { slotId: 'me:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'easy-birdwatch', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
   const html = renderPage('/questboard', { ready: true, slots: [slot], templates: [birdwatch] });
   assert.ok(html.includes('<h2>A Feathered Encounter</h2>'));
-  assert.ok(html.includes('<span class="bounty-tag">Bounty</span>'));
+  assert.doesNotMatch(html, /bounty/i);
 });
 
 test('the Bestiary page lists private captures with photos, newest first, and has an empty state', () => {
@@ -415,10 +436,10 @@ test('the Bestiary page lists private captures with photos, newest first, and ha
   assert.equal((html.match(/<img src="data:image\/jpeg;base64,QUJD"/g) ?? []).length, 3);
   assert.ok(html.includes('Verified by the guild'));
   assert.ok(html.includes('Not AI-checked'));
-  assert.ok(html.includes('Bounty: Turtle'));
+  assert.doesNotMatch(html, /bounty/i);
   const empty = renderPage('/bestiary', { ready: true });
   assert.ok(empty.includes('No creatures captured yet'));
-  assert.ok(empty.includes('See open bounties'));
+  assert.ok(empty.includes('See available quests'));
   assert.ok(renderPage('/bestiary').includes('Opening your Bestiary...'));
 });
 
@@ -509,4 +530,16 @@ test('the Friends page shows requests, friends with party invites, and the party
   const member = renderPage('/friends', {}, 150, undefined, {}, { party: { ...party, isLeader: false, leaderName: 'Bob', questTitle: undefined, questTemplateId: undefined }, partyMembers });
   assert.ok(member.includes('Waiting for Bob to choose a party quest.'));
   assert.ok(!member.includes('Party quest</span>'));
+});
+test('Journal and historical map retain destination snapshots after a reusable template is assigned elsewhere', () => {
+  const completion = { completionId: 42n, playerIdentity: Identity.zero(), templateId: 'reusable-scout', slotIndex: 0, xpAwarded: 50, completedAt: Timestamp.UNIX_EPOCH,
+    questTitle: 'Explore Original Park', questObjective: 'Visit Original Park.', locationName: 'Original Park', latitude: 32.98, longitude: -96.75 };
+  const templates = [{ templateId: 'reusable-scout', title: 'Explore New Park', description: 'Visit New Park.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true, latitude: 30.26, longitude: -97.74, locationName: 'New Park' }];
+  const board = { ready: true, completions: [completion], templates };
+  const journal = renderPage('/journal', board);
+  assert.ok(journal.includes('Explore Original Park')); assert.ok(journal.includes('/map?completed=42'));
+  assert.ok(!journal.includes('Explore New Park'));
+  const map = renderPage('/map?completed=42', board);
+  assert.ok(map.includes('Explore Original Park')); assert.ok(map.includes('32.98000, -96.75000'));
+  assert.ok(!map.includes('Complete quest')); assert.ok(map.includes('View your Quest Journal'));
 });

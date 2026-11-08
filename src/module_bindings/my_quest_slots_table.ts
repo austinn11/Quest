@@ -29,4 +29,5 @@ export default __t.row({
   assignedAt: __t.timestamp().name("assigned_at"),
   completedAt: __t.option(__t.timestamp()).name("completed_at"),
   refreshAt: __t.option(__t.timestamp()).name("refresh_at"),
+  locationId: __t.option(__t.u64()).name("location_id"),
 });

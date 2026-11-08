@@ -19,6 +19,7 @@ export type QuestboardState = QuestSnapshot & {
   refreshSlots: () => Promise<void>;
   retry: () => void;
   location: QuestAreaControls;
+  startAnywhere?: () => void;
 };
 
 export const QuestboardContext = createContext<QuestboardState | null>(null);
@@ -30,6 +31,7 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<QuestSnapshot & { appliedConnectionId: string | null; hasSnapshot: boolean; subscriptionError: string | null }>({
     slots: [], templates: [], completions: [], area: null, captures: [], appliedConnectionId: null, hasSnapshot: false, subscriptionError: null,
   });
+  const [anywhere, setAnywhere] = useState(false);
   const initialize = useReducer(reducers.initializeQuestboard);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -49,6 +51,8 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isActive || !playerReady || !identity) return;
+    if (data.appliedConnectionId !== connectionId.toHexString()) return;
+    if (!data.slots.length && !data.area && !anywhere) { setInitializing(false); return; }
     let cancelled = false;
     setError(null);
     setInitializing(true);
@@ -57,7 +61,7 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setError(error instanceof Error ? error.message : 'Unable to prepare your Questboard.');
     }).finally(() => { if (!cancelled) setInitializing(false); });
     return () => { cancelled = true; };
-  }, [isActive, playerReady, identity, initialize, attempt]);
+  }, [isActive, playerReady, identity, initialize, attempt, data.appliedConnectionId, data.slots.length, data.area, anywhere, connectionId]);
 
   const ready = isActive && playerReady && data.appliedConnectionId === connectionId.toHexString();
   const refresh = useQuestRefresh({
@@ -66,11 +70,11 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
     connectionId: `${identity ?? ''}:${connectionId.toHexString()}`,
   });
 
-  const location = useQuestArea({ area: data.area, enabled: ready && !initializing && !error && !data.subscriptionError });
+  const location = useQuestArea({ area: data.area, enabled: ready && !error && !data.subscriptionError });
 
   return (
     <QuestboardContext.Provider value={{
-      slots: data.slots, templates: data.templates, completions: data.completions, area: data.area, captures: data.captures, location,
+      slots: data.slots, templates: data.templates, completions: data.completions, area: data.area, captures: data.captures, location, startAnywhere: () => setAnywhere(true),
       connected: isActive, ready,
       hasSnapshot: data.hasSnapshot, subscriptionError: data.subscriptionError, initializing,
       error, ...refresh, retry: () => setAttempt(value => value + 1),

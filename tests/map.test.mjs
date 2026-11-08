@@ -48,18 +48,19 @@ test('map assignments share the real private board and react to completion and r
   assert.equal(completed[0].key, original[0].key);
   assert.equal(completed[0].slot.status.tag, 'Cooldown');
   const bobBefore = locatedQuests(db.slots(bob), db.templates());
-  // Restrict eligible replacements to the second verified destination.
-  for (const template of db.templates().filter(template => template.difficulty.tag === 'Easy')) db.setTemplateActiveForTest(template.templateId, template.templateId === 'easy-lagoon-watch');
+  // New geographic assignments use a reusable recipe and verified region location.
+  db.saveRegion(alice, 32.7781, -96.7622, [{ id: 'node/123', name: 'Test Lagoon', kind: 'park', latitude: 32.7781, longitude: -96.7622 }]);
+  for (const template of db.templates().filter(template => template.difficulty.tag === 'Easy')) db.setTemplateActiveForTest(template.templateId, template.templateId === 'region-easy-green-scout');
   db.advanceClock(2n * 3_600_000_000n);
   db.refresh(alice);
-  const refreshed = locatedQuests(db.slots(alice), db.templates());
+  const refreshed = locatedQuests(db.slots(alice), db.slots(alice).map(s => db.resolved(alice, s.templateId)));
   assert.equal(refreshed.length, 1);
   assert.notEqual(refreshed[0].key, original[0].key);
   assert.deepEqual(refreshed[0].coordinates, [-96.7622, 32.7781]);
   assert.equal(refreshed[0].slot.status.tag, 'Available');
   assert.equal(db.completions(alice)[0].templateId, original[0].template.templateId);
   assert.equal(db.templates().find(t => t.templateId === db.completions(alice)[0].templateId).locationName, original[0].template.locationName);
-  assert.deepEqual(locatedQuests(db.slots(bob), db.templates()), bobBefore);
+  assert.deepEqual(locatedQuests(db.slots(bob), db.templates()).map(q => [q.key, q.slot, q.coordinates]), bobBefore.map(q => [q.key, q.slot, q.coordinates]));
 });
 
 test('location projection deduplicates assignments, preserves inactive assigned templates, and omits missing data', () => {

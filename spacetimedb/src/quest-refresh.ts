@@ -30,7 +30,7 @@ export function refreshQuestSlots(ctx: Ctx): void {
     const templateError = validateTemplate(template);
     if (templateError) throw new SenderError(templateError);
     const replacement = {
-      ...slot, templateId: template.templateId, status: { tag: 'Available' as const },
+      ...slot, templateId: template.templateId, locationId: template.assignedLocationId, status: { tag: 'Available' as const },
       assignedAt: ctx.timestamp, completedAt: undefined, refreshAt: undefined,
     };
     const replacementError = validateSlot(replacement, template, ctx.timestamp);
