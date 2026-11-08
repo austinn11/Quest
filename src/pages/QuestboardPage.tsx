@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useEffect } from 'react';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestDate } from '../questboard/QuestDate';
@@ -9,11 +9,19 @@ import { QuestCooldown } from '../questboard/QuestCooldown';
 export function QuestboardPage() {
   const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, retry, now, refreshing, refreshSlots } = useQuestboard();
   const catalogue = new Map(templates.map(template => [template.templateId, template]));
+  const { hash } = useLocation();
   const canInteract = connected && ready && !initializing && !error && !subscriptionError;
 
   useEffect(() => {
     if (canInteract) void refreshSlots();
   }, [canInteract, refreshSlots]);
+
+  useEffect(() => {
+    if (!hasSnapshot || !/^#quest-slot-[0-5]$/.test(hash)) return;
+    const card = document.getElementById(hash.slice(1));
+    card?.scrollIntoView({ block: 'nearest' });
+    card?.focus({ preventScroll: true });
+  }, [hash, hasSnapshot, slots.length]);
   return (
     <>
       <header className="page-heading">
@@ -29,7 +37,7 @@ export function QuestboardPage() {
             const template = catalogue.get(slot.templateId);
             const cooldown = slot.status.tag === 'Cooldown';
             return (
-              <li key={slot.slotId} className={`panel quest-card difficulty-${slot.difficulty.tag.toLowerCase()}${cooldown ? ' quest-card-cooldown' : ''}`}>
+              <li key={slot.slotId} id={`quest-slot-${slot.slotIndex}`} tabIndex={-1} className={`panel quest-card difficulty-${slot.difficulty.tag.toLowerCase()}${cooldown ? ' quest-card-cooldown' : ''}`}>
                 <div className="quest-card-heading"><p className="eyebrow">Slot {slot.slotIndex + 1} / {slot.difficulty.tag}</p><span className={`quest-status${cooldown ? ' is-cooldown' : ''}`}>{slot.status.tag}</span></div>
                 <h2>{template?.title ?? 'Quest details unavailable'}</h2>
                 {template ? (

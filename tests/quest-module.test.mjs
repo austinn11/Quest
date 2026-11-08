@@ -39,12 +39,12 @@ function sixSlotFixtures(db, auth) {
   }
 }
 
-test('catalogue seeds fifteen valid templates with five choices per difficulty', () => {
+test('catalogue seeds twenty-one valid templates with seven choices per difficulty', () => {
   const { db } = setup();
   const templates = db.templates();
-  assert.equal(templates.length, 15);
-  assert.equal(new Set(templates.map(template => template.templateId)).size, 15);
-  for (const difficulty of ['Easy', 'Medium', 'Hard']) assert.equal(templatesByDifficulty(db, difficulty).length, 5);
+  assert.equal(templates.length, 21);
+  assert.equal(new Set(templates.map(template => template.templateId)).size, 21);
+  for (const difficulty of ['Easy', 'Medium', 'Hard']) assert.equal(templatesByDifficulty(db, difficulty).length, 7);
   assert.deepEqual(new Set(templates.map(template => template.category.tag)), new Set(['Exploration', 'Bestiary', 'Crafting']));
   for (const template of templates) {
     assert.equal(db.model.validateTemplate(template), null);
@@ -86,7 +86,7 @@ test('two players can represent six independent slots using the same reusable te
   assert.ok(aliceSlots.every(slot => slot.playerIdentity.equals(db.profile(alice).identity)));
   assert.deepEqual(db.slots(db.auth('alice')), aliceSlots);
   assert.deepEqual(db.slots(db.auth('charlie')), []);
-  assert.equal(db.templates().length, 15);
+  assert.equal(db.templates().length, 21);
 });
 
 test('slot primary key keeps a single record per player and slot position', () => {

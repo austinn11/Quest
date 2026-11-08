@@ -68,7 +68,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | Route | Page |
 | --- | --- |
 | `/` | Dashboard / Home |
-| `/map` | World Map placeholder |
+| `/map` | Interactive fantasy world map and assigned quest destinations |
 | `/questboard` | Personal six-slot Questboard |
 | `/journal` | Completed adventures and historical XP |
 | `/profile` | Player profile, progression, and username editor |
@@ -139,7 +139,7 @@ The existing private player table is preserved. Three quest-related tables repla
 | `player_quest_slots` | Player-bound slot ID, owner, index, fixed difficulty, assigned template, Available/Cooldown status, assignment/completion/refresh times | Private; `my_quest_slots` returns only the caller's rows |
 | `quest_completions` | Auto-incremented completion ID, owner, template ID, slot index, XP awarded, completion time | Private; `my_quest_completions` returns only the caller's history |
 
-Categories are Exploration, Bestiary, and Crafting. Difficulty rewards remain server-controlled: Easy 50 XP, Medium 100 XP, Hard 200 XP. Fifteen templates seed idempotently, with five choices per difficulty. Existing records and inactive flags are preserved on reseeding. Inactive templates remain readable for resolving historical references, but validation rejects them for new Available assignments.
+Categories are Exploration, Bestiary, and Crafting. Difficulty rewards remain server-controlled: Easy 50 XP, Medium 100 XP, Hard 200 XP. Twenty-one templates seed idempotently, with seven choices per difficulty: fifteen original quests and six curated geographic quests. Existing records and inactive flags are preserved on reseeding. Inactive templates remain readable for resolving historical references, but validation rejects them for new Available assignments.
 
 Slot IDs are derived from the player identity and position, so reducers address one row per position. Validation helpers enforce positions 0–5, the 3/2/1 difficulty layout, matching template references, and coherent timestamps. Available slots have no completion or refresh timestamp; Cooldown slots retain the completed template and require both timestamps. Difficulty-specific durations live in `spacetimedb/src/quest-config.ts`.
 
@@ -190,6 +190,22 @@ Cooldown configuration is centralized in `spacetimedb/src/quest-config.ts`:
 F09 uses lazy refresh, with no background scheduler. The frontend checks after initialization, on reconnect or revisiting the board, when the window regains focus, and when a countdown expires. **Check for new quests** provides a manual check. Unresolved expired slots retry at a 30-second interval to avoid request loops. Local countdowns are approximate displays and request triggers; changing the browser clock cannot bypass the server's cooldown check. A slot remains Cooldown until a server replacement arrives. Refreshes and re-login do not restart persisted cooldowns.
 
 For a manual demo, complete one Available quest and verify its XP on Profile and its dated entry in the Journal. Repeated clicks or re-login must preserve one reward and the original cooldown deadline. A second account's board and XP must remain unchanged. The automated datastore tests advance the server test clock to verify all cooldown boundaries without waiting for real hours; no test clock or time-bypass reducer is published.
+
+## Interactive fantasy world map (F11)
+
+`/map` uses [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) with an OpenFreeMap vector basemap, parchment styling, difficulty-colored quest seals, and dimmed cooldown markers. It reads the existing private Questboard subscription. Selecting a marker or a destination in the accessible list shows the quest objective, reward, status, and location, plus links to the matching Questboard card and Google Maps directions. Completing and refreshing quests update the markers automatically; there is no separate map quest state or completion reducer.
+
+**My location** requests permission only on click and keeps the result in page memory. Permission denial or unavailable geolocation leaves manual navigation and the default Dallas/UTD area usable. The map requires internet access and browser WebGL; a map failure leaves the destination list available with a reload action. It uses [OpenFreeMap's documented vector style](https://openfreemap.org/quick_start/) without an application API key, retaining provider attribution. These public settings are optional:
+
+```dotenv
+VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
+VITE_MAP_DEFAULT_LATITUDE=32.9858
+VITE_MAP_DEFAULT_LONGITUDE=-96.7501
+```
+
+The style URL must serve a MapLibre JSON style with CORS enabled. MapLibre's worker is bundled through Vite and loaded when the map mounts. Local position is not stored in SpacetimeDB; basemap requests go to the configured external provider. Directions links include the destination coordinates only.
+
+F11 appends optional `location_name` and `location_type` fields with empty defaults and adds six [curated Dallas-area quests](docs/map-locations.md). It labels the existing campus point without moving it or altering its objective or reward. Existing players retain their assignments; geographic templates become eligible for future initialization or replacements. A board with only non-geographic quests legitimately has no map markers. History retains its template reference and resolves the destination through the retained catalogue. Deactivate historical templates rather than moving or deleting them.
 
 ## Work on the backend
 
@@ -265,13 +281,15 @@ Quest/
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
     questboard/             Initialization, managed quest subscriptions, and shared quest UI
+    map/                    MapLibre rendering, styling, configuration, and location projection
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks
     src/auth-policy.ts      Trusted issuer and client audience checks
     src/player-profile.ts   Username validation and derived level rules
     src/quest-model.ts      Template/slot/history tables, fixed layout, and validation
-    src/quest-seeds.ts      Fifteen reusable templates (five per difficulty)
+    src/quest-seeds.ts      Twenty-one reusable templates (seven per difficulty)
+    src/quest-locations.ts  Six curated geographic quests with verified site coordinates
     src/quest-config.ts     Server-controlled difficulty cooldown durations
     src/quest-selection.ts Shared active-template selection and repeat preference
     src/quest-completion.ts Atomic completion history, XP, and cooldown transition

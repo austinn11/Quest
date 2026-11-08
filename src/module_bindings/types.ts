@@ -103,6 +103,8 @@ export const QuestTemplates = __t.object("QuestTemplates", {
   latitude: __t.option(__t.f64()),
   longitude: __t.option(__t.f64()),
   isActive: __t.bool(),
+  locationName: __t.option(__t.string()),
+  locationType: __t.option(__t.string()),
 });
 export type QuestTemplates = __Infer<typeof QuestTemplates>;
 

@@ -33,7 +33,14 @@ export type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
 
 function seedQuestTemplates(ctx: Ctx) {
   for (const template of seedTemplates) {
-    if (ctx.db.questTemplates.templateId.find(template.templateId)) continue;
+    const existing = ctx.db.questTemplates.templateId.find(template.templateId);
+    if (existing) {
+      // Label the existing campus point without moving it or altering its quest/reward.
+      if (existing.templateId === 'easy-campus-scout' && existing.locationName === undefined && existing.latitude === template.latitude && existing.longitude === template.longitude) {
+        ctx.db.questTemplates.templateId.update({ ...existing, locationName: template.locationName, locationType: existing.locationType ?? template.locationType });
+      }
+      continue;
+    }
     const error = validateTemplate(template);
     if (error) throw new SenderError(error);
     ctx.db.questTemplates.insert(template);

@@ -38,6 +38,7 @@ export function JournalPage() {
                     <h3>{template?.title ?? 'An accomplished adventure'}</h3>
                     {template ? <p className="quest-meta">{template.category.tag} / {template.difficulty.tag}</p> : <p>The template is no longer available. Your accomplishment remains recorded.</p>}
                     <p className="quest-completed-date">Completed <QuestDate timestamp={completion.completedAt} /></p>
+                    {template?.locationName && <p className="field-help">Location: {template.locationName}</p>}
                     <details className="quest-details">
                       <summary>Revisit adventure</summary>
                       <p>{template?.description ?? 'The original objective is unavailable.'}</p>

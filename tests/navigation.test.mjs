@@ -51,6 +51,25 @@ test('profile route retains the username editor and progression display', () => 
   assert.ok(html.includes('150'));
 });
 
+test('world map lists only assigned geographic quests and retains non-geographic quest access', () => {
+  const slots = [
+    { slotId: 'test:0', slotIndex: 0, templateId: 'campus', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Available' }, difficulty: { tag: 'Easy' } },
+    { slotId: 'test:1', slotIndex: 1, templateId: 'craft', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Available' }, difficulty: { tag: 'Easy' } },
+  ];
+  const html = renderPage('/map', { ready: true, slots, templates: [
+    { templateId: 'campus', title: 'The campus expedition', latitude: 32.9858, longitude: -96.7501 },
+    { templateId: 'craft', title: 'A craft without a destination' },
+    { templateId: 'not-assigned', title: 'An unassigned destination must not appear', latitude: 32.8, longitude: -96.8 },
+  ] });
+  assert.ok(html.includes('The campus expedition'));
+  assert.ok(html.includes('1 assigned quest has'));
+  assert.ok(!html.includes('An unassigned destination must not appear'));
+  assert.ok(html.includes('Open your Questboard'));
+  assert.ok(html.includes('My location'));
+  assert.ok(html.includes('Interactive world map'));
+  assert.ok(renderPage('/map', { ready: true }).includes('Your current quests have no fixed map destinations'));
+});
+
 test('questboard displays loading and retryable initialization errors', () => {
   assert.ok(renderPage('/questboard').includes('Preparing your Questboard...'));
   const html = renderPage('/questboard', { slots: [], templates: [], ready: false, error: 'Not enough active Easy quest templates.', retry: () => {} });

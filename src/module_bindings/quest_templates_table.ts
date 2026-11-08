@@ -29,4 +29,6 @@ export default __t.row({
   latitude: __t.option(__t.f64()),
   longitude: __t.option(__t.f64()),
   isActive: __t.bool().name("is_active"),
+  locationName: __t.option(__t.string()).name("location_name"),
+  locationType: __t.option(__t.string()).name("location_type"),
 });

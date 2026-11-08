@@ -13,7 +13,7 @@ const navigation = [
 ];
 
 export function AppLayout() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { isActive, identity, connectionError } = useSpacetimeDB();
   const { error, retry } = usePlayer();
   const main = useRef<HTMLElement>(null);
@@ -21,8 +21,9 @@ export function AppLayout() {
   useEffect(() => {
     const page = navigation.find(item => item.to === pathname)?.label ?? 'Page not found';
     document.title = `${page} | Quest`;
-    main.current?.focus();
-  }, [pathname]);
+    // Questboard handles its card anchor after assignments render.
+    if (pathname !== '/questboard' || !/^#quest-slot-[0-5]$/.test(hash)) main.current?.focus();
+  }, [pathname, hash]);
 
   return (
     <div className="app-shell">

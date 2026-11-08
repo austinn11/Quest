@@ -1,4 +1,5 @@
 import { rewardForDifficulty, type QuestTemplate } from './quest-model';
+import { geographicTemplates } from './quest-locations';
 
 const definitions = [
   ['easy-campus-scout', 'Scout the Campus', 'Walk to a campus landmark you have not visited before and note one detail about it.', 'Exploration', 'Easy'],
@@ -18,12 +19,14 @@ const definitions = [
   ['hard-freshly-baked', 'Freshly Baked', 'Make a loaf of homemade bread from scratch and document your process and finished result.', 'Crafting', 'Hard'],
 ] as const;
 
-// Five per difficulty allow future same-difficulty replacements without duplicating active slots.
-export const seedTemplates: QuestTemplate[] = definitions.map(([templateId, title, description, category, difficulty]) => ({
+// Seven per difficulty retain generic quests alongside curated geographic adventures.
+export const seedTemplates: QuestTemplate[] = [...definitions.map(([templateId, title, description, category, difficulty]) => ({
   templateId, title, description,
   category: { tag: category }, difficulty: { tag: difficulty },
   xpReward: rewardForDifficulty({ tag: difficulty }),
   latitude: templateId === 'easy-campus-scout' ? 32.9858 : undefined,
   longitude: templateId === 'easy-campus-scout' ? -96.7501 : undefined,
   isActive: true,
-}));
+  locationName: templateId === 'easy-campus-scout' ? 'University of Texas at Dallas campus' : undefined,
+  locationType: templateId === 'easy-campus-scout' ? 'Campus' : undefined,
+})), ...geographicTemplates];

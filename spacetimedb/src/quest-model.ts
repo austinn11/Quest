@@ -22,6 +22,9 @@ export const questTemplates = table({ name: 'quest_templates', public: true }, {
   latitude: t.option(t.f64()),
   longitude: t.option(t.f64()),
   isActive: t.bool().index('btree'),
+  // Defaults allow existing catalogue rows to migrate without deleting player data.
+  locationName: t.option(t.string()).default(undefined),
+  locationType: t.option(t.string()).default(undefined),
 });
 
 export const playerQuestSlots = table({
@@ -79,6 +82,10 @@ export function validateTemplate(template: QuestTemplate): string | null {
   if (hasLatitude !== hasLongitude) return 'Latitude and longitude must be supplied together.';
   if (hasLatitude && (!Number.isFinite(template.latitude) || template.latitude! < -90 || template.latitude! > 90)) return 'Latitude must be between -90 and 90.';
   if (hasLongitude && (!Number.isFinite(template.longitude) || template.longitude! < -180 || template.longitude! > 180)) return 'Longitude must be between -180 and 180.';
+  for (const [label, value, limit] of [['Location name', template.locationName, 160], ['Location type', template.locationType, 60]] as const) {
+    if (value !== undefined && (!value.trim() || value.trim().length > limit)) return `${label} must contain 1 to ${limit} characters.`;
+    if (value !== undefined && !hasLatitude) return 'Named quest locations require latitude and longitude.';
+  }
   return null;
 }
 
