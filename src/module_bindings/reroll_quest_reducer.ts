@@ -10,14 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-import {
-  PlaceInput,
-} from "./types";
-
 export default {
-  latitude: __t.f64(),
-  longitude: __t.f64(),
-  get places() {
-    return __t.array(PlaceInput);
-  },
+  slotIndex: __t.u8(),
+  expectedAssignedAt: __t.timestamp(),
 };

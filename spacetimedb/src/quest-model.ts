@@ -1,5 +1,6 @@
 import { t, table, type Infer } from 'spacetimedb/server';
 import type { Identity, Timestamp } from 'spacetimedb';
+import { PLACE_KINDS } from '../../shared/nearby-places';
 
 export const QuestCategory = t.enum('QuestCategory', {
   Exploration: t.unit(), Bestiary: t.unit(), Crafting: t.unit(),
@@ -10,6 +11,7 @@ export const QuestDifficulty = t.enum('QuestDifficulty', {
 export const QuestSlotStatus = t.enum('QuestSlotStatus', {
   Available: t.unit(), Cooldown: t.unit(),
 });
+export const QuestType = t.enum('QuestType', { Anywhere: t.unit(), Location: t.unit() });
 
 // The catalogue contains no player information and can be read by all clients.
 export const questTemplates = table({ name: 'quest_templates', public: true }, {
@@ -29,6 +31,8 @@ export const questTemplates = table({ name: 'quest_templates', public: true }, {
   photoGoal: t.option(t.string()).default(undefined),
   // Bestiary quests are bounties for a named creature.
   bountyTarget: t.option(t.string()).default(undefined),
+  questType: QuestType.default({ tag: 'Anywhere' }),
+  requiredLocationType: t.option(t.string()).default(undefined),
 });
 
 export const playerQuestSlots = table({
@@ -44,6 +48,7 @@ export const playerQuestSlots = table({
   assignedAt: t.timestamp(),
   completedAt: t.option(t.timestamp()),
   refreshAt: t.option(t.timestamp()),
+  locationId: t.option(t.u64()).default(undefined),
 });
 
 export const questCompletions = table({ name: 'quest_completions' }, {
@@ -55,6 +60,12 @@ export const questCompletions = table({ name: 'quest_completions' }, {
   completedAt: t.timestamp().index('btree'),
   // The AI judge's short description of the accepted photo, when one was submitted.
   proofNote: t.option(t.string()).default(undefined),
+  locationId: t.option(t.u64()).default(undefined),
+  questTitle: t.option(t.string()).default(undefined),
+  questObjective: t.option(t.string()).default(undefined),
+  locationName: t.option(t.string()).default(undefined),
+  latitude: t.option(t.f64()).default(undefined),
+  longitude: t.option(t.f64()).default(undefined),
 });
 
 // Private: a player's quest area (rounded to about 100 m). Read only through my_quest_area.
@@ -64,7 +75,8 @@ export const playerQuestArea = table({ name: 'player_quest_area' }, {
   longitude: t.f64(),
   updatedAt: t.timestamp(),
   placeCount: t.u32(),
-  generatorVersion: t.u32().default(0),
+  label: t.string().default('Saved adventure region'),
+  radiusMeters: t.u32().default(8000),
 });
 
 // Private: quests generated from places near one player. Never deleted, so history resolves.
@@ -125,6 +137,7 @@ export function localQuestAsTemplate(quest: LocalQuest): QuestTemplate {
     latitude: quest.latitude, longitude: quest.longitude, isActive: quest.isActive,
     locationName: quest.locationName, locationType: quest.locationType, photoGoal: quest.photoGoal,
     bountyTarget: quest.bountyTarget,
+    questType: { tag: quest.latitude === undefined ? 'Anywhere' : 'Location' }, requiredLocationType: undefined,
   };
 }
 export const SLOT_DIFFICULTIES = ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard'] as const;
@@ -155,6 +168,10 @@ export function validateTemplate(template: QuestTemplate): string | null {
   if (hasLatitude !== hasLongitude) return 'Latitude and longitude must be supplied together.';
   if (hasLatitude && (!Number.isFinite(template.latitude) || template.latitude! < -90 || template.latitude! > 90)) return 'Latitude must be between -90 and 90.';
   if (hasLongitude && (!Number.isFinite(template.longitude) || template.longitude! < -180 || template.longitude! > 180)) return 'Longitude must be between -180 and 180.';
+  if (!['Anywhere', 'Location'].includes(template.questType.tag)) return 'Choose a valid quest type.';
+  if (template.questType.tag === 'Anywhere' && (hasLatitude || hasLongitude || template.requiredLocationType !== undefined)) return 'Anywhere quests cannot require a destination.';
+  if (template.requiredLocationType !== undefined && !['any', 'nature', ...PLACE_KINDS].includes(template.requiredLocationType)) return 'Choose a supported location type.';
+  if (template.questType.tag === 'Location' && !hasLatitude && template.requiredLocationType === undefined) return 'Location recipes must specify a compatible location type.';
   for (const [label, value, limit] of [['Location name', template.locationName, 160], ['Location type', template.locationType, 60]] as const) {
     if (value !== undefined && (!value.trim() || value.trim().length > limit)) return `${label} must contain 1 to ${limit} characters.`;
     if (value !== undefined && !hasLatitude) return 'Named quest locations require latitude and longitude.';
@@ -168,7 +185,7 @@ export function validateTemplate(template: QuestTemplate): string | null {
 }
 
 // Shared guards for assignment, completion, and replacement transitions.
-export function validateSlot(slot: PlayerQuestSlot, template: QuestTemplate, now: Timestamp): string | null {
+export function validateSlot(slot: PlayerQuestSlot, template: QuestTemplate, now: Timestamp, requireActive = true): string | null {
   const expectedDifficulty = slotDifficulty(slot.slotIndex);
   if (!expectedDifficulty) return 'Slot index must be an integer from 0 to 5.';
   if (slot.slotId !== slotIdFor(slot.playerIdentity, slot.slotIndex)) return 'Slot ID must match its player and slot index.';
@@ -176,7 +193,7 @@ export function validateSlot(slot: PlayerQuestSlot, template: QuestTemplate, now
   if (slot.templateId !== template.templateId) return 'Slot template does not match the referenced template.';
   if (slot.assignedAt.microsSinceUnixEpoch > now.microsSinceUnixEpoch) return 'Assignment time cannot be in the future.';
   if (slot.status.tag === 'Available') {
-    if (!template.isActive) return 'New assignments require an active template.';
+    if (requireActive && !template.isActive) return 'New assignments require an active template.';
     if (slot.completedAt !== undefined || slot.refreshAt !== undefined) return 'Available slots cannot have completion or refresh times.';
   } else if (slot.status.tag === 'Cooldown') {
     if (!slot.completedAt || !slot.refreshAt) return 'Cooldown slots require completion and refresh times.';

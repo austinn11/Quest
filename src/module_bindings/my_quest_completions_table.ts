@@ -18,4 +18,10 @@ export default __t.row({
   xpAwarded: __t.u32().name("xp_awarded"),
   completedAt: __t.timestamp().name("completed_at"),
   proofNote: __t.option(__t.string()).name("proof_note"),
+  locationId: __t.option(__t.u64()).name("location_id"),
+  questTitle: __t.option(__t.string()).name("quest_title"),
+  questObjective: __t.option(__t.string()).name("quest_objective"),
+  locationName: __t.option(__t.string()).name("location_name"),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
 });

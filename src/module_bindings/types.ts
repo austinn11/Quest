@@ -24,6 +24,26 @@ export const CreatureCaptures = __t.object("CreatureCaptures", {
 });
 export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
 
+export const DiscoveryBudget = __t.object("DiscoveryBudget", {
+  provider: __t.string(),
+  day: __t.u64(),
+  requests: __t.u32(),
+});
+export type DiscoveryBudget = __Infer<typeof DiscoveryBudget>;
+
+export const DiscoveryCache = __t.object("DiscoveryCache", {
+  key: __t.string(),
+  payload: __t.string(),
+  verifiedAt: __t.timestamp(),
+});
+export type DiscoveryCache = __Infer<typeof DiscoveryCache>;
+
+export const DiscoveryLimit = __t.object("DiscoveryLimit", {
+  key: __t.string(),
+  requestedAt: __t.timestamp(),
+});
+export type DiscoveryLimit = __Infer<typeof DiscoveryLimit>;
+
 export const Favorite = __t.object("Favorite", {
   favoriteId: __t.u64(),
   playerIdentity: __t.identity(),
@@ -200,6 +220,21 @@ export const LocalQuests = __t.object("LocalQuests", {
 });
 export type LocalQuests = __Infer<typeof LocalQuests>;
 
+export const Locations = __t.object("Locations", {
+  locationId: __t.u64(),
+  playerIdentity: __t.identity(),
+  externalSource: __t.string(),
+  externalPlaceId: __t.string(),
+  name: __t.string(),
+  locationType: __t.string(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+  region: __t.string(),
+  regionSelectedAt: __t.timestamp(),
+  lastVerifiedAt: __t.timestamp(),
+});
+export type Locations = __Infer<typeof Locations>;
+
 export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
 export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
 
@@ -223,6 +258,9 @@ export type MyGuildQuests = __Infer<typeof MyGuildQuests>;
 
 export const MyLocalQuests = __t.object("MyLocalQuests", {});
 export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
+
+export const MyLocations = __t.object("MyLocations", {});
+export type MyLocations = __Infer<typeof MyLocations>;
 
 export const MyParty = __t.object("MyParty", {});
 export type MyParty = __Infer<typeof MyParty>;
@@ -255,6 +293,7 @@ export const Party = __t.object("Party", {
   lastObservation: __t.option(__t.string()),
   lastXpEach: __t.option(__t.u32()),
   lastCompletedAt: __t.option(__t.timestamp()),
+  questSnapshot: __t.option(__t.string()),
 });
 export type Party = __Infer<typeof Party>;
 
@@ -327,15 +366,6 @@ export const PhotoVerdict = __t.object("PhotoVerdict", {
 });
 export type PhotoVerdict = __Infer<typeof PhotoVerdict>;
 
-export const PlaceInput = __t.object("PlaceInput", {
-  id: __t.string(),
-  name: __t.string(),
-  kind: __t.string(),
-  latitude: __t.f64(),
-  longitude: __t.f64(),
-});
-export type PlaceInput = __Infer<typeof PlaceInput>;
-
 export const Player = __t.object("Player", {
   identity: __t.identity(),
   displayName: __t.string(),
@@ -347,6 +377,8 @@ export const Player = __t.object("Player", {
   bestiaryXp: __t.u32(),
   craftingXp: __t.u32(),
   progressionReady: __t.bool(),
+  rerollsUsed: __t.u8(),
+  rerollResetAt: __t.option(__t.timestamp()),
 });
 export type Player = __Infer<typeof Player>;
 
@@ -382,6 +414,8 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   bestiaryXp: __t.u32(),
   craftingXp: __t.u32(),
   progressionReady: __t.bool(),
+  rerollsUsed: __t.u8(),
+  rerollResetAt: __t.option(__t.timestamp()),
   avatar: __t.string(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
@@ -392,7 +426,8 @@ export const PlayerQuestArea = __t.object("PlayerQuestArea", {
   longitude: __t.f64(),
   updatedAt: __t.timestamp(),
   placeCount: __t.u32(),
-  generatorVersion: __t.u32(),
+  label: __t.string(),
+  radiusMeters: __t.u32(),
 });
 export type PlayerQuestArea = __Infer<typeof PlayerQuestArea>;
 
@@ -410,6 +445,7 @@ export const PlayerQuestSlots = __t.object("PlayerQuestSlots", {
   assignedAt: __t.timestamp(),
   completedAt: __t.option(__t.timestamp()),
   refreshAt: __t.option(__t.timestamp()),
+  locationId: __t.option(__t.u64()),
 });
 export type PlayerQuestSlots = __Infer<typeof PlayerQuestSlots>;
 
@@ -429,6 +465,12 @@ export const QuestCompletions = __t.object("QuestCompletions", {
   xpAwarded: __t.u32(),
   completedAt: __t.timestamp(),
   proofNote: __t.option(__t.string()),
+  locationId: __t.option(__t.u64()),
+  questTitle: __t.option(__t.string()),
+  questObjective: __t.option(__t.string()),
+  locationName: __t.option(__t.string()),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
 });
 export type QuestCompletions = __Infer<typeof QuestCompletions>;
 
@@ -465,6 +507,17 @@ export const QuestTemplates = __t.object("QuestTemplates", {
   locationType: __t.option(__t.string()),
   photoGoal: __t.option(__t.string()),
   bountyTarget: __t.option(__t.string()),
+  get questType() {
+    return QuestType;
+  },
+  requiredLocationType: __t.option(__t.string()),
 });
 export type QuestTemplates = __Infer<typeof QuestTemplates>;
+
+// The tagged union or sum type for the algebraic type `QuestType`.
+export const QuestType = __t.enum("QuestType", {
+  Anywhere: __t.unit(),
+  Location: __t.unit(),
+});
+export type QuestType = __Infer<typeof QuestType>;
 

@@ -4,6 +4,7 @@ import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { getTotalPlayerXp, levelForXp, skillXpAfterReward, type SkillXp } from '../../shared/progression';
 import { initializePlayerSkills } from './player-progression';
+import { localQuestAsTemplate, type LocalQuest } from './quest-model';
 import { resolveQuest } from './quest-selection';
 import { validateTemplate, type QuestTemplate } from './quest-model';
 import { countPhotoAttempt } from './quest-area';
@@ -37,6 +38,7 @@ export const party = table({ name: 'party' }, {
   lastObservation: t.option(t.string()),
   lastXpEach: t.option(t.u32()),
   lastCompletedAt: t.option(t.timestamp()),
+  questSnapshot: t.option(t.string()).default(undefined),
 });
 
 export const partyMember = table({ name: 'party_member' }, {
@@ -135,7 +137,7 @@ export function createParty(ctx: Ctx) {
   requirePlayer(ctx);
   if (ctx.db.partyMember.playerIdentity.find(ctx.sender)) throw new SenderError('You are already in a party.');
   const row = ctx.db.party.insert({
-    partyId: 0n, leaderIdentity: ctx.sender, questTemplateId: undefined, createdAt: ctx.timestamp,
+    partyId: 0n, leaderIdentity: ctx.sender, questTemplateId: undefined, questSnapshot: undefined, createdAt: ctx.timestamp,
     lastQuestTitle: undefined, lastCompletedBy: undefined, lastObservation: undefined, lastXpEach: undefined, lastCompletedAt: undefined,
   });
   ctx.db.partyMember.insert({ playerIdentity: ctx.sender, partyId: row.partyId, joinedAt: ctx.timestamp });
@@ -181,7 +183,7 @@ export function leaveParty(ctx: Ctx) {
     ctx.db.party.partyId.delete(current.partyId);
   } else if (current.leaderIdentity.equals(ctx.sender)) {
     // The longest-standing member leads; the leader's own local quest no longer applies.
-    ctx.db.party.partyId.update({ ...current, leaderIdentity: remaining[0].playerIdentity, questTemplateId: undefined });
+    ctx.db.party.partyId.update({ ...current, leaderIdentity: remaining[0].playerIdentity, questTemplateId: undefined, questSnapshot: undefined });
   }
 }
 
@@ -197,7 +199,7 @@ export function setPartyQuest(ctx: Ctx, { templateId }: { templateId: string }) 
   const onBoard = [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)].some(slot => slot.templateId === templateId && slot.status.tag === 'Available');
   const template = onBoard ? resolveQuest(ctx, ctx.sender, templateId) : null;
   if (!template) throw new SenderError('Choose a quest that is available on your Questboard.');
-  ctx.db.party.partyId.update({ ...current, questTemplateId: templateId });
+  ctx.db.party.partyId.update({ ...current, questTemplateId: templateId, questSnapshot: JSON.stringify(template) });
 }
 
 // Party quest photo step 1: confirm the party has a quest and count the attempt.
@@ -205,7 +207,7 @@ export function beginPartyPhotoCheck(ctx: Ctx): QuestTemplate {
   requirePlayer(ctx);
   const current = myParty(ctx);
   if (!current) throw new SenderError('Join a party to do party quests.');
-  const template = current.questTemplateId ? resolveQuest(ctx, current.leaderIdentity, current.questTemplateId) : null;
+  const template = current.questTemplateId ? (current.questSnapshot ? JSON.parse(current.questSnapshot) as QuestTemplate : resolveQuest(ctx, current.leaderIdentity, current.questTemplateId)) : null;
   if (!template) throw new SenderError('Your party has no quest yet. The leader can choose one.');
   const error = validateTemplate(template);
   if (error) throw new SenderError(error);
@@ -214,11 +216,13 @@ export function beginPartyPhotoCheck(ctx: Ctx): QuestTemplate {
 }
 
 // Party quest photo step 3: every member earns the quest's XP plus the party bonus, once.
-export function finishPartyQuest(ctx: Ctx, templateId: string, observation: string): number {
+export function finishPartyQuest(ctx: Ctx, templateId: string, observation: string, expectedQuest?: QuestTemplate): number {
   const player = requirePlayer(ctx);
   const current = myParty(ctx);
   if (!current || current.questTemplateId !== templateId) throw new SenderError('The party quest changed before your photo was checked. Try again.');
-  const template = resolveQuest(ctx, current.leaderIdentity, templateId)!;
+  const template = current.questSnapshot ? JSON.parse(current.questSnapshot) as QuestTemplate : resolveQuest(ctx, current.leaderIdentity, templateId);
+  if (!template) throw new SenderError('The party quest is unavailable.');
+  if (expectedQuest && JSON.stringify(template) !== JSON.stringify(expectedQuest)) throw new SenderError('The party destination changed before the photo was checked. Try again.');
   const xpEach = template.xpReward + Math.floor(template.xpReward * PARTY_BONUS_PERCENT / 100);
   for (const member of membersOf(ctx, current.partyId)) {
     const found = ctx.db.player.identity.find(member.playerIdentity);
@@ -232,7 +236,7 @@ export function finishPartyQuest(ctx: Ctx, templateId: string, observation: stri
     }
   }
   ctx.db.party.partyId.update({
-    ...current, questTemplateId: undefined, lastQuestTitle: template.title, lastCompletedBy: player.username,
+    ...current, questTemplateId: undefined, questSnapshot: undefined, lastQuestTitle: template.title, lastCompletedBy: player.username,
     lastObservation: observation.trim().slice(0, 160) || undefined, lastXpEach: xpEach, lastCompletedAt: ctx.timestamp,
   });
   return xpEach;
@@ -259,7 +263,7 @@ type SocialReadCtx = {
     party: { partyId: { find(partyId: bigint): Party | null | undefined } };
     partyInvite: { toIdentity: { filter(identity: Identity): Iterable<{ inviteId: bigint; partyId: bigint; fromIdentity: Identity; createdAt: Infer<ReturnType<typeof t.timestamp>> }> } };
     questTemplates: { templateId: { find(templateId: string): QuestTemplate | null | undefined } };
-    localQuests: { templateId: { find(templateId: string): (QuestTemplate & { playerIdentity: Identity }) | null | undefined } };
+    localQuests: { templateId: { find(templateId: string): LocalQuest | null | undefined } };
   };
 };
 
@@ -303,10 +307,11 @@ export function partyRow(ctx: SocialReadCtx) {
   const row = membership && ctx.db.party.partyId.find(membership.partyId);
   if (!membership || !row) return undefined;
   let quest: QuestTemplate | undefined;
-  if (row.questTemplateId) {
+  if (row.questTemplateId && row.questSnapshot) quest = JSON.parse(row.questSnapshot) as QuestTemplate;
+  if (row.questTemplateId && !quest) {
     quest = ctx.db.questTemplates.templateId.find(row.questTemplateId) ?? undefined;
     const local = quest ? undefined : ctx.db.localQuests.templateId.find(row.questTemplateId);
-    if (local && local.playerIdentity.equals(row.leaderIdentity)) quest = local;
+    if (local && local.playerIdentity.equals(row.leaderIdentity)) quest = localQuestAsTemplate(local);
   }
   return {
     partyId: row.partyId, isLeader: row.leaderIdentity.equals(ctx.sender), leaderName: nameOf(ctx, row.leaderIdentity),

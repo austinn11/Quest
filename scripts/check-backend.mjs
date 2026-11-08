@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer, loadEnv } from 'vite';
 import { setGlobalLogLevel } from 'spacetimedb';
 
-// Exercise the app's exact subscription using a new anonymous identity. No user
+// Exercise every app subscription using a new anonymous identity. No user
 // token is read, no reducers are called, and player rows/photos are not printed.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const env = { ...loadEnv('development', root, 'VITE_'), ...process.env };
@@ -15,6 +15,10 @@ let connection, stop, profile, timer;
 try {
   const { DbConnection, tables } = await server.ssrLoadModule('/src/module_bindings/index.ts');
   const { subscribeToQuestData } = await server.ssrLoadModule('/src/questboard/quest-subscription.ts');
+  const privateViews = [
+    'myFavorites', 'myLocations', 'myPlayer', 'myGuild', 'myGuildMembers', 'myGuildQuests',
+    'myFriends', 'myFriendRequests', 'myPartyInvites', 'myParty', 'myPartyMembers',
+  ];
   await new Promise((resolve, reject) => {
     let questsReady = false, profileReady = false;
     const done = () => { if (questsReady && profileReady) resolve(); };
@@ -36,10 +40,12 @@ try {
         });
         profile = conn.subscriptionBuilder().onApplied(() => {
           try {
-            assert.equal([...conn.db.myPlayer.iter()].length, 0, 'Anonymous identity must not receive profiles');
+            for (const accessor of privateViews) {
+              assert.equal([...conn.db[accessor].iter()].length, 0, `Anonymous identity must not receive rows from ${accessor}`);
+            }
             profileReady = true; done();
           } catch (error) { reject(error); }
-        }).onError(ctx => reject(ctx.event)).subscribe(tables.myPlayer);
+        }).onError(ctx => reject(ctx.event)).subscribe([...privateViews.map(accessor => tables[accessor]), tables.guildDirectory]);
       }).onConnectError(ctx => reject(ctx.event)).build();
   });
   console.log(`Backend check passed for ${database}: all app subscriptions applied with the generated bindings; private views returned no other player's data.`);

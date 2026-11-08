@@ -11,8 +11,9 @@ import { getTotalPlayerXp, levelForXp, type SkillXp } from '../shared/progressio
 import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
 import { SocialContext, type SocialState } from '../src/social/SocialProvider';
 import { FavoritesContext, type FavoritesState } from '../src/collection/FavoritesProvider';
+import type { RerollState } from '../shared/rerolls';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}, socialState: Partial<SocialState> = {}, favoritesState: Partial<FavoritesState> = {}) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}, socialState: Partial<SocialState> = {}, favoritesState: Partial<FavoritesState> = {}, rerolls: RerollState = { rerollsUsed: 0, rerollResetAt: undefined }) {
   const favorites: FavoritesState = { captures: new Set(), completions: new Set(), toggle: async () => {}, error: null, ...favoritesState };
   const social: SocialState = {
     friends: [], requests: [], invites: [], party: null, partyMembers: [], ready: true,
@@ -29,7 +30,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
   };
   const questState: QuestboardState = {
     slots: [], templates: [], completions: [], area: null, captures: [], connected: true, ready: false,
-    location: { status: { kind: 'off' }, enable: () => {}, disable: () => {}, retry: () => {} },
+    location: { status: { kind: 'off' }, enable: () => {}, disable: () => {}, retry: () => {}, proposal: null, search: async () => [], save: async () => false },
     hasSnapshot: board.ready ?? false, initializing: false, error: null,
     subscriptionError: null, retry: () => {},
     now: 0, refreshing: false, refreshError: null, refreshSlots: async () => {}, ...board,
@@ -39,7 +40,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
         <SpacetimeDBProvider connectionBuilder={DbConnection.builder().withUri('http://localhost:3000').withDatabaseName('test')}>
           <PlayerContext.Provider value={{
-            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH, ...skills, progressionReady: true, avatar: '' },
+            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH, ...skills, progressionReady: true, rerollsUsed: rerolls.rerollsUsed, rerollResetAt: rerolls.rerollResetAt ? new Timestamp(rerolls.rerollResetAt.microsSinceUnixEpoch) : undefined, avatar: '' },
             ready: true,
             error: null,
             retry: () => {},

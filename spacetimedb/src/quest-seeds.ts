@@ -2,6 +2,12 @@ import { rewardForDifficulty, type QuestTemplate } from './quest-model';
 import { geographicTemplates } from './quest-locations';
 
 const definitions: readonly (readonly [string, string, string, 'Exploration' | 'Bestiary' | 'Crafting', 'Easy' | 'Medium' | 'Hard', string])[] = [
+  ['easy-cipher', 'A Coded Message', 'Learn a Caesar cipher, encode a short message on paper and write the decoded text beneath it. Photograph the page.', 'Exploration', 'Easy', 'A written coded message with its decoded text.'],
+  ['easy-thread', 'A Small Token', 'Make a simple bracelet or small decoration from materials you already own and photograph it.', 'Crafting', 'Easy', 'A handmade bracelet or small decoration.'],
+  ['medium-chronicle', 'The Scholar Chronicle', 'Read a chapter of a book and fill a page with what you learned. Photograph your page beside the book.', 'Exploration', 'Medium', 'A handwritten page of reading notes beside a book.'],
+  ['medium-recipe', 'The Traveling Cook', 'Cook a recipe you have never tried and photograph the finished dish beside a handwritten list of its ingredients.', 'Crafting', 'Medium', 'A home-cooked dish with a handwritten ingredient list.'],
+  ['hard-study', 'Master a New Subject', 'Learn about a new subject and make an illustrated one-page guide explaining it. Photograph your guide.', 'Exploration', 'Hard', 'An illustrated, handmade study guide.'],
+  ['hard-model', 'The Artisan Model', 'Design and build a detailed model from reused materials and photograph the finished model.', 'Crafting', 'Hard', 'A detailed handmade model made from reused materials.'],
   ['easy-campus-scout', 'Scout the Campus', 'Walk to a campus landmark you have never visited before and photograph it, or its sign, so the guild knows where you went.', 'Exploration', 'Easy', 'A campus landmark, building sign or outdoor campus feature.'],
   ['easy-new-path', 'The Road Less Traveled', 'Take a different walking route on a familiar journey and photograph the most interesting thing you pass along the way.', 'Exploration', 'Easy', 'An outdoor photo of a street, path or something seen along a walking route.'],
   ['easy-birdwatch', 'A Feathered Encounter', 'Find a wild bird and photograph it from a respectful distance. Small or far away is fine; do not chase or feed it.', 'Bestiary', 'Easy', 'A real bird photographed outdoors (it may be small or distant).'],
@@ -43,9 +49,29 @@ export const seedTemplates: QuestTemplate[] = withBounties([...definitions.map((
   locationName: templateId === 'easy-campus-scout' ? 'University of Texas at Dallas campus' : undefined,
   locationType: templateId === 'easy-campus-scout' ? 'Campus' : undefined,
   photoGoal,
-  bountyTarget: undefined,
-})), ...geographicTemplates]);
+  bountyTarget: undefined, questType: { tag: 'Anywhere' as const }, requiredLocationType: undefined,
+})), ...geographicTemplates.map(template => ({ ...template, questType: { tag: 'Location' as const }, requiredLocationType: undefined })), ...locationRecipes()]);
 
 function withBounties(templates: QuestTemplate[]): QuestTemplate[] {
-  return templates.map(template => ({ ...template, bountyTarget: BOUNTY_TARGETS[template.templateId] }));
+  return templates.map(template => ({ ...template, bountyTarget: template.bountyTarget ?? BOUNTY_TARGETS[template.templateId], questType: template.latitude !== undefined ? { tag: 'Location' } : template.questType, requiredLocationType: template.requiredLocationType }));
+}
+
+function locationRecipes(): QuestTemplate[] {
+  const recipes = [
+    ['green-scout', 'Explore {location}', 'Visit {location} using public paths and photograph its best view or landscape.', 'Exploration', 'nature'],
+    ['culture-scout', 'Discover {location}', 'Visit {location} during public opening hours and photograph its sign, entrance or most striking feature.', 'Exploration', 'any'],
+    ['field-bounty', 'Wildlife at {location}', 'At {location}, photograph a wild animal, bird or insect from public paths without disturbing or feeding it.', 'Bestiary', 'nature'],
+    ['plant-study', 'The Flora of {location}', 'At {location}, photograph a wild plant or flower up close without picking or damaging it.', 'Bestiary', 'nature'],
+    ['sketch-place', 'Sketch {location}', 'Visit {location}, draw a sketch inspired by it and photograph your sketch. Leave everything as you found it.', 'Crafting', 'any'],
+    ['map-place', 'Chart {location}', 'Visit {location}, draw a map of its public paths or features and photograph the map.', 'Crafting', 'nature'],
+  ] as const;
+  return (['Easy', 'Medium', 'Hard'] as const).flatMap(difficulty => recipes.map(([id, title, objective, category, requiredLocationType]) => ({
+    templateId: 'region-' + difficulty.toLowerCase() + '-' + id, title,
+    description: objective + (difficulty === 'Medium' ? ' Explore for at least 20 minutes before you choose your shot.' : difficulty === 'Hard' ? ' Explore the whole place first and capture what makes it special.' : ''),
+    category: { tag: category }, difficulty: { tag: difficulty }, xpReward: rewardForDifficulty({ tag: difficulty }),
+    latitude: undefined, longitude: undefined, isActive: true, locationName: undefined, locationType: undefined,
+    photoGoal: category === 'Crafting' ? 'A drawing or map made by the player, inspired by {location}.' : category === 'Bestiary' ? 'A plant or wild animal photographed outdoors at {location}.' : 'An outdoor feature or public sign at {location}.',
+    bountyTarget: category === 'Bestiary' ? (id === 'plant-study' ? 'Local Flora' : 'Local Wildlife') : undefined,
+    questType: { tag: 'Location' }, requiredLocationType,
+  })));
 }

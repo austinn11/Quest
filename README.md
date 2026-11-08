@@ -124,6 +124,18 @@ Choose an adventurer username in the profile, then use **Edit username** to chan
 
 To check F03 in the browser, choose a name, refresh, edit it, and sign out/back in. The saved name should return. With a second Google account, choose a different name and confirm both accounts retain their own names. Trying the first account's name (including different capitalization) should display an availability error.
 
+## Daily quest rerolls (F17)
+
+Each player gets two free rerolls per fixed 24-hour window. The first **successful** reroll sets `reroll_reset_at` to server time plus 24 hours. The second preserves that deadline. At or after the deadline the effective allowance returns to two, with no accumulation; a new deadline is written only on the next successful reroll. `rerolls_used` and optional `reroll_reset_at` are appended to the private player table with safe defaults and exposed only through `my_player`. Existing XP, profiles, and gameplay data are preserved.
+
+`rerollQuest({ slotIndex, expectedAssignedAt })` validates authentication, ownership, the exact current assignment, Available status, and allowance within one transaction. It reuses the normal selector with active templates, the fixed slot difficulty, the current template and every other occupied template excluded, and a preference for the same Location/Anywhere type. The existing saved catalogue/private local-template pool is reused; rerolls introduce no discovery or external API calls. If selection or validation fails, both the allowance and assignment remain unchanged.
+
+A successful reroll changes only the selected slot and the player's reroll fields. It awards no XP, writes no history or capture, advances no guild quest, and does not affect another slot's cooldown. The slot remains Available with empty completion/cooldown metadata. Its slot ID plus new exact server assignment timestamp is its unique assignment identity; a non-increasing timestamp is rejected rather than reused. Old completion/photo requests, stale confirmations, and old map links cannot target the replacement. Concurrent transactions share the same persisted allowance, so multiple tabs cannot bypass the limit. Recently completed templates remain a selection preference; there is no extra reroll-history table.
+
+The Questboard shows effective remaining rerolls and a local reset countdown, with no countdown polling of the backend. Reroll requires confirmation; cancellation sends no reducer call. Buttons are disabled for cooldown slots, exhausted allowances, stale/disconnected data, and pending requests. Errors and ambiguous connection outcomes are shown without claiming an allowance was consumed. Replacements and geographic markers update through the existing profile/slot subscriptions. Browser-clock expiry is display-only; server time always enforces the allowance.
+
+Tests use controlled timestamps for window boundaries, transaction rollback, stale/concurrent requests, template-type preferences, independent players, persistence, and unchanged XP/history/cooldowns. Publish the matching schema with deletion disabled and reload clients after generating bindings; this changes the `my_player` wire layout.
+
 ## Player leveling and XP progression (F10)
 
 `shared/progression.ts` contains the pure calculations bundled into both SpacetimeDB and React. The additional XP needed to advance from level L is `200 + 100 * (L - 1)`. The cumulative XP required to reach level L is `50 * (L - 1) * (L + 2)`.
@@ -172,7 +184,7 @@ The existing private player table is preserved. Three quest-related tables repla
 | `player_quest_slots` | Player-bound slot ID, owner, index, fixed difficulty, assigned template, Available/Cooldown status, assignment/completion/refresh times | Private; `my_quest_slots` returns only the caller's rows |
 | `quest_completions` | Auto-incremented completion ID, owner, template ID, slot index, XP awarded, completion time | Private; `my_quest_completions` returns only the caller's history |
 
-Categories are Exploration, Bestiary, and Crafting. Difficulty rewards remain server-controlled: Easy 50 XP, Medium 100 XP, Hard 200 XP. Twenty-one templates seed idempotently, with seven choices per difficulty: fifteen original quests and six curated geographic quests. Existing records and inactive flags are preserved on reseeding. Inactive templates remain readable for resolving historical references, but validation rejects them for new Available assignments.
+Categories are Exploration, Bestiary, and Crafting. Difficulty rewards remain server-controlled: Easy 50 XP, Medium 100 XP, Hard 200 XP. Forty-five templates seed idempotently (fifteen per difficulty), including eighteen reusable Location recipes. The original curated destinations remain readable for legacy assignments and history but are excluded from new generation. Existing records and inactive flags are preserved on reseeding. Inactive templates remain readable for resolving historical references, but validation rejects them for new Available assignments.
 
 Slot IDs are derived from the player identity and position, so reducers address one row per position. Validation helpers enforce positions 0–5, the 3/2/1 difficulty layout, matching template references, and coherent timestamps. Available slots have no completion or refresh timestamp; Cooldown slots retain the completed template and require both timestamps. Difficulty-specific durations live in `spacetimedb/src/quest-config.ts`.
 
@@ -246,38 +258,33 @@ Location-based Questboard cards have a **View on map** link. Links include the s
 
 Map details reuse the Questboard's `CompleteQuestButton`, which now completes quests with photo proof (see below). Completion is disabled until the connection and subscription are current, and while initialization or refresh is pending. The subscribed cooldown state updates the marker and details; XP and Journal history update through their existing subscriptions. No additional completion API, optimistic quest record, or duplicate XP logic is added.
 
-When a slot is replaced, the old marker and selected completion control disappear. The old URL reports that its assignment changed instead of silently selecting the replacement. A current map quest links back to its exact Questboard card. Journal entries offer **View completed quest on map** only while the matching template, slot, and completion timestamp still identify that slot's current cooldown quest. Once replaced, that map link disappears while the accomplishment and awarded XP remain in history.
+When a slot is replaced, the old marker and selected completion control disappear. The old URL reports that its assignment changed instead of silently selecting the replacement. A current map quest links back to its exact Questboard card. New Journal completions link to their permanent destination snapshots. Legacy entries without snapshots link to the matching current cooldown assignment.
 
 F13 is frontend-only and uses the already-published tables, views, and reducers. Tests cover assignment-specific links, malformed or stale targets, repeated templates, unmapped quests, current Journal links, subscription readiness, and the complete/replace gameplay flow.
 
 ## Quest selection
 
-Whenever a slot is filled (a new board, a refresh, or a reload after travelling), selection:
+Whenever a slot is filled (a new board, an eligible cooldown refresh, or an authorized reroll), selection:
 
 1. Avoids the player's **last five** completed quests while fresh alternatives exist, then falls back to avoiding only the latest, then to anything, so small catalogues still fill.
 2. Picks a **category first**, then a quest within it. Categories missing from the board get extra weight, and so does the player's weakest skill (unless skills are level), so a category with few quests is not drowned out by one with many.
 
-In 200 simulated new boards, the share whose three Easy slots cover Exploration, Bestiary and Crafting rose from 27% to 67%, and boards with a Crafting quest rose from 43% to 80%. All 21 catalogue quests still appear.
+## Adventure regions and dynamic destinations
 
-## Nearby quests
+On Home or Questboard, search a city or use **Use my location**, choose a 3/8/15 km radius, then explicitly **Save adventure region**. Browser geolocation is one-shot and only proposes a region. New players choose a region before initialization or select **Start with Anywhere quests**. City search runs only on form submission.
 
-**Find quests near me** (Questboard and Home) asks for location permission once and remembers the choice in this browser. While the app is open it watches your position:
+- The selected region is stored privately in `player_quest_area`, separate from the World Map's temporary live-position marker. Travel, refresh, reconnect, map navigation, and region edits never replace assigned quests or reset XP, cooldowns, or reroll allowances.
+- `searchAdventureRegions` queries Open-Meteo/GeoNames; `setAdventureRegion` fetches OpenStreetMap places server-side through Overpass. Clients cannot submit destinations, templates, or rewards. Names, types, access flags, coordinates, duplicates, and radius are filtered. Provider errors and partial responses preserve the previous region and board; genuinely empty results allow Anywhere fallback.
+- `quest_templates` separates Anywhere objectives from Location recipes with `{location}` patterns and compatible place types. The private `locations` catalog records source ID, name, kind, coordinates, selected region version, and verification timestamp. Slots reference a canonical recipe plus optional `location_id`. The existing slot ID + assigned-at timestamp identifies each assignment.
+- Generation uses only active, same-difficulty templates, prevents duplicate recipes, favors category variety and recent-history avoidance, and fills with Anywhere objectives when no suitable destination is available. Location records older than seven days are excluded from new generation; explicitly save the region again to discover fresh places. Existing assignments remain usable.
+- Public curated destinations and old private `local_quests` remain readable for existing players. The old client-supplied `setQuestArea` API has been removed. Those legacy records are never regenerated or deleted during migration.
+- Region changes affect future refreshes and authorized rerolls. No free board reset is offered. Cooldowns stay **2/6/12 hours**, with the same authoritative completion/XP checks and two rerolls per fixed 24-hour window.
+- Completion history snapshots title, objective, location ID/name/coordinates. Journal links open those immutable destinations on the World Map even after slot replacement. **Show completed places** toggles historical markers with no completion action. Older completions without snapshots retain their original catalog fallback.
+- Owner-bound `my_locations` joins the existing quest subscription. The shared destination projection renders the same objective for Questboard, Map, and the photo judge. Parties keep a snapshot of their chosen objective so a leader's reroll cannot silently move the party destination.
 
-- With no quest area yet, or after moving more than **10 km** from it, the browser asks OpenStreetMap's free Overpass API for named parks, ponds, gardens, viewpoints, monuments, artwork, museums and historic sites within 8 km. Results are cached per ~1 km grid cell for a week.
-- The places go to the `setQuestArea` reducer, which treats them as untrusted. It re-validates every place (known kinds, numeric OpenStreetMap ids, coordinates, distance recomputed on the server, unsuitable names such as schools or playgrounds dropped). Then it generates up to 18 **local quests**: Bestiary, Crafting and Exploration at Easy (within ~1.5 km), Medium (~4 km) and Hard (~8 km).
-- Places are **scored** before they become quests:
-  - Notable kinds (viewpoints, nature reserves, museums, historic sites) beat street furniture.
-  - Places near each difficulty's sweet spot score higher (about 700 m Easy, 2.5 km Medium, 5.5 km Hard).
-  - Repeats of the same kind, places within 250 m of one already chosen, and poor names (administrative words such as "Phase III" or "Tank", or bare one-word art and memorial names) score lower.
-  - The generator draws from the best few, weighted, so boards favour good places without always being identical.
-- **Wording fits the place and varies:**
-  - Exploration asks for a view at viewpoints, the shoreline at lakes, a sign or entrance at museums, the plaque at monuments, and a trail at parks.
-  - Crafting rotates sketches, copied inscriptions, leaf studies, postcards, field-guide pages, maps (walkable places only) and illustrated chronicles.
-  - Titles rotate per difficulty.
-- Every **Available** slot then reloads, preferring local quests about two times in three. Cooldown slots keep their completed quest and refill from the new pool when they expire. Curated Dallas quests are offered only when your area is within 10 km of them.
-- Local quests and your area (rounded to about 100 m) live in **private** tables, read only through the `my_local_quests` and `my_quest_area` views. The public catalogue never reveals where anyone is. Old local quests are kept, inactive, so Journal history still resolves.
+Discovery responses are cached for 24 hours. Server reservations enforce 30 seconds per player/provider, ten seconds between uncached requests app-wide, and daily ceilings of 250 Overpass / 5,000 city-search requests. Cache storage is bounded; saved destination versions and history are retained. Overpass responses are capped at 2 MB. Failed requests consume a reservation, preventing retry floods.
 
-Public Overpass servers can be slow or overloaded. If none responds, the board keeps its current quests and offers **Try again**. Tunables live in `shared/nearby-places.ts` and `spacetimedb/src/quest-config.ts`. To try it without travelling, override your position in Chrome DevTools (More tools > Sensors > Location).
+Provider endpoints can be changed through server-only optional `OVERPASS_ENDPOINT` and `GEOCODING_ENDPOINT` environment settings without a frontend release. Defaults support this noncommercial hackathon demo. Open-Meteo's free service requires noncommercial use and attribution ([terms](https://open-meteo.com/en/terms), [geocoding documentation](https://open-meteo.com/en/docs/geocoding-api)); use an appropriate paid provider if the app becomes commercial. OpenStreetMap attribution links to its [ODbL copyright notice](https://www.openstreetmap.org/copyright). Public Overpass is capacity-limited; production growth needs a hosted or self-operated provider ([usage guidance](https://dev.overpass-api.de/overpass-doc/en/preface/commons.html)). Place discovery does not guarantee current public access, opening hours, or a safe walking route.
 
 ## Photo proof and the AI judge
 
@@ -305,19 +312,11 @@ npm run spacetime:publish:local
 
 Use `spacetime publish --env-only` to change only these values on an existing database. Check judge errors with `spacetime logs quest-db --server local`.
 
-## Bestiary bounties and captures
+## Bestiary quests and captures
 
-Every Bestiary quest is a **bounty** for a named creature, shown on the Questboard as a WANTED poster with a portrait frame, "Last seen near …" and its reward. **Claim bounty** opens the camera.
+Bestiary quests use the same paper notices, **Complete quest** action, and **Completed** status as other quests. Older saved titles and descriptions are normalized for display without changing assignments or history.
 
-- Local bounties are chosen for the kind of place, in `spacetimedb/src/bounties.ts`:
-  - Ponds: ducks, turtles, dragonflies, herons.
-  - Parks and gardens: songbirds, pollinators, squirrels, woodpeckers, birds of prey.
-  - Nature reserves and woods: lizards, rabbits, deer, foxes, armadillos.
-  - Beaches: gulls and shorebirds.
-  Easy bounties are common creatures; Hard ones need patience. The nine catalogue Bestiary quests carry fixed targets, backfilled on connect for existing databases.
-- The AI judge accepts only a creature matching the bounty and names it (for example "Great Egret").
-- An accepted bounty also stores a **capture**: the judge's creature name, whether the AI verified it, the place, and a 640 px JPEG copy of the photo sent alongside the 1024 px judging image. Captures live in the private `creature_captures` table, readable only through `my_creature_captures`.
-- The **Bestiary** page lists your captures with their photos, newest first. A claimed poster shows the photo with a CAPTURED stamp until the slot refreshes, and the Journal entry links to it.
+Completing a Bestiary quest still stores a private capture: the identified subject, verification status, place, and a smaller photo. The Bestiary lists these captures, and the Quest Journal links to them. Photo validation, rewards, and cooldowns stay server-authoritative. Existing database field names are retained for compatibility with saved captures.
 
 ## Guilds
 
@@ -409,7 +408,7 @@ Restart Vite after changing environment values. Local and Maincloud databases ha
 
 ## Validation
 
-After switching branches or publishing a backend, run `npm run spacetime:check` while online. It uses the frontend's configured host/database and generated bindings to exercise the real profile and quest subscriptions with a fresh anonymous identity. It checks that private views return no other player's data; it does not sign in as a player or call reducers. Connection lifecycle hooks still run as they do for any client.
+After switching branches or publishing a backend, run `npm run spacetime:check` while online. It uses the frontend's configured host/database and generated bindings to exercise the real profile, quest, Guild, Friends, and Party subscriptions with a fresh anonymous identity, including the public guild directory. It checks that private views return no other player's data; it does not sign in as a player or call reducers. Connection lifecycle hooks still run as they do for any client.
 
 The check exits unsuccessfully for a missing view, incompatible row layout, or connection failure. A local build alone cannot detect an outdated Maincloud deployment. Keep the backend, generated bindings, and frontend on compatible versions; generating bindings does not publish a database update. Never delete database data to fix a branch mismatch.
 
@@ -442,7 +441,7 @@ Quest/
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
     questboard/             Initialization, managed quest subscriptions, photo proof, and shared quest UI
-    location/               Opt-in location watching and nearby-place loading for local quests
+    location/               Explicit adventure-region selection and manual city search
     map/                    MapLibre rendering, styling, configuration, and location projection
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
@@ -450,13 +449,13 @@ Quest/
     src/auth-policy.ts      Trusted issuer and client audience checks
     src/player-profile.ts   Username validation and shared level calculation export
     src/quest-model.ts      Template/slot/history tables, fixed layout, and validation
-    src/quest-seeds.ts      Twenty-one reusable templates (seven per difficulty)
+    src/quest-seeds.ts      Forty-five templates including reusable Location recipes
     src/quest-locations.ts  Six curated geographic quests with verified site coordinates
     src/quest-config.ts     Cooldowns, local-quest bands, and photo-check limits
     src/quest-selection.ts Shared active-template selection and repeat preference
     src/quest-completion.ts Atomic completion history, XP, and cooldown transition
     src/quest-refresh.ts    Server-authoritative lazy slot replacement
-    src/local-quests.ts     Bestiary, Exploration and Crafting quests generated from nearby places
+    src/local-quests.ts     Legacy local-generator helpers (no longer used for new assignments)
     src/bounties.ts         Bestiary bounty targets for each kind of place and difficulty
     src/guilds.ts           Guild tables, membership rules, and roster/directory helpers
     src/guild-quests.ts     Shared weekly guild quests, progress, contributions, and rewards

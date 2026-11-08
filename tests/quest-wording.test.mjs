@@ -32,3 +32,12 @@ test('publishing refreshes the wording of quests already in the catalogue', () =
   assert.equal(stored.description, current.description);
   assert.equal(stored.photoGoal, current.photoGoal);
 });
+
+test('a region quest names its destination with the kind of place', async () => {
+  const { atDestination } = await server.ssrLoadModule('/shared/quest-destinations.ts');
+  const recipe = seeds.seedTemplates.find(quest => quest.templateId === 'region-easy-sketch-place');
+  const quest = atDestination(recipe, { name: 'Big Bend', locationType: 'artwork', latitude: 32.98, longitude: -96.75 });
+  assert.equal(quest.title, 'Sketch Big Bend');
+  assert.match(quest.description, /^Visit Big Bend \(an artwork\), draw a sketch/);
+  assert.doesNotMatch(quest.description, /\{location\}/);
+});

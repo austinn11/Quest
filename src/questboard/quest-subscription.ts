@@ -1,3 +1,4 @@
+import { atDestination } from '../../shared/quest-destinations';
 import { tables, type DbConnection, type EventContext, type SubscriptionHandle } from '../module_bindings';
 import type { CreatureCaptures, PlayerQuestArea, PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
 
@@ -28,7 +29,18 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
   }, 20_000);
   const snapshot = (): QuestSnapshot => ({
     slots: [...connection.db.myQuestSlots.iter()],
-    templates: [...connection.db.questTemplates.iter(), ...connection.db.myLocalQuests.iter()],
+    templates: (() => {
+      const templates = new Map([...connection.db.questTemplates.iter(), ...connection.db.myLocalQuests.iter()].map(template => [template.templateId, { ...template, questType: 'questType' in template ? template.questType : { tag: template.latitude === undefined ? 'Anywhere' as const : 'Location' as const }, requiredLocationType: 'requiredLocationType' in template ? template.requiredLocationType : undefined }]));
+      const destinations = new Map([...connection.db.myLocations.iter()].map(place => [place.locationId, place]));
+      for (const slot of connection.db.myQuestSlots.iter()) {
+        if (slot.locationId === undefined) continue;
+        const template = templates.get(slot.templateId);
+        const location = destinations.get(slot.locationId);
+        if (template && location) templates.set(slot.templateId, atDestination(template, location));
+        else templates.delete(slot.templateId); // Never display a fabricated or stale destination.
+      }
+      return [...templates.values()];
+    })(),
     completions: [...connection.db.myQuestCompletions.iter()],
     area: connection.db.myQuestArea.iter().next().value ?? null,
     captures: [...connection.db.myCreatureCaptures.iter()],
@@ -38,7 +50,7 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
     lastEvent = ctx.event.id;
     callbacks.onChange(snapshot());
   };
-  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea, connection.db.myCreatureCaptures];
+  const watched = [connection.db.myLocations, connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea, connection.db.myCreatureCaptures];
   for (const table of watched) {
     table.onInsert(changed);
     table.onUpdate(changed);
@@ -62,7 +74,7 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
           ? `This app requires a database update. The running backend does not match this branch. ${message}`
           : message);
       })
-      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea, tables.myCreatureCaptures]);
+      .subscribe([tables.myLocations, tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea, tables.myCreatureCaptures]);
   } catch (error) {
     clearTimeout(loadingTimeout);
     callbacks.onError(error instanceof Error ? error.message : 'Your quest data could not be loaded.');

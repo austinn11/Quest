@@ -1,5 +1,6 @@
-// Browser-only boundary stub: the real hook runs, but no live database is contacted.
-const setArea = async (args: unknown) => {
-  (window as unknown as { qa: { calls: unknown[] } }).qa.calls.push(args);
-};
-export const useReducer = () => setArea;
+﻿// Browser boundary: use the real hook and selector without contacting Maincloud.
+const connection = { procedures: {
+  searchAdventureRegions: (args: unknown) => (window as any).qa.search(args),
+  setAdventureRegion: (args: unknown) => (window as any).qa.save(args),
+} };
+export const useSpacetimeDB = () => ({ getConnection: () => connection });

@@ -16,5 +16,6 @@ export default __t.row({
   longitude: __t.f64(),
   updatedAt: __t.timestamp().name("updated_at"),
   placeCount: __t.u32().name("place_count"),
-  generatorVersion: __t.u32().name("generator_version"),
+  label: __t.string(),
+  radiusMeters: __t.u32().name("radius_meters"),
 });
