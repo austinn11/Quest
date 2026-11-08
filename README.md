@@ -250,12 +250,30 @@ When a slot is replaced, the old marker and selected completion control disappea
 
 F13 is frontend-only and uses the already-published tables, views, and reducers. Tests cover assignment-specific links, malformed or stale targets, repeated templates, unmapped quests, current Journal links, subscription readiness, and the complete/replace gameplay flow.
 
+## Quest selection
+
+Whenever a slot is filled (a new board, a refresh, or a reload after travelling), selection:
+
+1. Avoids the player's **last five** completed quests while fresh alternatives exist, then falls back to avoiding only the latest, then to anything, so small catalogues still fill.
+2. Picks a **category first**, then a quest within it. Categories missing from the board get extra weight, and so does the player's weakest skill (unless skills are level), so a category with few quests is not drowned out by one with many.
+
+In 200 simulated new boards, the share whose three Easy slots cover Exploration, Bestiary and Crafting rose from 27% to 67%, and boards with a Crafting quest rose from 43% to 80%. All 21 catalogue quests still appear.
+
 ## Nearby quests
 
 **Find quests near me** (Questboard and Home) asks for location permission once and remembers the choice in this browser. While the app is open it watches your position:
 
 - With no quest area yet, or after moving more than **10 km** from it, the browser asks OpenStreetMap's free Overpass API for named parks, ponds, gardens, viewpoints, monuments, artwork, museums and historic sites within 8 km. Results are cached per ~1 km grid cell for a week.
 - The places go to the `setQuestArea` reducer, which treats them as untrusted. It re-validates every place (known kinds, numeric OpenStreetMap ids, coordinates, distance recomputed on the server, unsuitable names such as schools or playgrounds dropped). Then it generates up to 18 **local quests**: Bestiary, Crafting and Exploration at Easy (within ~1.5 km), Medium (~4 km) and Hard (~8 km).
+- Places are **scored** before they become quests:
+  - Notable kinds (viewpoints, nature reserves, museums, historic sites) beat street furniture.
+  - Places near each difficulty's sweet spot score higher (about 700 m Easy, 2.5 km Medium, 5.5 km Hard).
+  - Repeats of the same kind, places within 250 m of one already chosen, and poor names (administrative words such as "Phase III" or "Tank", or bare one-word art and memorial names) score lower.
+  - The generator draws from the best few, weighted, so boards favour good places without always being identical.
+- **Wording fits the place and varies:**
+  - Exploration asks for a view at viewpoints, the shoreline at lakes, a sign or entrance at museums, the plaque at monuments, and a trail at parks.
+  - Crafting rotates sketches, copied inscriptions, leaf studies, postcards, field-guide pages, maps (walkable places only) and illustrated chronicles.
+  - Titles rotate per difficulty.
 - Every **Available** slot then reloads, preferring local quests about two times in three. Cooldown slots keep their completed quest and refill from the new pool when they expire. Curated Dallas quests are offered only when your area is within 10 km of them.
 - Local quests and your area (rounded to about 100 m) live in **private** tables, read only through the `my_local_quests` and `my_quest_area` views. The public catalogue never reveals where anyone is. Old local quests are kept, inactive, so Journal history still resolves.
 

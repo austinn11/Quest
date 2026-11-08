@@ -332,3 +332,38 @@ test('SpacetimeDB randomness is reproducible for a fixed test seed and can produ
   const boards = new Set([1n, 2n, 3n, 4n].map(seed => JSON.stringify(generate(seed))));
   assert.ok(boards.size > 1);
 });
+
+test('new boards usually cover all three categories in their Easy slots', () => {
+  let covered = 0;
+  const boards = 60;
+  for (let seed = 1n; seed <= BigInt(boards); seed++) {
+    const db = createPlayerHarness(seed);
+    const auth = db.auth('balance');
+    db.ensure(auth);
+    db.seedTemplates();
+    db.initialize(auth);
+    const byId = new Map(db.templates().map(template => [template.templateId, template]));
+    const categories = new Set(db.slots(auth).filter(slot => slot.difficulty.tag === 'Easy').map(slot => byId.get(slot.templateId).category.tag));
+    if (categories.size === 3) covered++;
+  }
+  // Uniform picks from the catalogue cover all three only about a quarter of the time.
+  assert.ok(covered >= boards * 0.5, `${covered} of ${boards} boards`);
+});
+
+test('replacements avoid the last five completed quests while fresh alternatives remain', () => {
+  const { db, alice } = setup();
+  const easy = templatesByDifficulty(db, 'Easy').map(template => template.templateId);
+  db.putSlotFixture(alice, easy[0], 1);
+  db.putSlotFixture(alice, easy[1], 2);
+  const done = easy.slice(2, 5);
+  for (const templateId of done) {
+    db.putSlotFixture(alice, templateId, 0);
+    db.complete(alice, 0);
+    db.advanceClock(1_000_000n);
+  }
+  db.advanceClock(3n * 60n * 60n * 1_000_000n);
+  db.refresh(alice);
+  const replacement = db.slots(alice).find(slot => slot.slotIndex === 0).templateId;
+  assert.ok(!done.includes(replacement), `${replacement} was completed recently`);
+  assert.ok(![easy[0], easy[1]].includes(replacement), 'never duplicates another slot');
+});

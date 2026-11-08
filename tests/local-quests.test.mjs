@@ -144,3 +144,72 @@ test('bounty targets are only allowed on Bestiary quests', () => {
   assert.equal(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'Duck' }), null);
   assert.match(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'x' }), /2 to 60/);
 });
+
+test('place scoring favours interesting places at a fitting distance and penalises repeats and clusters', () => {
+  const at = (name, kind, metres, north = metres) => ({ id: `node/${name.length}${metres}`, name, kind, latitude: UTD[0] + north / 111_000, longitude: UTD[1], distance: metres });
+  const viewpoint = at('Ridge Overlook', 'viewpoint', 700);
+  const fountain = at('Plaza Fountain', 'fountain', 700);
+  assert.ok(generator.scorePlace(viewpoint, 'Easy', []) > generator.scorePlace(fountain, 'Easy', []));
+  assert.ok(generator.scorePlace(viewpoint, 'Easy', []) > generator.scorePlace(at('Far Overlook', 'viewpoint', 1500), 'Easy', []), 'closer to the Easy sweet spot');
+  const statue = at('Statue One', 'artwork', 600);
+  assert.ok(generator.scorePlace(at('Statue Two', 'artwork', 620), 'Easy', [statue]) < generator.scorePlace(at('Statue Two', 'artwork', 620), 'Easy', []), 'same kind and nearby is penalised');
+});
+
+test('a crowded cluster of minor places does not take over the Easy quests', () => {
+  const cluster = Array.from({ length: 8 }, (_, index) => ({ id: `node/${100 + index}`, name: `Campus Art ${index}`, kind: 'artwork', latitude: UTD[0] + (300 + index * 5) / 111_000, longitude: UTD[1], distance: 300 + index * 5 }));
+  const highlights = [
+    { id: 'node/1', name: 'Lone Oak Park', kind: 'park', latitude: UTD[0] + 800 / 111_000, longitude: UTD[1], distance: 800 },
+    { id: 'node/2', name: 'Ridge Overlook', kind: 'viewpoint', latitude: UTD[0] - 900 / 111_000, longitude: UTD[1], distance: 900 },
+    { id: 'node/3', name: 'Old Mill', kind: 'historic site', latitude: UTD[0], longitude: UTD[1] + 1000 / 93_000, distance: 1000 },
+  ];
+  for (let seed = 0; seed < 10; seed++) {
+    let state = seed + 1;
+    const random = n => { state = (state * 1103515245 + 12345) % 2147483648; return state % n; };
+    let next = 0;
+    const easy = generator.generateLocalQuests([...cluster, ...highlights], random, () => `local-${String(next++).padStart(12, '0')}`).filter(quest => quest.difficulty.tag === 'Easy');
+    const fromCluster = easy.filter(quest => quest.locationName.startsWith('Campus Art')).length;
+    assert.ok(fromCluster <= Math.ceil(easy.length / 2), `seed ${seed}: ${fromCluster} of ${easy.length} Easy quests in one cluster`);
+    assert.ok(easy.some(quest => ['Ridge Overlook', 'Old Mill', 'Lone Oak Park'].includes(quest.locationName)));
+  }
+});
+
+test('exploration and crafting wording fits the kind of place and varies', () => {
+  const places = [
+    { id: 'node/11', name: 'Ridge Overlook', kind: 'viewpoint', latitude: UTD[0] + 0.005, longitude: UTD[1], distance: 550 },
+    { id: 'node/12', name: 'History Museum', kind: 'museum', latitude: UTD[0] - 0.006, longitude: UTD[1], distance: 660 },
+    { id: 'node/13', name: 'Founders Plaque', kind: 'memorial', latitude: UTD[0], longitude: UTD[1] + 0.007, distance: 650 },
+  ];
+  const titles = new Set();
+  for (let seed = 0; seed < 12; seed++) {
+    let state = seed + 7;
+    const random = n => { state = (state * 1103515245 + 12345) % 2147483648; return state % n; };
+    let next = 0;
+    for (const quest of generator.generateLocalQuests(places, random, () => `local-${String(next++).padStart(12, '0')}`)) {
+      titles.add(quest.title);
+      assert.equal(model.validateTemplate(quest), null, quest.title);
+      if (quest.category.tag !== 'Exploration') continue;
+      if (quest.locationName === 'Ridge Overlook') assert.match(quest.photoGoal, /view/);
+      if (quest.locationName === 'History Museum') assert.match(quest.photoGoal, /sign or entrance/);
+      if (quest.locationName === 'Founders Plaque') assert.match(quest.photoGoal, /plaque or historical marker/);
+    }
+  }
+  assert.ok(titles.size >= 8, `only ${titles.size} distinct titles`);
+});
+
+test('administrative or bare one-word landmark names rank lower, and only walkable places get map quests', () => {
+  const at = (name, kind) => ({ id: 'node/1', name, kind, latitude: UTD[0], longitude: UTD[1], distance: 700 });
+  assert.ok(generator.nameQuality(at('Campus Landscape Enhancement Phase III', 'monument')) < 0);
+  assert.ok(generator.nameQuality(at('Liberty Park Tank', 'attraction')) < 0);
+  assert.ok(generator.nameQuality(at('Endless', 'artwork')) < 0);
+  assert.equal(generator.nameQuality(at('Jack S. Kilby', 'artwork')), 0);
+  assert.equal(generator.nameQuality(at('Eldorado', 'park')), 0, 'one-word park names are fine');
+
+  const art = [{ id: 'node/9', name: 'Over the Moon', kind: 'artwork', latitude: UTD[0] + 0.045, longitude: UTD[1], distance: 5000 }];
+  for (let seed = 0; seed < 8; seed++) {
+    let state = seed + 3;
+    const random = n => { state = (state * 1103515245 + 12345) % 2147483648; return state % n; };
+    for (const quest of generator.generateLocalQuests(art, random, () => 'local-000000000001')) {
+      if (quest.category.tag === 'Crafting' && quest.difficulty.tag === 'Hard') assert.doesNotMatch(quest.title, /^A Map of/);
+    }
+  }
+});
