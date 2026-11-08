@@ -1,4 +1,4 @@
-import { ConnectionId } from 'spacetimedb';
+import { ConnectionId, Timestamp } from 'spacetimedb';
 import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils';
 import * as module from '../spacetimedb/src/index';
 
@@ -10,7 +10,8 @@ export function createPlayerHarness() {
   const configuredContext = (ctx: Parameters<typeof module.ensurePlayer>[0]) => new Proxy(ctx, {
     get(target, key) {
       if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
-      return Reflect.get(target, key, target);
+      const value = Reflect.get(target, key, target);
+      return typeof value === 'function' ? value.bind(target) : value;
     },
   });
   return {
@@ -31,6 +32,35 @@ export function createPlayerHarness() {
     profile(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return module.myPlayer(harness.viewContext(auth));
     },
+    seedQuests() {
+      harness.withReducerTx(TestAuth.internal(), ctx => module.init(ctx));
+    },
+    connect(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      harness.withReducerTx(auth, ctx => module.onConnect(ctx));
+    },
+    createQuest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, input: Parameters<typeof module.createQuest>[1]) {
+      harness.withReducerTx(auth, ctx => module.createQuest(configuredContext(ctx), input));
+    },
+    acceptQuest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, questId: string) {
+      harness.withReducerTx(auth, ctx => module.acceptQuest(configuredContext(ctx), { questId }));
+    },
+    catalog(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return module.questCatalog(harness.viewContext(auth));
+    },
+    progress(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return module.myQuestProgress(harness.viewContext(auth));
+    },
+    markCompletedForTest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, questId: string) {
+      harness.withReducerTx(auth, ctx => {
+        const row = ctx.db.playerQuestProgress.id.find(`${ctx.sender.toHexString()}:${questId}`)!;
+        ctx.db.playerQuestProgress.id.update({ ...row, status: { tag: 'Completed' }, completedAt: ctx.timestamp });
+      });
+    },
+    advanceClock(micros: bigint) { harness.clock.set(new Timestamp(harness.clock.now().microsSinceUnixEpoch + micros)); },
+    questCount: () => Number(harness.db.quests.count()),
+    progressCount: () => Number(harness.db.playerQuestProgress.count()),
+    questVisibility: module.default.schemaType.tables.quests.tableDef.tableAccess.tag,
+    progressVisibility: module.default.schemaType.tables.playerQuestProgress.tableDef.tableAccess.tag,
     // Simulate XP awarded by a future trusted gameplay reducer, then reconnect.
     awardXp(auth: ReturnType<typeof TestAuth.fromJwtPayload>, xp: number) {
       harness.withReducerTx(auth, ctx => {

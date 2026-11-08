@@ -34,28 +34,22 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddReducer from "./add_reducer";
+import AcceptQuestReducer from "./accept_quest_reducer";
+import CreateQuestReducer from "./create_quest_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
-import SayHelloReducer from "./say_hello_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
 import MyPlayerRow from "./my_player_table";
-import PersonRow from "./person_table";
+import MyQuestProgressRow from "./my_quest_progress_table";
+import QuestCatalogRow from "./quest_catalog_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
-  person: __table({
-    name: 'person',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, PersonRow),
   myPlayer: __table({
     name: 'my_player',
     indexes: [
@@ -63,13 +57,27 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyPlayerRow),
+  myQuestProgress: __table({
+    name: 'my_quest_progress',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyQuestProgressRow),
+  questCatalog: __table({
+    name: 'quest_catalog',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, QuestCatalogRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("add", AddReducer),
+  __reducerSchema("accept_quest", AcceptQuestReducer),
+  __reducerSchema("create_quest", CreateQuestReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
-  __reducerSchema("say_hello", SayHelloReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );
 

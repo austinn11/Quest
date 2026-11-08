@@ -23,8 +23,6 @@ a { color: #31563a; }
 .page-heading h1 { font-size: clamp(2rem, 5vw, 2.75rem); }
 .skip-link { position: absolute; left: 1rem; top: -5rem; padding: .5rem; background: #fffefa; z-index: 1; }
 .skip-link:focus { top: .5rem; }
-.connection-test { margin-top: 2rem; }
-.connection-test > summary { margin-bottom: 1rem; }
 .foundation { width: min(100% - 2rem, 46rem); margin: 3rem auto; }
 header { margin-bottom: 2rem; }
 .eyebrow { color: #6a5834; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
@@ -35,10 +33,6 @@ p { margin: .75rem 0; }
 .intro { color: #645d51; }
 .panel { background: #fffcf5; border: 1px solid #d8cdb8; border-radius: .75rem; padding: 1.5rem; margin-bottom: 1rem; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
-.badge { border-radius: 2rem; padding: .2rem .75rem; font-size: .8rem; font-weight: 700; }
-.badge-ready { color: #24513c; background: #dfede2; }
-.badge-waiting { color: #72511a; background: #f4e8cc; }
-.record-count { font-size: .85rem; color: #645d51; }
 label { display: block; font-weight: 600; margin: 1rem 0 .35rem; }
 .form-row { display: flex; gap: .75rem; }
 input { flex: 1; width: 100%; min-width: 0; padding: .65rem .8rem; border: 1px solid #b9aa91; border-radius: .35rem; background: #fffefa; color: inherit; }
@@ -49,7 +43,6 @@ button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
 .secondary:hover:enabled { background: #e7eadf; }
 :focus-visible { outline: 3px solid #977127; outline-offset: 3px; }
 .error { color: #8c2727; overflow-wrap: anywhere; }
-.error-detail { font-size: .85rem; }
 .success { color: #24513c; }
 .account-id { display: block; overflow-wrap: anywhere; }
 .profile-name { font-family: Georgia, serif; font-size: 1.5rem; margin: 1.25rem 0 .5rem; overflow-wrap: anywhere; }
@@ -60,8 +53,6 @@ button:disabled, input:disabled { opacity: .6; cursor: not-allowed; }
 .username-editor { margin: 1.25rem 0; }
 .field-help { color: #645d51; font-size: .85rem; margin-top: 0; }
 summary { cursor: pointer; }
-.records { list-style: none; padding: 0; margin-bottom: 0; max-height: 22rem; overflow-y: auto; }
-.records li { border-top: 1px solid #e7dfd0; padding: .6rem 0; overflow-wrap: anywhere; }
 
 @media (max-width: 480px) {
   .foundation { margin: 1.5rem auto; }

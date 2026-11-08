@@ -10,6 +10,22 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+import {
+  QuestCategory,
+  QuestDifficulty,
+  QuestLocation,
+} from "./types";
+
 export default {
-  name: __t.string(),
+  title: __t.string(),
+  description: __t.string(),
+  get category() {
+    return QuestCategory;
+  },
+  get difficulty() {
+    return QuestDifficulty;
+  },
+  get location() {
+    return __t.option(QuestLocation);
+  },
 };

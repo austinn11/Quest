@@ -6,13 +6,13 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddReducer from "../add_reducer";
+import AcceptQuestReducer from "../accept_quest_reducer";
+import CreateQuestReducer from "../create_quest_reducer";
 import EnsurePlayerReducer from "../ensure_player_reducer";
-import SayHelloReducer from "../say_hello_reducer";
 import SetUsernameReducer from "../set_username_reducer";
 
-export type AddParams = __Infer<typeof AddReducer>;
+export type AcceptQuestParams = __Infer<typeof AcceptQuestReducer>;
+export type CreateQuestParams = __Infer<typeof CreateQuestReducer>;
 export type EnsurePlayerParams = __Infer<typeof EnsurePlayerReducer>;
-export type SayHelloParams = __Infer<typeof SayHelloReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
 

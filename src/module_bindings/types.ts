@@ -13,10 +13,8 @@ import {
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
 
-export const Person = __t.object("Person", {
-  name: __t.string(),
-});
-export type Person = __Infer<typeof Person>;
+export const MyQuestProgress = __t.object("MyQuestProgress", {});
+export type MyQuestProgress = __Infer<typeof MyQuestProgress>;
 
 export const Player = __t.object("Player", {
   identity: __t.identity(),
@@ -37,4 +35,79 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   level: __t.u32(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const PlayerQuestProgress = __t.object("PlayerQuestProgress", {
+  id: __t.string(),
+  playerIdentity: __t.identity(),
+  questId: __t.string(),
+  get status() {
+    return QuestProgressStatus;
+  },
+  acceptedAt: __t.timestamp(),
+  completedAt: __t.option(__t.timestamp()),
+  xpReward: __t.u32(),
+});
+export type PlayerQuestProgress = __Infer<typeof PlayerQuestProgress>;
+
+export const QuestCatalog = __t.object("QuestCatalog", {});
+export type QuestCatalog = __Infer<typeof QuestCatalog>;
+
+// The tagged union or sum type for the algebraic type `QuestCategory`.
+export const QuestCategory = __t.enum("QuestCategory", {
+  Exploration: __t.unit(),
+  Bestiary: __t.unit(),
+  Crafting: __t.unit(),
+});
+export type QuestCategory = __Infer<typeof QuestCategory>;
+
+// The tagged union or sum type for the algebraic type `QuestDifficulty`.
+export const QuestDifficulty = __t.enum("QuestDifficulty", {
+  Easy: __t.unit(),
+  Medium: __t.unit(),
+  Hard: __t.unit(),
+});
+export type QuestDifficulty = __Infer<typeof QuestDifficulty>;
+
+export const QuestLocation = __t.object("QuestLocation", {
+  name: __t.string(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+});
+export type QuestLocation = __Infer<typeof QuestLocation>;
+
+// The tagged union or sum type for the algebraic type `QuestProgressStatus`.
+export const QuestProgressStatus = __t.enum("QuestProgressStatus", {
+  Active: __t.unit(),
+  Completed: __t.unit(),
+});
+export type QuestProgressStatus = __Infer<typeof QuestProgressStatus>;
+
+// The tagged union or sum type for the algebraic type `QuestScope`.
+export const QuestScope = __t.enum("QuestScope", {
+  Shared: __t.unit(),
+  Personal: __t.unit(),
+});
+export type QuestScope = __Infer<typeof QuestScope>;
+
+export const Quests = __t.object("Quests", {
+  id: __t.string(),
+  creatorIdentity: __t.identity(),
+  title: __t.string(),
+  description: __t.string(),
+  get category() {
+    return QuestCategory;
+  },
+  get difficulty() {
+    return QuestDifficulty;
+  },
+  xpReward: __t.u32(),
+  get location() {
+    return __t.option(QuestLocation);
+  },
+  get scope() {
+    return QuestScope;
+  },
+  createdAt: __t.timestamp(),
+});
+export type Quests = __Infer<typeof Quests>;
 

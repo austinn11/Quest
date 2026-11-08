@@ -57,7 +57,7 @@ npm run dev
 
 Open http://localhost:5173. Leave the terminal running. The port is fixed so OAuth callbacks match the registered URL; Vite reports an error if another process occupies it.
 
-Maincloud hosts the backend, so a local `spacetime start` process is unnecessary for this setup. Choose **Continue with Google**, then use Google on SpacetimeAuth's hosted page. After sign-in the app connects with your OIDC ID token, loads your private account, and enables the shared connection test.
+Maincloud hosts the backend, so a local `spacetime start` process is unnecessary for this setup. Choose **Continue with Google**, then use Google on SpacetimeAuth's hosted page. After sign-in the app connects with your OIDC ID token and loads your private adventurer profile.
 
 The OIDC library stores the session in local storage to survive refreshes, uses authorization code flow with PKCE, and renews tokens automatically. It manages OAuth state in session storage; both storage mechanisms must be available. Anonymous tokens from the F01 starter are no longer used. Signing out removes the local session before redirecting to SpacetimeAuth and closes the database connection. Other tabs reload when the stored session changes. This signs out of Quest, not your Google account globally.
 
@@ -73,7 +73,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | `/journal` | Personal quests placeholder |
 | `/profile` | Player profile, progression, and username editor |
 
-The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. The dashboard retains F01's test interface under **Connection test**. Unknown paths show a recovery link to Home.
+The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
 
 You can open or refresh any page directly. A signed-out deep link is restored after login, while the OAuth callback remains `/callback`. Vite supports these paths during development. Any future static hosting must rewrite application routes to `index.html` so deep-link refreshes work there too.
 
@@ -109,7 +109,7 @@ Reference: [SpacetimeAuth configuration](https://spacetimedb.com/docs/core-conce
 
 The `player` table is private. The public `my_player` view exposes only the row matching the caller's server-verified `ctx.sender`. The `ensurePlayer` reducer validates the SpacetimeAuth issuer and the configured client audience, then creates a missing profile with zero XP. It accepts no player identity or XP from the browser, and subsequent calls preserve existing progression. Future gameplay reducers must apply the same auth policy and server-side ownership checks.
 
-The F01 `person` table still contains shared test records; it is separate from private player progression. Its `add` reducer now also requires a Quest sign-in. Database owners retain administrative access to private tables.
+Database owners retain administrative access to private tables.
 
 ### Adventurer profiles (F03)
 
@@ -120,6 +120,26 @@ Choose an adventurer username in the profile, then use **Edit username** to chan
 `setUsername` accepts only a username and updates the player identified by `ctx.sender`; it cannot change another account, XP, or creation time. Existing profiles receive empty username fields during migration and can choose a name when they next open the app. The private normalized username index enforces availability inside a transaction. Only the public spelling is returned in the per-user view.
 
 To check F03 in the browser, choose a name, refresh, edit it, and sign out/back in. The saved name should return. With a second Google account, choose a different name and confirm both accounts retain their own names. Trying the first account's name (including different capitalization) should display an availability error.
+
+## Quest backend (F05)
+
+Quest definitions and player participation are separate private tables:
+
+| Table | Contents | Read access |
+| --- | --- | --- |
+| `quests` | ID, creator, title, description, category, difficulty, reward, optional coordinates, scope, and creation time | `quest_catalog` exposes shared quests plus the caller's personal quests |
+| `player_quest_progress` | Player/quest key, player identity, quest ID, status, acceptance/completion times, and reward snapshot | `my_quest_progress` exposes only the caller's records |
+
+Categories are Exploration, Bestiary, and Crafting. Difficulties and server-assigned rewards are Easy (50 XP), Medium (100 XP), and Hard (200 XP). A quest is **Available** to a player when it has no progress record; stored progress statuses are **Active** and **Completed**. Accepting a shared quest never changes its definition or another player's progress.
+
+- `createQuest({ title, description, category, difficulty, location? })` creates a personal quest for `ctx.sender`. It accepts no owner, visibility, or XP reward from the browser. IDs are generated by the reducer context.
+- `acceptQuest({ questId })` creates an Active record for the authenticated player. The primary key is derived from the player's identity and quest ID. Repeating an Active acceptance is idempotent; a Completed record cannot be reset by accepting it again.
+- Quest titles must have 3–100 characters and descriptions 10–2,000 characters. Optional locations contain a 1–120 character name and finite latitude/longitude within geographic bounds. Text is trimmed before storage.
+- Quest indexes cover creator, scope, category, and difficulty. Progress indexes cover player identity and quest ID; the primary key prevents duplicate participation. Reads and mutations enforce ownership on the server.
+
+Three fixed shared samples cover all categories and difficulties: **Scout the Campus**, **Keep a Field Journal**, and **Freshly Baked**. They seed on initial publication and connection, using stable IDs and inserting only missing records. This also seeds an existing database after an upgrade, without resetting quests or player progress. The bootstrap only inserts these fixed shared definitions; it cannot create arbitrary quests or award XP.
+
+Frontend bindings expose `tables.questCatalog`, `tables.myQuestProgress`, `reducers.createQuest`, and `reducers.acceptQuest`. The Questboard and Journal UI can use these subscriptions in the next feature slice. F05 reserves the completion state and snapshots rewards, but acceptance itself never awards XP; completion/reward reducers come later.
 
 ## Work on the backend
 
@@ -172,7 +192,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames for separate identities, name validation/uniqueness, XP preservation, and level boundaries. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
+`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, independent shared-quest acceptance, idempotency, XP preservation, and level boundaries. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
 
 To verify F02 end to end:
 
@@ -194,12 +214,12 @@ Quest/
     layout/                 Shared header, navigation, and page outlet
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
-    components/             Shared interface components and connection test
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks
     src/auth-policy.ts      Trusted issuer and client audience checks
     src/player-profile.ts   Username validation and derived level rules
+    src/quest-model.ts      Quest/progress tables, enums, validation, rewards, and samples
     package.json            Database module dependencies
   .env.example              Shared frontend connection settings
   spacetime.json            CLI database, server, and module configuration
