@@ -81,6 +81,9 @@ summary { cursor: pointer; }
 .quest-history .quest-card { overflow-wrap: anywhere; border-top-color: #977127; }
 .sync-notice { border-left: 3px solid #977127; }
 .empty-state { padding-block: 2rem; }
+.questboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.quest-completion { margin-top: 1rem; }
+.quest-cooldown { color: #6c5129; font-size: .9rem; }
 
 @media (max-width: 900px) {
   .questboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }

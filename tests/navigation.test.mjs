@@ -89,7 +89,7 @@ test('questboard renders six assigned quests in slot order with catalogue object
   assert.ok(!html.includes('Preparing your Questboard...'));
 });
 
-test('cooldown slots show recorded status and dates without a countdown or completion action', () => {
+test('cooldown slots show persisted dates and countdowns without an available completion action', () => {
   const html = renderPage('/questboard', {
     ready: true,
     slots: [{ slotId: 'test:5', slotIndex: 5, difficulty: { tag: 'Hard' }, templateId: 'hard-template', status: { tag: 'Cooldown' }, assignedAt: Timestamp.UNIX_EPOCH, completedAt: new Timestamp(1000000n), refreshAt: new Timestamp(2000000n) }],
@@ -100,7 +100,24 @@ test('cooldown slots show recorded status and dates without a countdown or compl
   assert.ok(html.includes('1970-01-01T00:00:02.000Z'));
   assert.ok(html.includes('32.98580, -96.75010'));
   assert.ok(html.includes('The old watchtower'));
+  assert.ok(html.includes('Replacement in'));
+  assert.ok(html.includes('2s'));
   assert.ok(!html.includes('Complete quest'));
+});
+
+test('completion is disabled on stale data and elapsed countdowns wait for server confirmation', () => {
+  const slot = { slotId: 'test:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'easy-template', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const template = { templateId: 'easy-template', title: 'A local expedition', description: 'Find a safe new walking route.', category: { tag: 'Exploration' }, xpReward: 50 };
+  const connected = renderPage('/questboard', { ready: true, slots: [slot], templates: [template] });
+  assert.match(connected, /<button type="button" aria-busy="false">Complete quest<\/button>/);
+  const offline = renderPage('/questboard', { connected: false, ready: false, hasSnapshot: true, slots: [slot], templates: [template] });
+  assert.match(offline, /<button type="button" disabled="" aria-busy="false">Complete quest<\/button>/);
+  const elapsed = renderPage('/questboard', { ready: true, now: 3000, slots: [{ ...slot, status: { tag: 'Cooldown' }, completedAt: new Timestamp(1000000n), refreshAt: new Timestamp(2000000n) }], templates: [template] });
+  assert.ok(elapsed.includes('Cooldown elapsed. Awaiting a replacement'));
+  assert.ok(!elapsed.includes('Complete quest'));
+  const refreshFailure = renderPage('/questboard', { ready: true, refreshError: 'Database busy' });
+  assert.ok(refreshFailure.includes('Database busy'));
+  assert.ok(refreshFailure.includes('Retry replacements'));
 });
 
 test('journal has its own loading and empty states and does not list current assignments', () => {

@@ -32,6 +32,27 @@ export function createPlayerHarness(rngSeed = 42n) {
     initialize(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return harness.withReducerTx(auth, ctx => module.initializeQuestboard(configuredContext(ctx)));
     },
+    complete(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
+      return harness.withReducerTx(auth, ctx => module.completeQuest(configuredContext(ctx), {
+        slotIndex,
+        expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
+      }));
+    },
+    refresh(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return harness.withReducerTx(auth, ctx => module.refreshQuestSlots(configuredContext(ctx)));
+    },
+    patchSlotForTest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, changes: Partial<model.PlayerQuestSlot>) {
+      harness.withReducerTx(auth, ctx => {
+        const slot = ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))!;
+        ctx.db.playerQuestSlots.slotId.update({ ...slot, ...changes });
+      });
+    },
+    patchTemplateForTest(templateId: string, changes: Partial<model.QuestTemplate>) {
+      harness.withReducerTx(TestAuth.internal(), ctx => {
+        const template = ctx.db.questTemplates.templateId.find(templateId)!;
+        ctx.db.questTemplates.templateId.update({ ...template, ...changes });
+      });
+    },
     internal: () => TestAuth.internal(),
     setUsername(auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) {
       return harness.withReducerTx(auth, ctx => module.setUsername(configuredContext(ctx), { username }));

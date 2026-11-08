@@ -12,7 +12,8 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}) {
   const questState: QuestboardState = {
     slots: [], templates: [], completions: [], connected: true, ready: false,
     hasSnapshot: board.ready ?? false, initializing: false, error: null,
-    subscriptionError: null, retry: () => {}, ...board,
+    subscriptionError: null, retry: () => {},
+    now: 0, refreshing: false, refreshError: null, refreshSlots: async () => {}, ...board,
   };
   return renderToStaticMarkup(
     <StaticRouter location={path}>

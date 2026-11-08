@@ -82,7 +82,7 @@ export function validateTemplate(template: QuestTemplate): string | null {
   return null;
 }
 
-// Reusable guards for the future assignment/completion reducers. F05 exposes no slot writes.
+// Shared guards for assignment, completion, and replacement transitions.
 export function validateSlot(slot: PlayerQuestSlot, template: QuestTemplate, now: Timestamp): string | null {
   const expectedDifficulty = slotDifficulty(slot.slotIndex);
   if (!expectedDifficulty) return 'Slot index must be an integer from 0 to 5.';

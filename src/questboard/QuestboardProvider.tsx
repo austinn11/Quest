@@ -3,6 +3,7 @@ import { useReducer, useSpacetimeDB } from 'spacetimedb/react';
 import { reducers, type DbConnection } from '../module_bindings';
 import { usePlayer } from '../player/PlayerProvider';
 import { subscribeToQuestData, type QuestSnapshot } from './quest-subscription';
+import { useQuestRefresh } from './useQuestRefresh';
 
 export type QuestboardState = QuestSnapshot & {
   connected: boolean;
@@ -11,6 +12,10 @@ export type QuestboardState = QuestSnapshot & {
   initializing: boolean;
   error: string | null;
   subscriptionError: string | null;
+  now: number;
+  refreshing: boolean;
+  refreshError: string | null;
+  refreshSlots: () => Promise<void>;
   retry: () => void;
 };
 
@@ -52,12 +57,19 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [isActive, playerReady, identity, initialize, attempt]);
 
+  const ready = isActive && playerReady && data.appliedConnectionId === connectionId.toHexString();
+  const refresh = useQuestRefresh({
+    slots: data.slots,
+    enabled: ready && !initializing && !error && !data.subscriptionError,
+    connectionId: `${identity ?? ''}:${connectionId.toHexString()}`,
+  });
+
   return (
     <QuestboardContext.Provider value={{
       slots: data.slots, templates: data.templates, completions: data.completions,
-      connected: isActive, ready: isActive && playerReady && data.appliedConnectionId === connectionId.toHexString(),
+      connected: isActive, ready,
       hasSnapshot: data.hasSnapshot, subscriptionError: data.subscriptionError, initializing,
-      error, retry: () => setAttempt(value => value + 1),
+      error, ...refresh, retry: () => setAttempt(value => value + 1),
     }}>
       {children}
     </QuestboardContext.Provider>

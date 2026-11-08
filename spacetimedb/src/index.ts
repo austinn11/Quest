@@ -3,6 +3,9 @@ import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
 import { questTemplates, playerQuestSlots, questCompletions, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { seedTemplates } from './quest-seeds';
+import { completeQuest as completeQuestHandler } from './quest-completion';
+import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
+import { mostRecentCompletionTemplate, selectQuestTemplate } from './quest-selection';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -26,7 +29,7 @@ const spacetimedb = schema({
 }, { env: { SPACETIMEAUTH_CLIENT_ID: t.string() } });
 export default spacetimedb;
 
-type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
+export type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
 
 function seedQuestTemplates(ctx: Ctx) {
   for (const template of seedTemplates) {
@@ -110,23 +113,13 @@ export const initializeQuestboard = spacetimedb.reducer(ctx => {
   }
 
   // History is a preference, not a permanent blacklist. A small catalogue must remain usable.
-  let latest: ReturnType<typeof ctx.db.questCompletions.completionId.find> = null;
-  for (const completion of ctx.db.questCompletions.playerIdentity.filter(ctx.sender)) {
-    if (!latest || completion.completedAt.microsSinceUnixEpoch > latest.completedAt.microsSinceUnixEpoch ||
-      (completion.completedAt.microsSinceUnixEpoch === latest.completedAt.microsSinceUnixEpoch && completion.completionId > latest.completionId)) {
-      latest = completion;
-    }
-  }
+  const latest = mostRecentCompletionTemplate(ctx);
+  const avoid = new Set(latest ? [latest] : []);
 
   const used = new Set<string>();
   const assignments = SLOT_DIFFICULTIES.map((difficulty, slotIndex) => {
-    const eligible = [...ctx.db.questTemplates.difficulty.filter({ tag: difficulty })]
-      .filter(template => template.isActive && !used.has(template.templateId))
-      .sort((a, b) => a.templateId < b.templateId ? -1 : a.templateId > b.templateId ? 1 : 0);
-    const alternatives = eligible.filter(template => template.templateId !== latest?.templateId);
-    const choices = alternatives.length ? alternatives : eligible;
-    if (!choices.length) throw new SenderError(`Not enough active ${difficulty} quest templates to initialize your Questboard. Please retry later.`);
-    const template = choices[ctx.random.integerInRange(0, choices.length - 1)];
+    const template = selectQuestTemplate(ctx, { tag: difficulty }, used, avoid);
+    if (!template) throw new SenderError(`Not enough active ${difficulty} quest templates to initialize your Questboard. Please retry later.`);
     const templateError = validateTemplate(template);
     if (templateError) throw new SenderError(templateError);
     used.add(template.templateId);
@@ -143,6 +136,13 @@ export const initializeQuestboard = spacetimedb.reducer(ctx => {
   // Selection and all six inserts share the reducer transaction. Failure leaves no partial board.
   for (const slot of assignments) ctx.db.playerQuestSlots.insert(slot);
 });
+
+export const completeQuest = spacetimedb.reducer(
+  { slotIndex: t.u8(), expectedAssignedAt: t.timestamp() },
+  completeQuestHandler
+);
+
+export const refreshQuestSlots = spacetimedb.reducer(refreshQuestSlotsHandler);
 
 export const setUsername = spacetimedb.reducer(
   { username: t.string() },

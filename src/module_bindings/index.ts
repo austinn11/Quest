@@ -34,8 +34,10 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import CompleteQuestReducer from "./complete_quest_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import InitializeQuestboardReducer from "./initialize_questboard_reducer";
+import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
 // Import all procedure arg schemas
@@ -95,8 +97,10 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("complete_quest", CompleteQuestReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("initialize_questboard", InitializeQuestboardReducer),
+  __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );
 

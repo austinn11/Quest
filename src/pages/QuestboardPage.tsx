@@ -1,18 +1,26 @@
 import { Link } from 'react-router';
+import { useEffect } from 'react';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestDate } from '../questboard/QuestDate';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
+import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
+import { QuestCooldown } from '../questboard/QuestCooldown';
 
 export function QuestboardPage() {
-  const { slots, templates, ready, hasSnapshot, initializing, error, subscriptionError, retry } = useQuestboard();
+  const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, retry, now, refreshing, refreshSlots } = useQuestboard();
   const catalogue = new Map(templates.map(template => [template.templateId, template]));
+  const canInteract = connected && ready && !initializing && !error && !subscriptionError;
+
+  useEffect(() => {
+    if (canInteract) void refreshSlots();
+  }, [canInteract, refreshSlots]);
   return (
     <>
       <header className="page-heading">
         <p className="eyebrow">The adventurers' guild</p>
         <h1>Questboard</h1>
         <p>Your six adventures, ready to explore. Inspect a quest to plan your next journey.</p>
-        <Link to="/journal">Read your Quest Journal</Link>
+        <div className="questboard-actions"><Link to="/journal">Read your Quest Journal</Link><button type="button" className="secondary" disabled={!canInteract || refreshing} onClick={() => { void refreshSlots(); }}>{refreshing ? 'Checking replacements...' : 'Check for new quests'}</button></div>
       </header>
       <QuestSyncNotice page="Questboard" />
       {hasSnapshot && slots.length > 0 && (
@@ -31,6 +39,7 @@ export function QuestboardPage() {
                   </>
                 ) : <p>This quest's template is unavailable. Your assignment is still saved.</p>}
                 {cooldown && <p className="field-help">This adventure is complete. The slot is awaiting a replacement.</p>}
+                <QuestCooldown slot={slot} now={now} refreshing={refreshing} />
                 <details className="quest-details">
                   <summary>Inspect quest</summary>
                   <dl>
@@ -40,6 +49,7 @@ export function QuestboardPage() {
                     <div><dt>Location</dt><dd>{template?.latitude !== undefined && template.longitude !== undefined ? `${template.latitude.toFixed(5)}, ${template.longitude.toFixed(5)}` : template ? 'No fixed location. Choose a suitable place for this adventure.' : 'Location details unavailable.'}</dd></div>
                   </dl>
                 </details>
+                <CompleteQuestButton slot={slot} disabled={!canInteract || refreshing || !template} />
               </li>
             );
           })}

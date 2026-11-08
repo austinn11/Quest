@@ -141,13 +141,13 @@ The existing private player table is preserved. Three quest-related tables repla
 
 Categories are Exploration, Bestiary, and Crafting. Difficulty rewards remain server-controlled: Easy 50 XP, Medium 100 XP, Hard 200 XP. Fifteen templates seed idempotently, with five choices per difficulty. Existing records and inactive flags are preserved on reseeding. Inactive templates remain readable for resolving historical references, but validation rejects them for new Available assignments.
 
-Slot IDs are derived from the player identity and position, so future reducers can address one row per position. Validation helpers enforce positions 0?5, the 3/2/1 difficulty layout, matching template references, and coherent timestamps. Available slots have no completion or refresh timestamp; Cooldown slots retain the completed template and require both timestamps. The future cooldown implementation will choose the difficulty-specific durations.
+Slot IDs are derived from the player identity and position, so reducers address one row per position. Validation helpers enforce positions 0–5, the 3/2/1 difficulty layout, matching template references, and coherent timestamps. Available slots have no completion or refresh timestamp; Cooldown slots retain the completed template and require both timestamps. Difficulty-specific durations live in `spacetimedb/src/quest-config.ts`.
 
 Completion rows are independent of slots and may reference the same template across different completed assignments. Their XP and time are historical snapshots; replacing a slot does not rewrite them. Validation rejects mismatched owners, templates, positions, times, and rewards.
 
-Frontend bindings expose `tables.questTemplates`, `tables.myQuestSlots`, and `tables.myQuestCompletions`. Players cannot create or accept quests. Completion, cooldown refresh, and XP awarding are subsequent features.
+Frontend bindings expose `tables.questTemplates`, `tables.myQuestSlots`, and `tables.myQuestCompletions`. Players cannot create or accept quests. Completion, XP awards, and cooldown replacements are handled by server reducers.
 
-Generation must use `slotDifficulty`, `slotIdFor`, and `validateSlot`; future completion logic must validate its transition and append a history row atomically with the XP award. Templates should be deactivated rather than deleted when history refers to them. Avoiding simultaneous duplicates does not mean excluding every historically completed template forever.
+Generation uses `slotDifficulty`, `slotIdFor`, and `validateSlot`; completion validates its transition and appends a history row atomically with the XP award. Templates should be deactivated rather than deleted when history refers to them. Avoiding simultaneous duplicates does not mean excluding every historically completed template forever.
 
 ## Questboard initialization (F06)
 
@@ -159,17 +159,37 @@ All six assignments are committed in one transaction. Insufficient active templa
 
 `QuestboardProvider` remains mounted across navigation, owns subscriptions to `my_quest_slots` and `quest_templates`, and initializes after profile creation. `/questboard` displays the six assigned objectives, categories, difficulties, statuses, and template XP, with loading and retryable error states. Slot rows are private; each player subscribes only to their own view.
 
-To verify F06 manually, sign in and open **Questboard**. Confirm six distinct quests in the 3/2/1 layout, then refresh and sign out/back in: the same assignments must return. A different Google account should receive its own board; two players may share templates, but their slot records remain independent. Completing quests and refilling cooldown slots are not implemented yet.
+To verify F06 manually, sign in and open **Questboard**. Confirm six distinct quests in the 3/2/1 layout, then refresh and sign out/back in: the same assignments must return, except expired cooldowns can now receive replacements. A different Google account should receive its own board; two players may share templates, but their slot records remain independent.
 
 ## Questboard and Journal UI (F07)
 
-The Questboard displays current assignments in a single grid: two rows of three cards on desktop, two columns on narrower screens, and one column on mobile. Each card resolves its title, objective, category, difficulty, and reward from the SpacetimeDB catalogue. **Inspect quest** expands assignment dates and optional location coordinates. Cooldown cards display their stored state and completion/replacement-eligibility dates when present; F07 does not calculate countdowns or trigger replacements.
+The Questboard displays current assignments in a single grid: two rows of three cards on desktop, two columns on narrower screens, and one column on mobile. Each card resolves its title, objective, category, difficulty, and reward from the SpacetimeDB catalogue. **Inspect quest** expands assignment dates and optional location coordinates. Cooldown cards display their stored state and completion/replacement-eligibility dates, plus the F09 countdown described below.
 
 The Quest Journal shows only historical completions, newest first, with repeated completions preserved as separate accomplishments. Earned XP comes from each completion's `xp_awarded` snapshot, rather than the template's current reward. Dates come from `completed_at`; titles and objectives resolve through the catalogue, including inactive templates. Missing templates do not hide saved assignments or erase historical XP and dates.
 
 A single managed subscription in `QuestboardProvider` reads `quest_templates`, `my_quest_slots`, and `my_quest_completions`. It stays mounted across page navigation, listens for inserts/updates/deletes, and waits for `onApplied` before treating data as current. The SDK replays the same subscription on reconnect. Subscription failures have a retry action, and disconnected or resyncing pages label any cached records as potentially stale. The Journal can load independently of a board-initialization error.
 
-Both pages include loading and empty states and links to one another. The Journal will initially be empty because F08 has not introduced quest completion yet. Completion and XP mutations remain server-side work for F08; refresh scheduling belongs to F09. F07 adds no backend reducers or schema changes.
+Both pages include loading and empty states and links to one another. The Journal is empty until the player completes their first quest.
+
+## Quest completion and rotating slots (F08/F09)
+
+**Complete quest** calls `completeQuest({ slotIndex, expectedAssignedAt })`. The server derives the owner from the authenticated sender and requires an existing profile and an Available slot. The assignment timestamp must still match, preventing delayed or retried requests from completing a later replacement. The browser never supplies XP, difficulty, or cooldown duration. Deactivating an already-assigned template does not prevent that player from completing it.
+
+In one reducer transaction, the server records a completion with the template's validated XP, increments the player's XP, and moves the slot into Cooldown with authoritative `completed_at` and `refresh_at` timestamps. Duplicate completion attempts on that assignment award nothing. XP overflow and invalid state reject the whole transaction. Profile, Journal, and Questboard updates arrive through their subscriptions; completion buttons provide pending, success, and error feedback without optimistic rewards.
+
+Cooldown configuration is centralized in `spacetimedb/src/quest-config.ts`:
+
+| Difficulty | Cooldown |
+| --- | --- |
+| Easy | 2 hours |
+| Medium | 6 hours |
+| Hard | 12 hours |
+
+`refreshQuestSlots()` takes no arguments. It uses the server timestamp to replace only the caller's expired Cooldown slots. Replacements use active templates of the fixed slot difficulty, exclude templates held by all other current slots, and prefer to avoid the completed template and most recent historical completion. Recent-history preferences can be relaxed when needed; simultaneous duplicates remain forbidden. An exhausted catalogue leaves the affected slot on Cooldown while other eligible slots can refresh. Replacement resets completion/refresh fields and stores a new assignment timestamp, preserving XP and all history.
+
+F09 uses lazy refresh, with no background scheduler. The frontend checks after initialization, on reconnect or revisiting the board, when the window regains focus, and when a countdown expires. **Check for new quests** provides a manual check. Unresolved expired slots retry at a 30-second interval to avoid request loops. Local countdowns are approximate displays and request triggers; changing the browser clock cannot bypass the server's cooldown check. A slot remains Cooldown until a server replacement arrives. Refreshes and re-login do not restart persisted cooldowns.
+
+For a manual demo, complete one Available quest and verify its XP on Profile and its dated entry in the Journal. Repeated clicks or re-login must preserve one reward and the original cooldown deadline. A second account's board and XP must remain unchanged. The automated datastore tests advance the server test clock to verify all cooldown boundaries without waiting for real hours; no test clock or time-bypass reducer is published.
 
 ## Work on the backend
 
@@ -222,7 +242,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, six-slot generation, inactive-template exclusion, repeat avoidance and fallback, atomic failure/retry, reconnect persistence, owner isolation, idempotent seeding, XP preservation, and level boundaries. UI tests cover the single quest grid, expandable details, cooldown dates, historical ordering and awarded XP, missing templates, and loading/empty/offline/error states. Subscription tests verify live cache updates, replay, failures, and listener cleanup. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
+`npm test` checks authentication policy and uses the SDK's real test datastore to verify private profiles, six-slot generation, atomic completion and exactly-once rewards, stale-assignment rejection, cooldown boundaries, repeat fallback, catalogue exhaustion, player isolation, persistent XP/history, and the full complete-refresh-complete loop. UI tests cover the single quest grid, completion readiness, countdowns, historical XP, missing templates, and loading/empty/offline/error states. Subscription tests verify cache updates, replay, failures, and cleanup. Timer tests check persisted deadlines, clock skew, and throttled retries. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
 
 To verify F02 end to end:
 
@@ -252,6 +272,10 @@ Quest/
     src/player-profile.ts   Username validation and derived level rules
     src/quest-model.ts      Template/slot/history tables, fixed layout, and validation
     src/quest-seeds.ts      Fifteen reusable templates (five per difficulty)
+    src/quest-config.ts     Server-controlled difficulty cooldown durations
+    src/quest-selection.ts Shared active-template selection and repeat preference
+    src/quest-completion.ts Atomic completion history, XP, and cooldown transition
+    src/quest-refresh.ts    Server-authoritative lazy slot replacement
     package.json            Database module dependencies
   .env.example              Shared frontend connection settings
   spacetime.json            CLI database, server, and module configuration

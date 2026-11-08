@@ -180,12 +180,13 @@ test('template validation rejects malformed content, invalid enums, forged rewar
   assert.equal(db.model.validateTemplate({ ...template, latitude: 90, longitude: -180 }), null);
 });
 
-test('only non-personal templates are public and quest creation/completion APIs remain absent', () => {
+test('only non-personal templates are public and quest creation/acceptance APIs remain absent', () => {
   const { db } = setup();
   assert.equal(db.templateVisibility, 'Public');
   assert.equal(db.slotVisibility, 'Private');
   assert.equal(db.completionVisibility, 'Private');
-  for (const name of ['createQuest', 'acceptQuest', 'completeQuest', 'generateQuests', 'refreshQuest']) assert.equal(db.moduleExports.includes(name), false);
+  for (const name of ['createQuest', 'acceptQuest', 'generateQuests', 'refreshQuest']) assert.equal(db.moduleExports.includes(name), false);
+  for (const name of ['completeQuest', 'refreshQuestSlots']) assert.equal(db.moduleExports.includes(name), true);
   assert.ok(db.templates().every(template => !('playerIdentity' in template) && !('creatorIdentity' in template)));
 });
 
