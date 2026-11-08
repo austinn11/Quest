@@ -350,6 +350,13 @@ export const Player = __t.object("Player", {
 });
 export type Player = __Infer<typeof Player>;
 
+export const PlayerAvatar = __t.object("PlayerAvatar", {
+  identity: __t.identity(),
+  photo: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type PlayerAvatar = __Infer<typeof PlayerAvatar>;
+
 export const PlayerGuild = __t.object("PlayerGuild", {
   guildId: __t.u64(),
   name: __t.string(),
@@ -375,6 +382,7 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   bestiaryXp: __t.u32(),
   craftingXp: __t.u32(),
   progressionReady: __t.bool(),
+  avatar: __t.string(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
 

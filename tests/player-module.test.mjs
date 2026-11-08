@@ -158,3 +158,21 @@ test('one persisted XP update can gain multiple levels and survives a new authen
   assert.equal(db.profile(reconnect).level, 5);
   assert.equal(db.rowCount(), 1);
 });
+
+test('a profile picture is saved, replaced and removed only for its owner', () => {
+  const db = createPlayerHarness();
+  const alice = db.auth('alice');
+  const bob = db.auth('bob');
+  db.ensure(alice);
+  db.ensure(bob);
+  assert.equal(db.profile(alice).avatar, '');
+  db.setAvatar(alice, 'data:image/jpeg;base64,QUJD');
+  assert.equal(db.profile(alice).avatar, 'data:image/jpeg;base64,QUJD');
+  assert.equal(db.profile(bob).avatar, '');
+  db.setAvatar(alice, 'data:image/jpeg;base64,REVG');
+  assert.equal(db.profile(alice).avatar, 'data:image/jpeg;base64,REVG');
+  assert.throws(() => db.setAvatar(alice, 'not a picture'));
+  assert.throws(() => db.setAvatar(alice, `data:image/jpeg;base64,${'A'.repeat(200_000)}`));
+  db.setAvatar(alice, '');
+  assert.equal(db.profile(alice).avatar, '');
+});

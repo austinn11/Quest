@@ -138,6 +138,9 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     setUsername(auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) {
       return harness.withReducerTx(auth, ctx => module.setUsername(configuredContext(ctx), { username }));
     },
+    setAvatar(auth: ReturnType<typeof TestAuth.fromJwtPayload>, photo: string) {
+      return harness.withReducerTx(auth, ctx => module.setAvatar(configuredContext(ctx), { photo }));
+    },
     profile(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return module.myPlayer(harness.viewContext(auth));
     },

@@ -36,8 +36,20 @@ const player = table(
   }
 );
 
+// Profile pictures live apart from the player row so ordinary profile reads stay small.
+const playerAvatar = table(
+  { name: 'player_avatar' },
+  {
+    identity: t.identity().primaryKey(),
+    photo: t.string(),
+    updatedAt: t.timestamp(),
+  }
+);
+const AVATAR_MAX_DATA_URL_LENGTH = 150_000;
+
 const spacetimedb = schema({
   player,
+  playerAvatar,
   questTemplates,
   playerQuestSlots,
   questCompletions,
@@ -130,6 +142,7 @@ const playerProfile = t.row('PlayerProfile', {
   bestiaryXp: t.u32(),
   craftingXp: t.u32(),
   progressionReady: t.bool(),
+  avatar: t.string(),
 });
 
 export const myPlayer = spacetimedb.view(
@@ -149,6 +162,7 @@ export const myPlayer = spacetimedb.view(
       bestiaryXp: row.bestiaryXp,
       craftingXp: row.craftingXp,
       progressionReady: row.progressionReady,
+      avatar: ctx.db.playerAvatar.identity.find(ctx.sender)?.photo ?? '',
     };
   }
 );
@@ -340,6 +354,25 @@ export const setUsername = spacetimedb.reducer(
       }
     }
     ctx.db.player.identity.update({ ...row, username, usernameKey });
+  }
+);
+
+// An empty photo removes the profile picture.
+export const setAvatar = spacetimedb.reducer(
+  { photo: t.string() },
+  (ctx, { photo }) => {
+    const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
+    if (error) throw new SenderError(error);
+    if (!ctx.db.player.identity.find(ctx.sender)) throw new SenderError('Your profile is still loading. Please retry.');
+    const existing = ctx.db.playerAvatar.identity.find(ctx.sender);
+    if (!photo) {
+      if (existing) ctx.db.playerAvatar.identity.delete(ctx.sender);
+      return;
+    }
+    const imageError = validateImageDataUrl(photo, AVATAR_MAX_DATA_URL_LENGTH);
+    if (imageError) throw new SenderError(imageError);
+    if (existing) ctx.db.playerAvatar.identity.update({ ...existing, photo, updatedAt: ctx.timestamp });
+    else ctx.db.playerAvatar.insert({ identity: ctx.sender, photo, updatedAt: ctx.timestamp });
   }
 );
 

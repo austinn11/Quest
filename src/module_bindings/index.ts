@@ -50,6 +50,7 @@ import RemoveFriendReducer from "./remove_friend_reducer";
 import RespondFriendRequestReducer from "./respond_friend_request_reducer";
 import RespondPartyInviteReducer from "./respond_party_invite_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
+import SetAvatarReducer from "./set_avatar_reducer";
 import SetGuildOpenReducer from "./set_guild_open_reducer";
 import SetPartyQuestReducer from "./set_party_quest_reducer";
 import SetQuestAreaReducer from "./set_quest_area_reducer";
@@ -251,6 +252,7 @@ const reducersSchema = __reducers(
   __reducerSchema("respond_friend_request", RespondFriendRequestReducer),
   __reducerSchema("respond_party_invite", RespondPartyInviteReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
+  __reducerSchema("set_avatar", SetAvatarReducer),
   __reducerSchema("set_guild_open", SetGuildOpenReducer),
   __reducerSchema("set_party_quest", SetPartyQuestReducer),
   __reducerSchema("set_quest_area", SetQuestAreaReducer),

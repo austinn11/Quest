@@ -21,4 +21,5 @@ export default __t.row({
   bestiaryXp: __t.u32().name("bestiary_xp"),
   craftingXp: __t.u32().name("crafting_xp"),
   progressionReady: __t.bool().name("progression_ready"),
+  avatar: __t.string(),
 });

@@ -39,7 +39,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
         <SpacetimeDBProvider connectionBuilder={DbConnection.builder().withUri('http://localhost:3000').withDatabaseName('test')}>
           <PlayerContext.Provider value={{
-            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH, ...skills, progressionReady: true },
+            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH, ...skills, progressionReady: true, avatar: '' },
             ready: true,
             error: null,
             retry: () => {},

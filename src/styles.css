@@ -441,11 +441,19 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .skill-next { font-size: .75rem; color: var(--muted-foreground); }
 .skill-gain + .skill-gain { margin-top: .75rem; }
 @media (max-width: 800px) { .skill-grid { grid-template-columns: minmax(0, 1fr); } }
-.profile-identity { padding-block: 1.5rem; border-block: 1px solid var(--border); }
+.profile-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem 1.5rem; padding-block: 1.5rem; }
+.profile-details { flex: 1 1 14rem; min-width: 0; }
+.profile-avatar { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+.avatar-button { position: relative; display: grid; place-items: center; width: 6rem; height: 6rem; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 50%; background: var(--muted); color: var(--muted-foreground); font-size: 2.25rem; cursor: pointer; }
+.avatar-button img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-hint { position: absolute; inset: auto 0 0; padding: .25rem 0 .4rem; background: rgb(0 0 0 / .55); color: #fff; font-size: .7rem; opacity: 0; transition: opacity .15s; }
+.avatar-button:hover .avatar-hint, .avatar-button:focus-visible .avatar-hint { opacity: 1; }
+.avatar-remove { font-size: .75rem; color: var(--muted-foreground); }
 .profile-name { font-size: 1.65rem; font-weight: 400; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .profile-identity p { color: var(--muted-foreground); font-size: .85rem; }
 .profile-identity p { margin: .5rem 0 0; }
-.profile-name-editor { margin-top: 2.5rem; max-width: 36rem; }
+.profile-name-editor { flex: 0 1 auto; max-width: 36rem; }
+.profile-name-editor:has(form) { flex-basis: 100%; }
 .account-details { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: .85rem; }
 .account-id { display: block; overflow-wrap: anywhere; }
 
