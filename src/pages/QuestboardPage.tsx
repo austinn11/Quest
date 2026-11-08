@@ -11,6 +11,7 @@ import { questMapPath } from '../map/quest-navigation';
 import { CameraIcon, CategoryIcon, CheckIcon } from '../ui/icons';
 import { QuestAreaNotice } from '../location/QuestAreaNotice';
 import { PageHeading } from '../ui/PageHeading';
+import boardTexture from '../assets/questboard-wood.jpg';
 
 export function QuestboardPage() {
   const { slots, templates, completions, captures, ready, connected, hasSnapshot, initializing, error, subscriptionError, retry, now, refreshing, refreshSlots } = useQuestboard();
@@ -48,6 +49,7 @@ export function QuestboardPage() {
       <QuestAreaNotice />
       {hasSnapshot && slots.length > 0 && (
         <section className="noticeboard" aria-label="Quest notices">
+          <img className="noticeboard-texture" src={boardTexture} alt="" aria-hidden="true" />
           <ol className="questboard" aria-label="Your quest slots">
             {[...slots].sort((a, b) => a.slotIndex - b.slotIndex).map(slot => {
               const template = catalogue.get(slot.templateId);
@@ -59,6 +61,7 @@ export function QuestboardPage() {
               return (
                 <li key={slot.slotId} id={`quest-slot-${slot.slotIndex}`} tabIndex={-1} className={`quest-card notice difficulty-${slot.difficulty.tag.toLowerCase()}${cooldown ? ' quest-card-cooldown' : ''}`}>
                   <article className={`notice-sheet${bounty ? ' bounty-sheet' : ''}`}>
+                    <span className="notice-pin" aria-hidden="true" />
                     <div className="notice-body">
                       {bounty && template ? (
                         <header className="bounty-head">
@@ -69,7 +72,7 @@ export function QuestboardPage() {
                                 <img src={capture.photo} alt={`Your capture: ${capture.creature}`} />
                                 <span className="bounty-stamp" aria-hidden="true">Captured</span>
                               </>
-                            ) : <span className="bounty-unknown" aria-hidden="true"><CategoryIcon category="Bestiary" /><span>Awaiting discovery</span></span>}
+                            ) : <span className="bounty-unknown" aria-hidden="true">?</span>}
                           </div>
                           <h2><span className="visually-hidden">Wanted: </span>{target}</h2>
                           {template.title !== `Wanted: ${target}` && <p className="bounty-alias">{template.title}</p>}
