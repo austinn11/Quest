@@ -2,6 +2,7 @@ import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from
 import { TimeDuration } from 'spacetimedb';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
+import { guild, guildInvite, guildMembership, guildStats, memberRows, createGuild as createGuildHandler, joinGuildByCode as joinGuildByCodeHandler, joinOpenGuild as joinOpenGuildHandler, leaveGuild as leaveGuildHandler, setGuildOpen as setGuildOpenHandler } from './guilds';
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
 import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
@@ -34,6 +35,9 @@ const spacetimedb = schema({
   localQuests,
   photoAttempts,
   creatureCaptures,
+  guild,
+  guildMembership,
+  guildInvite,
 }, { env: {
   SPACETIMEAUTH_CLIENT_ID: t.string(),
   // Photo judge: any OpenAI-compatible chat completions API, Google Gemini by default.
@@ -301,6 +305,85 @@ export const setUsername = spacetimedb.reducer(
       }
     }
     ctx.db.player.identity.update({ ...row, username, usernameKey });
+  }
+);
+
+// Guilds: found or join a guild with other players. One guild per player.
+export const createGuild = spacetimedb.reducer(
+  { name: t.string(), motto: t.string(), crest: t.string(), isOpen: t.bool() },
+  createGuildHandler
+);
+export const joinOpenGuild = spacetimedb.reducer({ guildId: t.u64() }, joinOpenGuildHandler);
+export const joinGuildByCode = spacetimedb.reducer({ joinCode: t.string() }, joinGuildByCodeHandler);
+export const leaveGuild = spacetimedb.reducer(leaveGuildHandler);
+export const setGuildOpen = spacetimedb.reducer({ isOpen: t.bool() }, setGuildOpenHandler);
+
+const GuildListing = t.row('GuildListing', {
+  guildId: t.u64().primaryKey(),
+  name: t.string(),
+  motto: t.string(),
+  crest: t.string(),
+  isOpen: t.bool(),
+  memberCount: t.u32(),
+  totalXp: t.u64(),
+  foundedAt: t.timestamp(),
+});
+
+// Public directory: counts and XP only, never members or invite codes.
+export const guildDirectory = spacetimedb.anonymousView(
+  { name: 'guild_directory', public: true },
+  t.array(GuildListing),
+  ctx => [...ctx.db.guild.iter()].map(row => ({
+    guildId: row.guildId, name: row.name, motto: row.motto, crest: row.crest,
+    isOpen: row.isOpen, foundedAt: row.foundedAt, ...guildStats(ctx, row.guildId),
+  }))
+);
+
+const PlayerGuild = t.row('PlayerGuild', {
+  guildId: t.u64().primaryKey(),
+  name: t.string(),
+  motto: t.string(),
+  crest: t.string(),
+  isOpen: t.bool(),
+  joinCode: t.string(),
+  role: t.string(),
+  memberCount: t.u32(),
+  totalXp: t.u64(),
+  foundedAt: t.timestamp(),
+});
+
+export const myGuild = spacetimedb.view(
+  { name: 'my_guild', public: true },
+  t.option(PlayerGuild),
+  ctx => {
+    const membership = ctx.db.guildMembership.playerIdentity.find(ctx.sender);
+    const row = membership && ctx.db.guild.guildId.find(membership.guildId);
+    if (!membership || !row) return undefined;
+    return {
+      guildId: row.guildId, name: row.name, motto: row.motto, crest: row.crest, isOpen: row.isOpen, foundedAt: row.foundedAt,
+      joinCode: ctx.db.guildInvite.guildId.find(row.guildId)?.joinCode ?? '',
+      role: membership.role.tag, ...guildStats(ctx, row.guildId),
+    };
+  }
+);
+
+const GuildMember = t.row('GuildMember', {
+  memberId: t.string().primaryKey(),
+  name: t.string(),
+  xp: t.u32(),
+  level: t.u32(),
+  role: t.string(),
+  joinedAt: t.timestamp(),
+  isYou: t.bool(),
+});
+
+// Members of the caller's own guild only.
+export const myGuildMembers = spacetimedb.view(
+  { name: 'my_guild_members', public: true },
+  t.array(GuildMember),
+  ctx => {
+    const membership = ctx.db.guildMembership.playerIdentity.find(ctx.sender);
+    return membership ? memberRows(ctx, ctx.sender, membership.guildId) : [];
   }
 );
 

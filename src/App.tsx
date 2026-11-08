@@ -7,6 +7,8 @@ import { WorldMapPage } from './pages/WorldMapPage';
 import { QuestboardPage } from './pages/QuestboardPage';
 import { JournalPage } from './pages/JournalPage';
 import { BestiaryPage } from './pages/BestiaryPage';
+import { GuildPage } from './pages/GuildPage';
+import { GuildProvider } from './guild/GuildProvider';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -19,6 +21,7 @@ export function AppRoutes() {
         <Route path="questboard" element={<QuestboardPage />} />
         <Route path="journal" element={<JournalPage />} />
         <Route path="bestiary" element={<BestiaryPage />} />
+        <Route path="guild" element={<GuildPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
@@ -27,5 +30,5 @@ export function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter><PlayerProvider><QuestboardProvider><AppRoutes /></QuestboardProvider></PlayerProvider></BrowserRouter>;
+  return <BrowserRouter><PlayerProvider><QuestboardProvider><GuildProvider><AppRoutes /></GuildProvider></QuestboardProvider></PlayerProvider></BrowserRouter>;
 }

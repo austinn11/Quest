@@ -24,6 +24,66 @@ export const CreatureCaptures = __t.object("CreatureCaptures", {
 });
 export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
 
+export const Guild = __t.object("Guild", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  nameKey: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  foundedAt: __t.timestamp(),
+});
+export type Guild = __Infer<typeof Guild>;
+
+export const GuildDirectory = __t.object("GuildDirectory", {});
+export type GuildDirectory = __Infer<typeof GuildDirectory>;
+
+export const GuildInvite = __t.object("GuildInvite", {
+  guildId: __t.u64(),
+  joinCode: __t.string(),
+});
+export type GuildInvite = __Infer<typeof GuildInvite>;
+
+export const GuildListing = __t.object("GuildListing", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  memberCount: __t.u32(),
+  totalXp: __t.u64(),
+  foundedAt: __t.timestamp(),
+});
+export type GuildListing = __Infer<typeof GuildListing>;
+
+export const GuildMember = __t.object("GuildMember", {
+  memberId: __t.string(),
+  name: __t.string(),
+  xp: __t.u32(),
+  level: __t.u32(),
+  role: __t.string(),
+  joinedAt: __t.timestamp(),
+  isYou: __t.bool(),
+});
+export type GuildMember = __Infer<typeof GuildMember>;
+
+export const GuildMembership = __t.object("GuildMembership", {
+  playerIdentity: __t.identity(),
+  guildId: __t.u64(),
+  get role() {
+    return GuildRole;
+  },
+  joinedAt: __t.timestamp(),
+});
+export type GuildMembership = __Infer<typeof GuildMembership>;
+
+// The tagged union or sum type for the algebraic type `GuildRole`.
+export const GuildRole = __t.enum("GuildRole", {
+  Leader: __t.unit(),
+  Member: __t.unit(),
+});
+export type GuildRole = __Infer<typeof GuildRole>;
+
 export const LocalQuests = __t.object("LocalQuests", {
   templateId: __t.string(),
   playerIdentity: __t.identity(),
@@ -49,6 +109,12 @@ export type LocalQuests = __Infer<typeof LocalQuests>;
 
 export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
 export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
+
+export const MyGuild = __t.object("MyGuild", {});
+export type MyGuild = __Infer<typeof MyGuild>;
+
+export const MyGuildMembers = __t.object("MyGuildMembers", {});
+export type MyGuildMembers = __Infer<typeof MyGuildMembers>;
 
 export const MyLocalQuests = __t.object("MyLocalQuests", {});
 export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
@@ -99,6 +165,20 @@ export const Player = __t.object("Player", {
   usernameKey: __t.string(),
 });
 export type Player = __Infer<typeof Player>;
+
+export const PlayerGuild = __t.object("PlayerGuild", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  joinCode: __t.string(),
+  role: __t.string(),
+  memberCount: __t.u32(),
+  totalXp: __t.u64(),
+  foundedAt: __t.timestamp(),
+});
+export type PlayerGuild = __Infer<typeof PlayerGuild>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),

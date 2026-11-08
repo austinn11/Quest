@@ -241,6 +241,56 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .journal-capture img { width: 4.5rem; height: 3.4rem; object-fit: cover; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); }
 .journal-capture:hover span { text-decoration: underline; }
 
+/* Guilds */
+.guild-crest { display: inline-grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.9rem; color: oklch(0.98 0.01 80); font-family: "Rye", Georgia, serif; font-size: 1rem; letter-spacing: .04em; clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%); background: var(--crest); box-shadow: inset 0 0 0 3px color-mix(in oklab, white 25%, transparent); }
+.crest-sm { width: 2rem; height: 2.3rem; font-size: .8rem; }
+.crest-lg { width: 4.5rem; height: 5.2rem; font-size: 1.7rem; }
+.crest-moss { --crest: oklch(0.48 0.08 140); }
+.crest-river { --crest: oklch(0.47 0.07 235); }
+.crest-ember { --crest: oklch(0.5 0.14 35); }
+.crest-dusk { --crest: oklch(0.42 0.08 300); }
+.crest-gold { --crest: oklch(0.6 0.11 80); }
+.crest-slate { --crest: oklch(0.42 0.02 250); }
+.guild-banner { display: flex; align-items: center; gap: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+.guild-banner h2 { font-size: 1.5rem; }
+.guild-motto { margin: .25rem 0 0; color: var(--muted-foreground); font-style: italic; }
+.guild-facts { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: .75rem 0 0; color: var(--muted-foreground); font-size: .9rem; }
+.guild-facts strong { color: var(--foreground); font-family: var(--font-mono); font-weight: 500; }
+.guild-invite { margin-top: 2rem; }
+.guild-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.guild-code { padding: .35rem .75rem; border: 1px dashed var(--input); border-radius: calc(var(--radius) - 2px); background: var(--card); font-size: 1.3rem; letter-spacing: .25em; }
+.section-title { margin: 2.5rem 0 .75rem; font-size: 1.25rem; }
+.guild-roster { list-style: none; margin: 0; padding: 0; }
+.guild-roster li { display: grid; grid-template-columns: minmax(0, 1fr) 6rem 5rem 6rem; align-items: baseline; gap: 1rem; padding: .75rem 0; border-top: 1px solid var(--border); }
+.guild-roster li.is-you .roster-name { font-weight: 600; }
+.roster-role, .roster-level { color: var(--muted-foreground); font-size: .875rem; }
+.roster-xp { font-family: var(--font-mono); text-align: right; }
+.guild-leave { margin-top: 2.5rem; }
+.guild-intro { max-width: 40rem; }
+.guild-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+.guild-columns .panel { margin: 0; }
+.guild-columns h2 { margin-bottom: .75rem; }
+.guild-columns form > input { margin-bottom: .75rem; }
+.guild-columns form > button { margin-top: 1rem; }
+.crest-picker { display: flex; flex-wrap: wrap; gap: .5rem; margin: .25rem 0 .75rem; padding: 0; border: 0; }
+.crest-picker legend { margin-bottom: .35rem; padding: 0; font-weight: 500; }
+.crest-option { margin: 0; padding: .25rem; border: 2px solid transparent; border-radius: calc(var(--radius) - 2px); cursor: pointer; }
+.crest-option.is-selected { border-color: var(--primary); }
+.crest-option:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
+.checkbox-row { display: flex; align-items: center; gap: .5rem; font-weight: 400; }
+.checkbox-row input { flex: none; width: auto; }
+.guild-directory { list-style: none; margin: 0; padding: 0; }
+.guild-directory li { display: flex; align-items: center; gap: 1rem; padding: .85rem 0; border-top: 1px solid var(--border); }
+.directory-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.directory-name { font-weight: 500; }
+.directory-motto { color: var(--muted-foreground); font-size: .875rem; font-style: italic; }
+.directory-facts { color: var(--muted-foreground); font-size: .875rem; }
+.directory-closed { color: var(--muted-foreground); font-size: .875rem; }
+@media (max-width: 560px) {
+  .guild-roster li { grid-template-columns: minmax(0, 1fr) auto; }
+  .roster-role, .roster-level { display: none; }
+}
+
 /* Nearby quests and photo proof */
 .area-notice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1.5rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .area-notice > .icon { color: var(--primary); }

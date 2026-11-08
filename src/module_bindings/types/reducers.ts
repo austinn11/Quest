@@ -7,16 +7,26 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import CompleteQuestReducer from "../complete_quest_reducer";
+import CreateGuildReducer from "../create_guild_reducer";
 import EnsurePlayerReducer from "../ensure_player_reducer";
 import InitializeQuestboardReducer from "../initialize_questboard_reducer";
+import JoinGuildByCodeReducer from "../join_guild_by_code_reducer";
+import JoinOpenGuildReducer from "../join_open_guild_reducer";
+import LeaveGuildReducer from "../leave_guild_reducer";
 import RefreshQuestSlotsReducer from "../refresh_quest_slots_reducer";
+import SetGuildOpenReducer from "../set_guild_open_reducer";
 import SetQuestAreaReducer from "../set_quest_area_reducer";
 import SetUsernameReducer from "../set_username_reducer";
 
 export type CompleteQuestParams = __Infer<typeof CompleteQuestReducer>;
+export type CreateGuildParams = __Infer<typeof CreateGuildReducer>;
 export type EnsurePlayerParams = __Infer<typeof EnsurePlayerReducer>;
 export type InitializeQuestboardParams = __Infer<typeof InitializeQuestboardReducer>;
+export type JoinGuildByCodeParams = __Infer<typeof JoinGuildByCodeReducer>;
+export type JoinOpenGuildParams = __Infer<typeof JoinOpenGuildReducer>;
+export type LeaveGuildParams = __Infer<typeof LeaveGuildReducer>;
 export type RefreshQuestSlotsParams = __Infer<typeof RefreshQuestSlotsReducer>;
+export type SetGuildOpenParams = __Infer<typeof SetGuildOpenReducer>;
 export type SetQuestAreaParams = __Infer<typeof SetQuestAreaReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
 

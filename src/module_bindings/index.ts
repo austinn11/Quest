@@ -35,9 +35,14 @@ import {
 
 // Import all reducer arg schemas
 import CompleteQuestReducer from "./complete_quest_reducer";
+import CreateGuildReducer from "./create_guild_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import InitializeQuestboardReducer from "./initialize_questboard_reducer";
+import JoinGuildByCodeReducer from "./join_guild_by_code_reducer";
+import JoinOpenGuildReducer from "./join_open_guild_reducer";
+import LeaveGuildReducer from "./leave_guild_reducer";
 import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
+import SetGuildOpenReducer from "./set_guild_open_reducer";
 import SetQuestAreaReducer from "./set_quest_area_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
@@ -45,7 +50,11 @@ import SetUsernameReducer from "./set_username_reducer";
 import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 
 // Import all table schema definitions
+import GuildRow from "./guild_table";
+import GuildDirectoryRow from "./guild_directory_table";
 import MyCreatureCapturesRow from "./my_creature_captures_table";
+import MyGuildRow from "./my_guild_table";
+import MyGuildMembersRow from "./my_guild_members_table";
 import MyLocalQuestsRow from "./my_local_quests_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestAreaRow from "./my_quest_area_table";
@@ -57,6 +66,21 @@ import QuestTemplatesRow from "./quest_templates_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  guild: __table({
+    name: 'guild',
+    indexes: [
+      { accessor: 'guildId', name: 'guild_guild_id_idx_btree', algorithm: 'btree', columns: [
+        'guildId',
+      ] },
+      { accessor: 'nameKey', name: 'guild_name_key_idx_btree', algorithm: 'btree', columns: [
+        'nameKey',
+      ] },
+    ],
+    constraints: [
+      { name: 'guild_guild_id_key', constraint: 'unique', columns: ['guildId'] },
+      { name: 'guild_name_key_key', constraint: 'unique', columns: ['nameKey'] },
+    ],
+  }, GuildRow),
   questTemplates: __table({
     name: 'quest_templates',
     indexes: [
@@ -77,6 +101,13 @@ const tablesSchema = __schema({
       { name: 'quest_templates_template_id_key', constraint: 'unique', columns: ['templateId'] },
     ],
   }, QuestTemplatesRow),
+  guildDirectory: __table({
+    name: 'guild_directory',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, GuildDirectoryRow),
   myCreatureCaptures: __table({
     name: 'my_creature_captures',
     indexes: [
@@ -84,6 +115,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyCreatureCapturesRow),
+  myGuild: __table({
+    name: 'my_guild',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildRow),
+  myGuildMembers: __table({
+    name: 'my_guild_members',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildMembersRow),
   myLocalQuests: __table({
     name: 'my_local_quests',
     indexes: [
@@ -124,9 +169,14 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("complete_quest", CompleteQuestReducer),
+  __reducerSchema("create_guild", CreateGuildReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("initialize_questboard", InitializeQuestboardReducer),
+  __reducerSchema("join_guild_by_code", JoinGuildByCodeReducer),
+  __reducerSchema("join_open_guild", JoinOpenGuildReducer),
+  __reducerSchema("leave_guild", LeaveGuildReducer),
   __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
+  __reducerSchema("set_guild_open", SetGuildOpenReducer),
   __reducerSchema("set_quest_area", SetQuestAreaReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );

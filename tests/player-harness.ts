@@ -61,6 +61,29 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
       }, note, capture));
     },
     captures(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myCreatureCaptures(harness.viewContext(auth)); },
+    createGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>, name: string, options: { motto?: string; crest?: string; isOpen?: boolean } = {}) {
+      return harness.withReducerTx(auth, ctx => module.createGuild(configuredContext(ctx), { name, motto: options.motto ?? '', crest: options.crest ?? 'moss', isOpen: options.isOpen ?? true }));
+    },
+    joinOpenGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>, guildId: bigint) {
+      return harness.withReducerTx(auth, ctx => module.joinOpenGuild(configuredContext(ctx), { guildId }));
+    },
+    joinGuildByCode(auth: ReturnType<typeof TestAuth.fromJwtPayload>, joinCode: string) {
+      return harness.withReducerTx(auth, ctx => module.joinGuildByCode(configuredContext(ctx), { joinCode }));
+    },
+    leaveGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return harness.withReducerTx(auth, ctx => module.leaveGuild(configuredContext(ctx)));
+    },
+    setGuildOpen(auth: ReturnType<typeof TestAuth.fromJwtPayload>, isOpen: boolean) {
+      return harness.withReducerTx(auth, ctx => module.setGuildOpen(configuredContext(ctx), { isOpen }));
+    },
+    myGuild(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuild(harness.viewContext(auth)); },
+    guildMembers(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuildMembers(harness.viewContext(auth)); },
+    guildDirectory() { return module.guildDirectory(harness.anonymousViewContext()); },
+    guildTableVisibility: {
+      guild: module.default.schemaType.tables.guild.tableDef.tableAccess.tag,
+      membership: module.default.schemaType.tables.guildMembership.tableDef.tableAccess.tag,
+      invite: module.default.schemaType.tables.guildInvite.tableDef.tableAccess.tag,
+    },
     captureVisibility: module.default.schemaType.tables.creatureCaptures.tableDef.tableAccess.tag,
     localQuestVisibility: module.default.schemaType.tables.localQuests.tableDef.tableAccess.tag,
     areaVisibility: module.default.schemaType.tables.playerQuestArea.tableDef.tableAccess.tag,

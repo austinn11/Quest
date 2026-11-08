@@ -8,8 +8,14 @@ import { DbConnection } from '../src/module_bindings';
 import { PlayerContext } from '../src/player/PlayerProvider';
 import { QuestboardContext, type QuestboardState } from '../src/questboard/QuestboardProvider';
 import { levelForXp } from '../shared/progression';
+import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, guildState: Partial<GuildState> = {}) {
+  const guild: GuildState = {
+    guild: null, members: [], directory: [], ready: true,
+    createGuild: async () => {}, joinOpenGuild: async () => {}, joinGuildByCode: async () => {}, leaveGuild: async () => {}, setGuildOpen: async () => {},
+    ...guildState,
+  };
   const questState: QuestboardState = {
     slots: [], templates: [], completions: [], area: null, captures: [], connected: true, ready: false,
     location: { status: { kind: 'off' }, enable: () => {}, disable: () => {}, retry: () => {} },
@@ -27,7 +33,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
             error: null,
             retry: () => {},
           }}>
-            <QuestboardContext.Provider value={questState}><AppRoutes /></QuestboardContext.Provider>
+            <QuestboardContext.Provider value={questState}><GuildContext.Provider value={guild}><AppRoutes /></GuildContext.Provider></QuestboardContext.Provider>
           </PlayerContext.Provider>
         </SpacetimeDBProvider>
       </AuthProvider>

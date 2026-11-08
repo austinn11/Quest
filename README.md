@@ -72,6 +72,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | `/questboard` | Personal six-slot Questboard |
 | `/journal` | Completed adventures and historical XP |
 | `/bestiary` | Creatures captured for Bestiary bounties, with their photos |
+| `/guild` | Your guild, its members and invite code, or the guild directory |
 | `/profile` | Player profile, progression, and username editor |
 
 The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
@@ -287,6 +288,17 @@ Every Bestiary quest is a **bounty** for a named creature, shown on the Questboa
 - An accepted bounty also stores a **capture**: the judge's creature name, whether the AI verified it, the place, and a 640 px JPEG copy of the photo sent alongside the 1024 px judging image. Captures live in the private `creature_captures` table, readable only through `my_creature_captures`.
 - The **Bestiary** page lists your captures with their photos, newest first. A claimed poster shows the photo with a CAPTURED stamp until the slot refreshes, and the Journal entry links to it.
 
+## Guilds
+
+Players can band together in guilds, one guild per player and up to 20 members.
+
+- **Found a guild** with a name (3 to 32 characters, unique regardless of capitalisation), an optional motto, one of six crest colours, and whether anyone may join from the directory. The founder becomes **Leader**.
+- **Join** an open guild from the **guild directory**, or any guild, including invite-only ones, with its 6-character **invite code**. Codes skip look-alike characters and ignore case, spaces and hyphens.
+- **Members** see the guild's invite code, total guild XP and a roster of usernames, levels, XP and roles. The leader can switch the guild between open and invite-only.
+- **Leaving:** if the leader leaves, the longest-serving member becomes leader. The last member out disbands the guild and frees its name.
+
+Privacy: the public `guild` table holds only names, mottos and crests. Membership (`guild_membership`) and invite codes (`guild_invite`) are private. Clients read them through `my_guild` (your guild and its code), `my_guild_members` (your guild's roster, by chosen username only) and the anonymous `guild_directory` view (member counts and XP, never members or codes). Reducers: `createGuild`, `joinOpenGuild`, `joinGuildByCode`, `leaveGuild`, `setGuildOpen`.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:
@@ -381,6 +393,7 @@ Quest/
     src/quest-refresh.ts    Server-authoritative lazy slot replacement
     src/local-quests.ts     Bestiary, Exploration and Crafting quests generated from nearby places
     src/bounties.ts         Bestiary bounty targets for each kind of place and difficulty
+    src/guilds.ts           Guild tables, membership rules, and roster/directory helpers
     src/quest-area.ts       Quest-area reloads and photo-check transactions
     src/photo-judge.ts      AI judge prompt, image checks, and verdict parsing
     package.json            Database module dependencies

@@ -26,6 +26,7 @@ const pages = [
   ['/questboard', 'Questboard'],
   ['/journal', 'Quest Journal'],
   ['/bestiary', 'Bestiary'],
+  ['/guild', 'Guild'],
   ['/profile', 'Player Profile'],
 ];
 
@@ -378,4 +379,38 @@ test('journal entries for claimed bounties show the captured photo', () => {
   const html = renderPage('/journal', { ready: true, completions, templates: [heronBounty], captures });
   assert.match(html, /<a class="journal-capture" href="\/bestiary"/);
   assert.ok(html.includes('Captured: Great Egret'));
+});
+
+test('without a guild, the Guild page offers invite codes, founding, and the open directory', () => {
+  const directory = [
+    { guildId: 1n, name: 'Owl Watch', motto: 'Eyes open.', crest: 'dusk', isOpen: true, memberCount: 3, totalXp: 900n, foundedAt: new Timestamp(1n) },
+    { guildId: 2n, name: 'Fox Den', motto: '', crest: 'ember', isOpen: false, memberCount: 1, totalXp: 2000n, foundedAt: new Timestamp(1n) },
+  ];
+  const html = renderPage('/guild', {}, 150, { directory });
+  assert.ok(html.includes('<h1>Guild</h1>'));
+  assert.ok(html.includes('Join with an invite code'));
+  assert.ok(html.includes('Found a guild'));
+  assert.ok(html.indexOf('Fox Den') < html.indexOf('Owl Watch'), 'ranked by guild XP');
+  assert.ok(html.includes('3 members · 900 XP'));
+  assert.equal((html.match(/>Join<\/button>/g) ?? []).length, 1, 'only open guilds can be joined from the directory');
+  assert.ok(html.includes('Invite only'));
+  assert.ok(renderPage('/guild', {}, 150, { ready: false }).includes('Opening the guild hall...'));
+});
+
+test('members see their guild, invite code, and roster with the leader first', () => {
+  const guild = { guildId: 1n, name: 'The Wandering Owls', motto: 'We see the trail at night.', crest: 'dusk', isOpen: true, joinCode: 'K7Q2MX', role: 'Leader', memberCount: 2, totalXp: 1100n, foundedAt: new Timestamp(1_000_000n) };
+  const members = [
+    { memberId: 'b', name: 'Bob', xp: 750, level: 3, role: 'Member', joinedAt: new Timestamp(2n), isYou: false },
+    { memberId: 'a', name: 'Alice', xp: 350, level: 2, role: 'Leader', joinedAt: new Timestamp(1n), isYou: true },
+  ];
+  const html = renderPage('/guild', {}, 150, { guild, members });
+  assert.ok(html.includes('The Wandering Owls</h2>'));
+  assert.ok(html.includes('<span class="guild-crest crest-dusk crest-lg" aria-hidden="true">WO</span>'));
+  assert.ok(html.includes('<code class="guild-code">K7Q2MX</code>'));
+  assert.ok(html.indexOf('Alice (you)') < html.indexOf('Bob'));
+  assert.ok(html.includes('Make the guild invite only'));
+  assert.ok(html.includes('Leave guild'));
+  assert.ok(!html.includes('Found a guild'));
+  const member = renderPage('/guild', {}, 150, { guild: { ...guild, role: 'Member' }, members });
+  assert.ok(!member.includes('Make the guild invite only'));
 });

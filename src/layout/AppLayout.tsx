@@ -11,6 +11,7 @@ const navigation = [
   { to: '/questboard', label: 'Questboard' },
   { to: '/journal', label: 'Quest Journal' },
   { to: '/bestiary', label: 'Bestiary' },
+  { to: '/guild', label: 'Guild' },
   { to: '/profile', label: 'Profile' },
 ];
 
