@@ -13,8 +13,11 @@ import {
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
 
-export const MyQuestProgress = __t.object("MyQuestProgress", {});
-export type MyQuestProgress = __Infer<typeof MyQuestProgress>;
+export const MyQuestCompletions = __t.object("MyQuestCompletions", {});
+export type MyQuestCompletions = __Infer<typeof MyQuestCompletions>;
+
+export const MyQuestSlots = __t.object("MyQuestSlots", {});
+export type MyQuestSlots = __Infer<typeof MyQuestSlots>;
 
 export const Player = __t.object("Player", {
   identity: __t.identity(),
@@ -36,21 +39,22 @@ export const PlayerProfile = __t.object("PlayerProfile", {
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
 
-export const PlayerQuestProgress = __t.object("PlayerQuestProgress", {
-  id: __t.string(),
+export const PlayerQuestSlots = __t.object("PlayerQuestSlots", {
+  slotId: __t.string(),
   playerIdentity: __t.identity(),
-  questId: __t.string(),
-  get status() {
-    return QuestProgressStatus;
+  slotIndex: __t.u8(),
+  get difficulty() {
+    return QuestDifficulty;
   },
-  acceptedAt: __t.timestamp(),
+  templateId: __t.string(),
+  get status() {
+    return QuestSlotStatus;
+  },
+  assignedAt: __t.timestamp(),
   completedAt: __t.option(__t.timestamp()),
-  xpReward: __t.u32(),
+  refreshAt: __t.option(__t.timestamp()),
 });
-export type PlayerQuestProgress = __Infer<typeof PlayerQuestProgress>;
-
-export const QuestCatalog = __t.object("QuestCatalog", {});
-export type QuestCatalog = __Infer<typeof QuestCatalog>;
+export type PlayerQuestSlots = __Infer<typeof PlayerQuestSlots>;
 
 // The tagged union or sum type for the algebraic type `QuestCategory`.
 export const QuestCategory = __t.enum("QuestCategory", {
@@ -60,6 +64,16 @@ export const QuestCategory = __t.enum("QuestCategory", {
 });
 export type QuestCategory = __Infer<typeof QuestCategory>;
 
+export const QuestCompletions = __t.object("QuestCompletions", {
+  completionId: __t.u64(),
+  playerIdentity: __t.identity(),
+  templateId: __t.string(),
+  slotIndex: __t.u8(),
+  xpAwarded: __t.u32(),
+  completedAt: __t.timestamp(),
+});
+export type QuestCompletions = __Infer<typeof QuestCompletions>;
+
 // The tagged union or sum type for the algebraic type `QuestDifficulty`.
 export const QuestDifficulty = __t.enum("QuestDifficulty", {
   Easy: __t.unit(),
@@ -68,30 +82,15 @@ export const QuestDifficulty = __t.enum("QuestDifficulty", {
 });
 export type QuestDifficulty = __Infer<typeof QuestDifficulty>;
 
-export const QuestLocation = __t.object("QuestLocation", {
-  name: __t.string(),
-  latitude: __t.f64(),
-  longitude: __t.f64(),
+// The tagged union or sum type for the algebraic type `QuestSlotStatus`.
+export const QuestSlotStatus = __t.enum("QuestSlotStatus", {
+  Available: __t.unit(),
+  Cooldown: __t.unit(),
 });
-export type QuestLocation = __Infer<typeof QuestLocation>;
+export type QuestSlotStatus = __Infer<typeof QuestSlotStatus>;
 
-// The tagged union or sum type for the algebraic type `QuestProgressStatus`.
-export const QuestProgressStatus = __t.enum("QuestProgressStatus", {
-  Active: __t.unit(),
-  Completed: __t.unit(),
-});
-export type QuestProgressStatus = __Infer<typeof QuestProgressStatus>;
-
-// The tagged union or sum type for the algebraic type `QuestScope`.
-export const QuestScope = __t.enum("QuestScope", {
-  Shared: __t.unit(),
-  Personal: __t.unit(),
-});
-export type QuestScope = __Infer<typeof QuestScope>;
-
-export const Quests = __t.object("Quests", {
-  id: __t.string(),
-  creatorIdentity: __t.identity(),
+export const QuestTemplates = __t.object("QuestTemplates", {
+  templateId: __t.string(),
   title: __t.string(),
   description: __t.string(),
   get category() {
@@ -101,13 +100,9 @@ export const Quests = __t.object("Quests", {
     return QuestDifficulty;
   },
   xpReward: __t.u32(),
-  get location() {
-    return __t.option(QuestLocation);
-  },
-  get scope() {
-    return QuestScope;
-  },
-  createdAt: __t.timestamp(),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
+  isActive: __t.bool(),
 });
-export type Quests = __Infer<typeof Quests>;
+export type QuestTemplates = __Infer<typeof QuestTemplates>;
 

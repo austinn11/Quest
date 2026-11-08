@@ -9,19 +9,12 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import {
-  QuestProgressStatus,
-} from "./types";
-
 
 export default __t.row({
-  id: __t.string().primaryKey(),
+  completionId: __t.u64().primaryKey().name("completion_id"),
   playerIdentity: __t.identity().name("player_identity"),
-  questId: __t.string().name("quest_id"),
-  get status() {
-    return QuestProgressStatus;
-  },
-  acceptedAt: __t.timestamp().name("accepted_at"),
-  completedAt: __t.option(__t.timestamp()).name("completed_at"),
-  xpReward: __t.u32().name("xp_reward"),
+  templateId: __t.string().name("template_id"),
+  slotIndex: __t.u8().name("slot_index"),
+  xpAwarded: __t.u32().name("xp_awarded"),
+  completedAt: __t.timestamp().name("completed_at"),
 });

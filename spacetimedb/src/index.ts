@@ -1,10 +1,8 @@
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
-import {
-  quests, playerQuestProgress, QuestCategory, QuestDifficulty, QuestLocation,
-  validateQuest, rewardForDifficulty, sampleQuests,
-} from './quest-model';
+import { questTemplates, playerQuestSlots, questCompletions, validateTemplate } from './quest-model';
+import { seedTemplates } from './quest-seeds';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -22,95 +20,33 @@ const player = table(
 
 const spacetimedb = schema({
   player,
-  quests,
-  playerQuestProgress,
+  questTemplates,
+  playerQuestSlots,
+  questCompletions,
 }, { env: { SPACETIMEAUTH_CLIENT_ID: t.string() } });
 export default spacetimedb;
 
 type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
 
-function requirePlayer(ctx: Ctx) {
-  const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
-  if (error) throw new SenderError(error);
-  if (!ctx.db.player.identity.find(ctx.sender)) throw new SenderError('Your profile is still loading. Please retry.');
-}
-
-function seedSharedQuests(ctx: Ctx) {
-  for (const sample of sampleQuests) {
-    if (ctx.db.quests.id.find(sample.id)) continue;
-    const error = validateQuest(sample);
+function seedQuestTemplates(ctx: Ctx) {
+  for (const template of seedTemplates) {
+    if (ctx.db.questTemplates.templateId.find(template.templateId)) continue;
+    const error = validateTemplate(template);
     if (error) throw new SenderError(error);
-    ctx.db.quests.insert({
-      ...sample,
-      location: sample.location,
-      creatorIdentity: ctx.databaseIdentity,
-      scope: { tag: 'Shared' },
-      xpReward: rewardForDifficulty(sample.difficulty),
-      createdAt: ctx.timestamp,
-    });
+    ctx.db.questTemplates.insert(template);
   }
 }
 
-export const questCatalog = spacetimedb.view(
-  { name: 'quest_catalog', public: true },
-  t.array(quests.rowType),
-  ctx => [
-    ...ctx.db.quests.scope.filter({ tag: 'Shared' }),
-    ...[...ctx.db.quests.creatorIdentity.filter(ctx.sender)].filter(quest => quest.scope.tag === 'Personal'),
-  ]
+export const myQuestSlots = spacetimedb.view(
+  { name: 'my_quest_slots', public: true },
+  t.array(playerQuestSlots.rowType),
+  ctx => [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)]
 );
 
-export const myQuestProgress = spacetimedb.view(
-  { name: 'my_quest_progress', public: true },
-  t.array(playerQuestProgress.rowType),
-  ctx => [...ctx.db.playerQuestProgress.playerIdentity.filter(ctx.sender)]
-);
-
-export const createQuest = spacetimedb.reducer(
-  {
-    title: t.string(), description: t.string(), category: QuestCategory,
-    difficulty: QuestDifficulty, location: t.option(QuestLocation),
-  },
-  (ctx, input) => {
-    requirePlayer(ctx);
-    const error = validateQuest(input);
-    if (error) throw new SenderError(error);
-    ctx.db.quests.insert({
-      id: ctx.newUuidV7().toString(),
-      creatorIdentity: ctx.sender,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      category: input.category,
-      difficulty: input.difficulty,
-      xpReward: rewardForDifficulty(input.difficulty),
-      location: input.location ? { ...input.location, name: input.location.name.trim() } : undefined,
-      scope: { tag: 'Personal' },
-      createdAt: ctx.timestamp,
-    });
-  }
-);
-
-export const acceptQuest = spacetimedb.reducer(
-  { questId: t.string() },
-  (ctx, { questId }) => {
-    requirePlayer(ctx);
-    const quest = ctx.db.quests.id.find(questId);
-    // Use the same response for nonexistent quests and another player's private quest.
-    if (!quest || (quest.scope.tag === 'Personal' && !quest.creatorIdentity.equals(ctx.sender))) {
-      throw new SenderError('This quest is not available.');
-    }
-    const id = `${ctx.sender.toHexString()}:${quest.id}`;
-    const existing = ctx.db.playerQuestProgress.id.find(id);
-    if (existing) {
-      if (existing.status.tag === 'Active') return;
-      throw new SenderError('You have already completed this quest.');
-    }
-    ctx.db.playerQuestProgress.insert({
-      id, playerIdentity: ctx.sender, questId: quest.id,
-      status: { tag: 'Active' }, acceptedAt: ctx.timestamp,
-      completedAt: undefined, xpReward: quest.xpReward,
-    });
-  }
+export const myQuestCompletions = spacetimedb.view(
+  { name: 'my_quest_completions', public: true },
+  t.array(questCompletions.rowType),
+  ctx => [...ctx.db.questCompletions.playerIdentity.filter(ctx.sender)]
 );
 
 const playerProfile = t.row('PlayerProfile', {
@@ -178,10 +114,10 @@ export const setUsername = spacetimedb.reducer(
 );
 
 export const init = spacetimedb.init(ctx => {
-  seedSharedQuests(ctx);
+  seedQuestTemplates(ctx);
 });
 
 export const onConnect = spacetimedb.clientConnected(ctx => {
   // Existing databases do not rerun init on publish. Only fixed, missing samples are inserted.
-  seedSharedQuests(ctx);
+  seedQuestTemplates(ctx);
 });

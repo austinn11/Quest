@@ -1,6 +1,7 @@
 import { ConnectionId, Timestamp } from 'spacetimedb';
 import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils';
 import * as module from '../spacetimedb/src/index';
+import * as model from '../spacetimedb/src/quest-model';
 
 const clientId = 'quest-test-client';
 let nextConnection = 1n;
@@ -32,35 +33,59 @@ export function createPlayerHarness() {
     profile(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return module.myPlayer(harness.viewContext(auth));
     },
-    seedQuests() {
+    seedTemplates() {
       harness.withReducerTx(TestAuth.internal(), ctx => module.init(ctx));
     },
     connect(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       harness.withReducerTx(auth, ctx => module.onConnect(ctx));
     },
-    createQuest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, input: Parameters<typeof module.createQuest>[1]) {
-      harness.withReducerTx(auth, ctx => module.createQuest(configuredContext(ctx), input));
-    },
-    acceptQuest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, questId: string) {
-      harness.withReducerTx(auth, ctx => module.acceptQuest(configuredContext(ctx), { questId }));
-    },
-    catalog(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
-      return module.questCatalog(harness.viewContext(auth));
-    },
-    progress(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
-      return module.myQuestProgress(harness.viewContext(auth));
-    },
-    markCompletedForTest(auth: ReturnType<typeof TestAuth.fromJwtPayload>, questId: string) {
-      harness.withReducerTx(auth, ctx => {
-        const row = ctx.db.playerQuestProgress.id.find(`${ctx.sender.toHexString()}:${questId}`)!;
-        ctx.db.playerQuestProgress.id.update({ ...row, status: { tag: 'Completed' }, completedAt: ctx.timestamp });
+    templates: () => [...harness.db.questTemplates.iter()],
+    setTemplateActiveForTest(templateId: string, isActive: boolean) {
+      harness.withReducerTx(TestAuth.internal(), ctx => {
+        const template = ctx.db.questTemplates.templateId.find(templateId)!;
+        ctx.db.questTemplates.templateId.update({ ...template, isActive });
       });
     },
+    slots(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestSlots(harness.viewContext(auth)); },
+    completions(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestCompletions(harness.viewContext(auth)); },
+    // Fixtures exercise the schema without adding generation or completion reducers to the app.
+    putSlotFixture(auth: ReturnType<typeof TestAuth.fromJwtPayload>, templateId: string, slotIndex: number, changes: Partial<model.PlayerQuestSlot> = {}) {
+      harness.withReducerTx(auth, ctx => {
+        const template = ctx.db.questTemplates.templateId.find(templateId)!;
+        const slot: model.PlayerQuestSlot = {
+          slotId: model.slotIdFor(ctx.sender, slotIndex), playerIdentity: ctx.sender,
+          slotIndex, difficulty: template.difficulty, templateId,
+          status: { tag: 'Available' }, assignedAt: ctx.timestamp,
+          completedAt: undefined, refreshAt: undefined, ...changes,
+        };
+        if (!slot.playerIdentity.equals(ctx.sender)) throw new Error('Fixture owner mismatch.');
+        const error = model.validateSlot(slot, template, ctx.timestamp);
+        if (error) throw new Error(error);
+        const existing = ctx.db.playerQuestSlots.slotId.find(slot.slotId);
+        if (existing) ctx.db.playerQuestSlots.slotId.update(slot);
+        else ctx.db.playerQuestSlots.insert(slot);
+      });
+    },
+    appendCompletionFixture(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number) {
+      return harness.withReducerTx(auth, ctx => {
+        const slot = ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))!;
+        const template = ctx.db.questTemplates.templateId.find(slot.templateId)!;
+        const completion: model.QuestCompletion = {
+          completionId: 0n, playerIdentity: ctx.sender, templateId: template.templateId,
+          slotIndex, xpAwarded: template.xpReward, completedAt: slot.completedAt!,
+        };
+        const error = model.validateNewCompletion(completion, slot, template);
+        if (error) throw new Error(error);
+        return ctx.db.questCompletions.insert(completion);
+      });
+    },
+    now: () => harness.clock.now(),
     advanceClock(micros: bigint) { harness.clock.set(new Timestamp(harness.clock.now().microsSinceUnixEpoch + micros)); },
-    questCount: () => Number(harness.db.quests.count()),
-    progressCount: () => Number(harness.db.playerQuestProgress.count()),
-    questVisibility: module.default.schemaType.tables.quests.tableDef.tableAccess.tag,
-    progressVisibility: module.default.schemaType.tables.playerQuestProgress.tableDef.tableAccess.tag,
+    model,
+    moduleExports: Object.keys(module),
+    templateVisibility: module.default.schemaType.tables.questTemplates.tableDef.tableAccess.tag,
+    slotVisibility: module.default.schemaType.tables.playerQuestSlots.tableDef.tableAccess.tag,
+    completionVisibility: module.default.schemaType.tables.questCompletions.tableDef.tableAccess.tag,
     // Simulate XP awarded by a future trusted gameplay reducer, then reconnect.
     awardXp(auth: ReturnType<typeof TestAuth.fromJwtPayload>, xp: number) {
       harness.withReducerTx(auth, ctx => {

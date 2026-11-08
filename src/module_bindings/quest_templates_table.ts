@@ -12,14 +12,11 @@ import {
 import {
   QuestCategory,
   QuestDifficulty,
-  QuestLocation,
-  QuestScope,
 } from "./types";
 
 
 export default __t.row({
-  id: __t.string().primaryKey(),
-  creatorIdentity: __t.identity().name("creator_identity"),
+  templateId: __t.string().primaryKey().name("template_id"),
   title: __t.string(),
   description: __t.string(),
   get category() {
@@ -29,11 +26,7 @@ export default __t.row({
     return QuestDifficulty;
   },
   xpReward: __t.u32().name("xp_reward"),
-  get location() {
-    return __t.option(QuestLocation);
-  },
-  get scope() {
-    return QuestScope;
-  },
-  createdAt: __t.timestamp().name("created_at"),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
+  isActive: __t.bool().name("is_active"),
 });

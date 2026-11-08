@@ -3,7 +3,7 @@
 # Quest Project Guidelines
 
 - Quest is a fantasy RPG for real-world activities, built for a 24-hour HackUTD event.
-- Prioritize personal quests, the Questboard, a geographically accurate map, and XP progression. Leave friends, guilds, and parties until the core demo works.
+- Players do not create or accept quests. Prioritize a personal six-slot rotating Questboard (3 Easy, 2 Medium, 1 Hard), a geographically accurate map, and XP progression. Leave friends, guilds, and parties until the core demo works.
 - Use React, TypeScript, and Vite in `src/`, with the primary backend in `spacetimedb/src/index.ts`.
 - Maincloud's `quest-db` is the default development database. Frontend settings use `VITE_SPACETIMEDB_HOST` and `VITE_SPACETIMEDB_DB_NAME`; CLI settings live in `spacetime.json`.
 - Keep quest completion and XP authoritative in reducers; validate ownership using `ctx.sender` and reject duplicate rewards.

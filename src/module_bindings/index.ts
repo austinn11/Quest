@@ -34,8 +34,6 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AcceptQuestReducer from "./accept_quest_reducer";
-import CreateQuestReducer from "./create_quest_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
@@ -43,13 +41,34 @@ import SetUsernameReducer from "./set_username_reducer";
 
 // Import all table schema definitions
 import MyPlayerRow from "./my_player_table";
-import MyQuestProgressRow from "./my_quest_progress_table";
-import QuestCatalogRow from "./quest_catalog_table";
+import MyQuestCompletionsRow from "./my_quest_completions_table";
+import MyQuestSlotsRow from "./my_quest_slots_table";
+import QuestTemplatesRow from "./quest_templates_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  questTemplates: __table({
+    name: 'quest_templates',
+    indexes: [
+      { accessor: 'category', name: 'quest_templates_category_idx_btree', algorithm: 'btree', columns: [
+        'category',
+      ] },
+      { accessor: 'difficulty', name: 'quest_templates_difficulty_idx_btree', algorithm: 'btree', columns: [
+        'difficulty',
+      ] },
+      { accessor: 'isActive', name: 'quest_templates_is_active_idx_btree', algorithm: 'btree', columns: [
+        'isActive',
+      ] },
+      { accessor: 'templateId', name: 'quest_templates_template_id_idx_btree', algorithm: 'btree', columns: [
+        'templateId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_templates_template_id_key', constraint: 'unique', columns: ['templateId'] },
+    ],
+  }, QuestTemplatesRow),
   myPlayer: __table({
     name: 'my_player',
     indexes: [
@@ -57,26 +76,24 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyPlayerRow),
-  myQuestProgress: __table({
-    name: 'my_quest_progress',
+  myQuestCompletions: __table({
+    name: 'my_quest_completions',
     indexes: [
     ],
     constraints: [
     ],
-  }, MyQuestProgressRow),
-  questCatalog: __table({
-    name: 'quest_catalog',
+  }, MyQuestCompletionsRow),
+  myQuestSlots: __table({
+    name: 'my_quest_slots',
     indexes: [
     ],
     constraints: [
     ],
-  }, QuestCatalogRow),
+  }, MyQuestSlotsRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("accept_quest", AcceptQuestReducer),
-  __reducerSchema("create_quest", CreateQuestReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );
