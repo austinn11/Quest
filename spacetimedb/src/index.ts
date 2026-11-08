@@ -1,7 +1,11 @@
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import { TimeDuration } from 'spacetimedb';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
-import { questTemplates, playerQuestSlots, questCompletions, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
+import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
+import { buildJudgeRequest, parseJudgeResponse, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
+import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
+import { DEFAULT_AI_BASE_URL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
 import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
@@ -26,7 +30,16 @@ const spacetimedb = schema({
   questTemplates,
   playerQuestSlots,
   questCompletions,
-}, { env: { SPACETIMEAUTH_CLIENT_ID: t.string() } });
+  playerQuestArea,
+  localQuests,
+  photoAttempts,
+}, { env: {
+  SPACETIMEAUTH_CLIENT_ID: t.string(),
+  // Photo judge: any OpenAI-compatible chat completions API. Without a key, photos are accepted unchecked.
+  AI_API_KEY: t.option(t.string()),
+  AI_BASE_URL: t.option(t.string()),
+  AI_MODEL: t.option(t.string()),
+} });
 export default spacetimedb;
 
 export type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
@@ -35,10 +48,14 @@ function seedQuestTemplates(ctx: Ctx) {
   for (const template of seedTemplates) {
     const existing = ctx.db.questTemplates.templateId.find(template.templateId);
     if (existing) {
+      let updated = existing;
       // Label the existing campus point without moving it or altering its quest/reward.
       if (existing.templateId === 'easy-campus-scout' && existing.locationName === undefined && existing.latitude === template.latitude && existing.longitude === template.longitude) {
-        ctx.db.questTemplates.templateId.update({ ...existing, locationName: template.locationName, locationType: existing.locationType ?? template.locationType });
+        updated = { ...updated, locationName: template.locationName, locationType: existing.locationType ?? template.locationType };
       }
+      // Backfill photo goals for catalogues created before photo proof existed.
+      if (updated.photoGoal === undefined && template.photoGoal !== undefined) updated = { ...updated, photoGoal: template.photoGoal };
+      if (updated !== existing) ctx.db.questTemplates.templateId.update(updated);
       continue;
     }
     const error = validateTemplate(template);
@@ -51,6 +68,18 @@ export const myQuestSlots = spacetimedb.view(
   { name: 'my_quest_slots', public: true },
   t.array(playerQuestSlots.rowType),
   ctx => [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)]
+);
+
+export const myLocalQuests = spacetimedb.view(
+  { name: 'my_local_quests', public: true },
+  t.array(localQuests.rowType),
+  ctx => [...ctx.db.localQuests.playerIdentity.filter(ctx.sender)]
+);
+
+export const myQuestArea = spacetimedb.view(
+  { name: 'my_quest_area', public: true },
+  t.option(playerQuestArea.rowType),
+  ctx => ctx.db.playerQuestArea.playerIdentity.find(ctx.sender) ?? undefined
 );
 
 export const myQuestCompletions = spacetimedb.view(
@@ -150,6 +179,87 @@ export const completeQuest = spacetimedb.reducer(
 );
 
 export const refreshQuestSlots = spacetimedb.reducer(refreshQuestSlotsHandler);
+
+const PlaceInput = t.object('PlaceInput', {
+  id: t.string(),
+  name: t.string(),
+  kind: t.string(),
+  latitude: t.f64(),
+  longitude: t.f64(),
+});
+
+// The browser loads named places near the player from OpenStreetMap and sends them here.
+// A move of under 10 km keeps the board; a new area generates private local quests and reloads it.
+export const setQuestArea = spacetimedb.reducer(
+  { latitude: t.f64(), longitude: t.f64(), places: t.array(PlaceInput) },
+  (ctx, { latitude, longitude, places }) => {
+    applyQuestArea(ctx, latitude, longitude, places);
+  }
+);
+
+const PhotoVerdict = t.object('PhotoVerdict', {
+  accepted: t.bool(),
+  message: t.string(),
+  observation: t.string(),
+});
+
+// Photo proof: an AI judge checks the photo against the quest, then completion runs exactly once.
+export const submitQuestPhoto = spacetimedb.procedure(
+  { slotIndex: t.u8(), expectedAssignedAt: t.timestamp(), image: t.string() },
+  PhotoVerdict,
+  (ctx, { slotIndex, expectedAssignedAt, image }) => {
+    const imageError = validateImageDataUrl(image);
+    if (imageError) return { accepted: false, message: imageError, observation: '' };
+    const args = { slotIndex, expectedAssignedAt };
+    // Expected refusals (sign-in, ownership, rate limit, changed assignment) roll back their
+    // transaction and come back as an ordinary verdict instead of a procedure failure.
+    const refusal = (error: unknown) => ({
+      accepted: false,
+      message: error instanceof Error ? error.message : 'Your photo could not be checked. Please try again.',
+      observation: '',
+    });
+    let quest: ReturnType<typeof beginPhotoCheck>;
+    try {
+      quest = ctx.withTx(tx => beginPhotoCheck(tx, args));
+    } catch (error) {
+      return refusal(error);
+    }
+    const apiKey = ctx.env.AI_API_KEY;
+    let verdict: JudgeVerdict;
+    if (!apiKey) {
+      verdict = { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '' };
+    } else {
+      const model = ctx.env.AI_MODEL;
+      if (!model) return { accepted: false, message: 'The AI judge is missing its AI_MODEL setting. Ask the server owner to set it.', observation: '' };
+      const baseUrl = (ctx.env.AI_BASE_URL || DEFAULT_AI_BASE_URL).replace(/\/+$/, '');
+      const unavailable = { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '' };
+      try {
+        const response = ctx.http.fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(buildJudgeRequest(quest, image, model)),
+          timeout: TimeDuration.fromMillis(45_000),
+        });
+        if (response.status < 200 || response.status >= 300) {
+          console.warn(`AI judge returned HTTP ${response.status}: ${response.text().slice(0, 300)}`);
+          return unavailable;
+        }
+        verdict = parseJudgeResponse(response.text());
+      } catch (error) {
+        console.warn(`AI judge request failed: ${error instanceof Error ? error.message : String(error)}`);
+        return unavailable;
+      }
+    }
+    if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation };
+    const accepted = verdict;
+    try {
+      ctx.withTx(tx => finishPhotoCompletion(tx, args, accepted.observation));
+    } catch (error) {
+      return refusal(error);
+    }
+    return { accepted: true, message: `Quest complete! +${quest.xpReward} XP`, observation: verdict.observation };
+  }
+);
 
 export const setUsername = spacetimedb.reducer(
   { username: t.string() },

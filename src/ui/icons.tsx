@@ -49,3 +49,11 @@ export function CategoryIcon({ category, className }: { category: string; classN
   if (category === 'Crafting') return <HammerIcon className={className} />;
   return <FootprintsIcon className={className} />;
 }
+
+export function CameraIcon(props: IconProps) {
+  return <Icon {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></Icon>;
+}
+
+export function MapPinIcon(props: IconProps) {
+  return <Icon {...props}><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></Icon>;
+}

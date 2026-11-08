@@ -3,6 +3,7 @@ import { usePlayer } from '../player/PlayerProvider';
 import { PlayerProgress } from '../player/PlayerProgress';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { ArrowRightIcon, CategoryIcon } from '../ui/icons';
+import { QuestAreaNotice } from '../location/QuestAreaNotice';
 
 function greeting(hour: number) {
   return hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -53,6 +54,8 @@ export function DashboardPage() {
           {ready && !player?.username && <Link to="/profile">Pick an adventurer name <ArrowRightIcon /></Link>}
         </div>
       </section>
+
+      <QuestAreaNotice />
 
       {hasSnapshot && (
         <section className="dashboard-waiting" aria-labelledby="waiting-title">

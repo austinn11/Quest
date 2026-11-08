@@ -210,6 +210,20 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .quest-details dt { color: var(--muted-foreground); font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; }
 .quest-details dd { margin: 0; }
 
+/* Nearby quests and photo proof */
+.area-notice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1.5rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.area-notice > .icon { color: var(--primary); }
+.area-notice-text { flex: 1 1 16rem; }
+.area-error { border-color: color-mix(in oklab, var(--destructive) 35%, var(--border)); }
+.area-scouting .area-notice-text, .area-locating .area-notice-text { color: var(--muted-foreground); }
+.dashboard-next + .area-notice { margin-top: 2.5rem; }
+.link-button { padding: 0; border: 0; background: none; color: var(--muted-foreground); font-weight: 400; text-decoration: underline; text-underline-offset: 4px; }
+.link-button:hover:enabled { background: none; box-shadow: none; transform: none; color: var(--foreground); }
+.photo-goal { display: flex; align-items: flex-start; gap: .5rem; color: var(--muted-foreground); font-size: .875rem; }
+.photo-goal .icon { margin-top: .2rem; }
+.proof-preview { display: block; width: 100%; max-width: 14rem; max-height: 10rem; margin-top: .75rem; object-fit: cover; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--border); }
+.proof-note { color: var(--muted-foreground); font-style: italic; }
+
 /* Journal */
 .quest-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; margin: 0 0 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
 .quest-summary > div { display: flex; flex-direction: row-reverse; align-items: baseline; gap: .4rem; }

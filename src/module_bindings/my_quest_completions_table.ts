@@ -17,4 +17,5 @@ export default __t.row({
   slotIndex: __t.u8().name("slot_index"),
   xpAwarded: __t.u32().name("xp_awarded"),
   completedAt: __t.timestamp().name("completed_at"),
+  proofNote: __t.option(__t.string()).name("proof_note"),
 });

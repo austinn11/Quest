@@ -44,6 +44,7 @@ export function JournalPage() {
                       ? <p className="quest-meta">{template.category.tag} · {template.difficulty.tag}{template.locationName ? ` · ${template.locationName}` : ''}</p>
                       : <p>The template is no longer available. Your accomplishment remains recorded.</p>}
                     {template && <p className="quest-objective">{template.description}</p>}
+                    {completion.proofNote && <p className="proof-note">The guild saw: {completion.proofNote}</p>}
                     {destination && <p><Link to={questMapPath(destination.slot)}>View completed quest on map</Link></p>}
                   </div>
                 </li>

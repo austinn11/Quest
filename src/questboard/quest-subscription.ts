@@ -1,10 +1,12 @@
 import { tables, type DbConnection, type EventContext, type SubscriptionHandle } from '../module_bindings';
-import type { PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
+import type { PlayerQuestArea, PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
 
 export type QuestSnapshot = {
   slots: readonly PlayerQuestSlots[];
+  // The public catalogue plus this player's private local quests, in one lookup list.
   templates: readonly QuestTemplates[];
   completions: readonly QuestCompletions[];
+  area: PlayerQuestArea | null;
 };
 
 // One subscription owns the quest cache. The SDK replays this handle after reconnects.
@@ -19,15 +21,16 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
   let handle: SubscriptionHandle | undefined;
   const snapshot = (): QuestSnapshot => ({
     slots: [...connection.db.myQuestSlots.iter()],
-    templates: [...connection.db.questTemplates.iter()],
+    templates: [...connection.db.questTemplates.iter(), ...connection.db.myLocalQuests.iter()],
     completions: [...connection.db.myQuestCompletions.iter()],
+    area: connection.db.myQuestArea.iter().next().value ?? null,
   });
   const changed = (ctx: EventContext) => {
     if (stopped || !applied || ctx.event.id === lastEvent) return;
     lastEvent = ctx.event.id;
     callbacks.onChange(snapshot());
   };
-  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions];
+  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea];
   for (const table of watched) {
     table.onInsert(changed);
     table.onUpdate(changed);
@@ -46,7 +49,7 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
         applied = false;
         callbacks.onError(ctx.event?.message ?? 'Your quest data could not be loaded.');
       })
-      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions]);
+      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea]);
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : 'Your quest data could not be loaded.');
   }

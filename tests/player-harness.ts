@@ -2,15 +2,17 @@ import { ConnectionId, Timestamp } from 'spacetimedb';
 import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils';
 import * as module from '../spacetimedb/src/index';
 import * as model from '../spacetimedb/src/quest-model';
+import * as questArea from '../spacetimedb/src/quest-area';
+import type { PlaceInput } from '../shared/nearby-places';
 
 const clientId = 'quest-test-client';
 let nextConnection = 1n;
 
-export function createPlayerHarness(rngSeed = 42n) {
+export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } = {}) {
   const harness = createModuleTestHarness(module.default, module, { rngSeed });
   const configuredContext = (ctx: Parameters<typeof module.ensurePlayer>[0]) => new Proxy(ctx, {
     get(target, key) {
-      if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
+      if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId, ...env };
       const value = Reflect.get(target, key, target);
       // The callable RNG also owns shuffle/integerInRange methods; binding strips them.
       if (key === 'random') return value;
@@ -38,6 +40,28 @@ export function createPlayerHarness(rngSeed = 42n) {
         expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
       }));
     },
+    checkArea(auth: ReturnType<typeof TestAuth.fromJwtPayload>, latitude: number, longitude: number) {
+      return harness.withReducerTx(auth, ctx => questArea.checkQuestArea(configuredContext(ctx), latitude, longitude));
+    },
+    applyArea(auth: ReturnType<typeof TestAuth.fromJwtPayload>, latitude: number, longitude: number, places: PlaceInput[]) {
+      return harness.withReducerTx(auth, ctx => questArea.applyQuestArea(configuredContext(ctx), latitude, longitude, places));
+    },
+    localQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myLocalQuests(harness.viewContext(auth)); },
+    area(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestArea(harness.viewContext(auth)); },
+    beginPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, expectedAssignedAt?: Timestamp) {
+      return harness.withReducerTx(auth, ctx => questArea.beginPhotoCheck(configuredContext(ctx), {
+        slotIndex,
+        expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
+      }));
+    },
+    finishPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, note: string, expectedAssignedAt?: Timestamp) {
+      return harness.withReducerTx(auth, ctx => questArea.finishPhotoCompletion(configuredContext(ctx), {
+        slotIndex,
+        expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
+      }, note));
+    },
+    localQuestVisibility: module.default.schemaType.tables.localQuests.tableDef.tableAccess.tag,
+    areaVisibility: module.default.schemaType.tables.playerQuestArea.tableDef.tableAccess.tag,
     refresh(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return harness.withReducerTx(auth, ctx => module.refreshQuestSlots(configuredContext(ctx)));
     },
@@ -99,7 +123,7 @@ export function createPlayerHarness(rngSeed = 42n) {
         const template = ctx.db.questTemplates.templateId.find(slot.templateId)!;
         const completion: model.QuestCompletion = {
           completionId: 0n, playerIdentity: ctx.sender, templateId: template.templateId,
-          slotIndex, xpAwarded: template.xpReward, completedAt: slot.completedAt!,
+          slotIndex, xpAwarded: template.xpReward, completedAt: slot.completedAt!, proofNote: undefined,
         };
         const error = model.validateNewCompletion(completion, slot, template);
         if (error) throw new Error(error);

@@ -38,12 +38,16 @@ import CompleteQuestReducer from "./complete_quest_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import InitializeQuestboardReducer from "./initialize_questboard_reducer";
 import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
+import SetQuestAreaReducer from "./set_quest_area_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
 // Import all procedure arg schemas
+import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 
 // Import all table schema definitions
+import MyLocalQuestsRow from "./my_local_quests_table";
 import MyPlayerRow from "./my_player_table";
+import MyQuestAreaRow from "./my_quest_area_table";
 import MyQuestCompletionsRow from "./my_quest_completions_table";
 import MyQuestSlotsRow from "./my_quest_slots_table";
 import QuestTemplatesRow from "./quest_templates_table";
@@ -72,6 +76,13 @@ const tablesSchema = __schema({
       { name: 'quest_templates_template_id_key', constraint: 'unique', columns: ['templateId'] },
     ],
   }, QuestTemplatesRow),
+  myLocalQuests: __table({
+    name: 'my_local_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyLocalQuestsRow),
   myPlayer: __table({
     name: 'my_player',
     indexes: [
@@ -79,6 +90,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyPlayerRow),
+  myQuestArea: __table({
+    name: 'my_quest_area',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyQuestAreaRow),
   myQuestCompletions: __table({
     name: 'my_quest_completions',
     indexes: [
@@ -101,11 +119,13 @@ const reducersSchema = __reducers(
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("initialize_questboard", InitializeQuestboardReducer),
   __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
+  __reducerSchema("set_quest_area", SetQuestAreaReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("submit_quest_photo", SubmitQuestPhotoProcedure.params, SubmitQuestPhotoProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

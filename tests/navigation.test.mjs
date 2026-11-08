@@ -271,3 +271,32 @@ test('login restores local deep links and rejects external or callback destinati
   }
   assert.equal(postLoginPath(undefined), '/');
 });
+
+test('nearby quests are opt-in and each notice says what photo proves it', () => {
+  const slot = { slotId: 'me:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'local-000000000001', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const templates = [{
+    templateId: 'local-000000000001', title: 'Wildlife of Duck Pond', description: 'At Duck Pond, photograph a bird.',
+    category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true,
+    latitude: 32.99, longitude: -96.75, locationName: 'Duck Pond', locationType: 'Lake or pond',
+    photoGoal: 'A living bird photographed outdoors.',
+  }];
+  const html = renderPage('/questboard', { ready: true, slots: [slot], templates });
+  assert.ok(html.includes('Find quests near me'));
+  assert.ok(html.includes('A living bird photographed outdoors.'));
+  assert.match(html, /<input[^>]*type="file"[^>]*accept="image\/\*"[^>]*capture="environment"/);
+  assert.match(html, /<button type="button" aria-busy="false">Complete quest<\/button>/);
+  const located = renderPage('/questboard', {
+    ready: true, slots: [slot], templates,
+    location: { status: { kind: 'ready', message: 'Quests near you · 12 places within 8.0 km' }, enable() {}, disable() {}, retry() {} },
+  });
+  assert.ok(located.includes('Quests near you · 12 places within 8.0 km'));
+  assert.ok(located.includes('Stop using my location'));
+  assert.ok(!located.includes('Find quests near me'));
+});
+
+test('the journal shows what the AI judge saw in an accepted photo', () => {
+  const completions = [{ completionId: 1n, templateId: 'local-000000000001', slotIndex: 0, xpAwarded: 50, completedAt: new Timestamp(1000000n), proofNote: 'A grackle on a fence' }];
+  const templates = [{ templateId: 'local-000000000001', title: 'Wildlife of Duck Pond', description: 'Photograph a bird.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50 }];
+  const html = renderPage('/journal', { ready: true, completions, templates });
+  assert.ok(html.includes('The guild saw: A grackle on a fence'));
+});

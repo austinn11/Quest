@@ -8,7 +8,8 @@ import { QuestCooldown } from '../questboard/QuestCooldown';
 import { PlayerProgress } from '../player/PlayerProgress';
 import { locatedQuests } from '../map/quest-locations';
 import { questMapPath } from '../map/quest-navigation';
-import { CategoryIcon, CheckIcon } from '../ui/icons';
+import { CameraIcon, CategoryIcon, CheckIcon } from '../ui/icons';
+import { QuestAreaNotice } from '../location/QuestAreaNotice';
 import boardTexture from '../assets/questboard-wood.jpg';
 
 export function QuestboardPage() {
@@ -38,6 +39,7 @@ export function QuestboardPage() {
         </div>
       </header>
       <QuestSyncNotice page="Questboard" />
+      <QuestAreaNotice />
       {hasSnapshot && slots.length > 0 && (
         <section className="noticeboard" aria-label="Quest notices">
           <img className="noticeboard-texture" src={boardTexture} alt="" aria-hidden="true" />
@@ -60,6 +62,7 @@ export function QuestboardPage() {
                       {template
                         ? <p className="quest-objective">{template.description}</p>
                         : <p>This quest's template is unavailable. Your assignment is still saved.</p>}
+                      {template?.photoGoal && !cooldown && <p className="photo-goal"><CameraIcon /><span><span className="visually-hidden">Photo proof: </span>{template.photoGoal}</span></p>}
                       {cooldown && <p className="field-help">This adventure is complete. The slot is awaiting a replacement.</p>}
                       <QuestCooldown slot={slot} now={now} refreshing={refreshing} />
                       <details className="quest-details">

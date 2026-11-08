@@ -12,10 +12,10 @@ before(async () => {
 after(async () => { await server?.close(); });
 
 function setup({ failSubscribe = false } = {}) {
-  const cache = { slots: [], templates: [], completions: [] };
+  const cache = { slots: [], templates: [], completions: [], localQuests: [], area: [] };
   const listeners = {};
   const db = {};
-  for (const [accessor, key] of [['myQuestSlots', 'slots'], ['questTemplates', 'templates'], ['myQuestCompletions', 'completions']]) {
+  for (const [accessor, key] of [['myQuestSlots', 'slots'], ['questTemplates', 'templates'], ['myQuestCompletions', 'completions'], ['myLocalQuests', 'localQuests'], ['myQuestArea', 'area']]) {
     const sets = { insert: new Set(), update: new Set(), delete: new Set() };
     listeners[key] = sets;
     db[accessor] = {
@@ -59,7 +59,7 @@ function setup({ failSubscribe = false } = {}) {
 
 test('quest subscription reads only the public catalogue and caller-bound views, and waits for application', () => {
   const state = setup();
-  assert.deepEqual(state.querySql, ['SELECT * FROM "my_quest_slots"', 'SELECT * FROM "quest_templates"', 'SELECT * FROM "my_quest_completions"']);
+  assert.deepEqual(state.querySql, ['SELECT * FROM "my_quest_slots"', 'SELECT * FROM "quest_templates"', 'SELECT * FROM "my_quest_completions"', 'SELECT * FROM "my_local_quests"', 'SELECT * FROM "my_quest_area"']);
   state.cache.slots.push({ slotId: 'one' });
   state.emit('slots', 'insert', 'initial');
   assert.equal(state.received.changes.length, 0);
@@ -123,4 +123,19 @@ test('normal cleanup unsubscribes once and a synchronous subscription failure is
   retry.apply();
   assert.equal(retry.received.applied.length, 1);
   retry.cleanup();
+});
+
+test('private local quests join the catalogue lookup and the quest area is exposed', () => {
+  const state = setup();
+  state.cache.templates.push({ templateId: 'easy-birdwatch' });
+  state.cache.localQuests.push({ templateId: 'local-000000000001', title: 'Wildlife of Duck Pond' });
+  state.cache.area.push({ latitude: 32.986, longitude: -96.75, placeCount: 12 });
+  state.apply();
+  const snapshot = state.received.applied[0].snapshot;
+  assert.deepEqual(snapshot.templates.map(template => template.templateId), ['easy-birdwatch', 'local-000000000001']);
+  assert.deepEqual(snapshot.area, { latitude: 32.986, longitude: -96.75, placeCount: 12 });
+  state.cache.area.length = 0;
+  state.emit('area', 'delete', 'area-cleared');
+  assert.equal(state.received.changes.at(-1).area, null);
+  state.cleanup();
 });

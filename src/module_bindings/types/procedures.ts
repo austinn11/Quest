@@ -6,5 +6,8 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as SubmitQuestPhotoProcedure from "../submit_quest_photo_procedure";
 
+export type SubmitQuestPhotoArgs = __Infer<typeof SubmitQuestPhotoProcedure.params>;
+export type SubmitQuestPhotoResult = __Infer<typeof SubmitQuestPhotoProcedure.returnType>;
 

@@ -31,4 +31,5 @@ export default __t.row({
   isActive: __t.bool().name("is_active"),
   locationName: __t.option(__t.string()).name("location_name"),
   locationType: __t.option(__t.string()).name("location_type"),
+  photoGoal: __t.option(__t.string()).name("photo_goal"),
 });

@@ -3,9 +3,13 @@ import { SenderError } from 'spacetimedb/server';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { cooldownMicrosFor } from './quest-config';
-import { slotDifficulty, slotIdFor, validateNewCompletion, validateSlot, validateTemplate, type PlayerQuestSlot, type QuestCompletion } from './quest-model';
+import { resolveQuest } from './quest-selection';
+import { slotDifficulty, slotIdFor, validateNewCompletion, validateSlot, validateTemplate, type PlayerQuestSlot, type QuestCompletion, type QuestTemplate } from './quest-model';
 
-export function completeQuest(ctx: Ctx, { slotIndex, expectedAssignedAt }: { slotIndex: number; expectedAssignedAt: Timestamp }): void {
+type CompletionArgs = { slotIndex: number; expectedAssignedAt: Timestamp };
+
+// Every check that must pass before a quest can be completed. Throws SenderError otherwise.
+export function prepareCompletion(ctx: Ctx, { slotIndex, expectedAssignedAt }: CompletionArgs) {
   const authError = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
   if (authError) throw new SenderError(authError);
   const player = ctx.db.player.identity.find(ctx.sender);
@@ -20,13 +24,17 @@ export function completeQuest(ctx: Ctx, { slotIndex, expectedAssignedAt }: { slo
     throw new SenderError('This quest assignment has changed. Sync your Questboard before completing it.');
   }
   if (slot.completedAt !== undefined || slot.refreshAt !== undefined) throw new SenderError('This available quest has inconsistent cooldown data.');
-  const template = ctx.db.questTemplates.templateId.find(slot.templateId);
+  const template = resolveQuest(ctx, ctx.sender, slot.templateId);
   if (!template) throw new SenderError('The assigned quest template is unavailable.');
   const templateError = validateTemplate(template);
   if (templateError) throw new SenderError(templateError);
   const xp = player.xp + template.xpReward;
   if (!Number.isSafeInteger(xp) || xp > 0xffff_ffff) throw new SenderError('Your XP total cannot receive this reward.');
+  return { player, slot, template, xp };
+}
 
+export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: string): QuestTemplate {
+  const { player, slot, template, xp } = prepareCompletion(ctx, args);
   const completedSlot: PlayerQuestSlot = {
     ...slot,
     status: { tag: 'Cooldown' },
@@ -38,7 +46,8 @@ export function completeQuest(ctx: Ctx, { slotIndex, expectedAssignedAt }: { slo
   if (slotError) throw new SenderError(slotError);
   const completion: QuestCompletion = {
     completionId: 0n, playerIdentity: ctx.sender, templateId: template.templateId,
-    slotIndex, xpAwarded: template.xpReward, completedAt: ctx.timestamp,
+    slotIndex: args.slotIndex, xpAwarded: template.xpReward, completedAt: ctx.timestamp,
+    proofNote: proofNote?.trim() ? proofNote.trim().slice(0, 200) : undefined,
   };
   const completionError = validateNewCompletion(completion, completedSlot, template);
   if (completionError) throw new SenderError(completionError);
@@ -47,4 +56,15 @@ export function completeQuest(ctx: Ctx, { slotIndex, expectedAssignedAt }: { slo
   ctx.db.questCompletions.insert(completion);
   ctx.db.player.identity.update({ ...player, xp });
   ctx.db.playerQuestSlots.slotId.update(completedSlot);
+  return template;
+}
+
+export function completeQuest(ctx: Ctx, args: CompletionArgs): void {
+  // With an AI judge configured, completion requires photo proof through submitQuestPhoto.
+  if (ctx.env.AI_API_KEY) {
+    const authError = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
+    if (authError) throw new SenderError(authError);
+    throw new SenderError('Submit a photo to complete this quest.');
+  }
+  applyCompletion(ctx, args);
 }

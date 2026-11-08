@@ -4,6 +4,7 @@ import { reducers, type DbConnection } from '../module_bindings';
 import { usePlayer } from '../player/PlayerProvider';
 import { subscribeToQuestData, type QuestSnapshot } from './quest-subscription';
 import { useQuestRefresh } from './useQuestRefresh';
+import { useQuestArea, type QuestAreaControls } from '../location/useQuestArea';
 
 export type QuestboardState = QuestSnapshot & {
   connected: boolean;
@@ -17,6 +18,7 @@ export type QuestboardState = QuestSnapshot & {
   refreshError: string | null;
   refreshSlots: () => Promise<void>;
   retry: () => void;
+  location: QuestAreaControls;
 };
 
 export const QuestboardContext = createContext<QuestboardState | null>(null);
@@ -26,7 +28,7 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
   const { player, ready: playerReady } = usePlayer();
   const connection = getConnection() as DbConnection | null;
   const [data, setData] = useState<QuestSnapshot & { appliedConnectionId: string | null; hasSnapshot: boolean; subscriptionError: string | null }>({
-    slots: [], templates: [], completions: [], appliedConnectionId: null, hasSnapshot: false, subscriptionError: null,
+    slots: [], templates: [], completions: [], area: null, appliedConnectionId: null, hasSnapshot: false, subscriptionError: null,
   });
   const initialize = useReducer(reducers.initializeQuestboard);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +66,11 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
     connectionId: `${identity ?? ''}:${connectionId.toHexString()}`,
   });
 
+  const location = useQuestArea({ area: data.area, enabled: ready && !initializing && !error && !data.subscriptionError });
+
   return (
     <QuestboardContext.Provider value={{
-      slots: data.slots, templates: data.templates, completions: data.completions,
+      slots: data.slots, templates: data.templates, completions: data.completions, area: data.area, location,
       connected: isActive, ready,
       hasSnapshot: data.hasSnapshot, subscriptionError: data.subscriptionError, initializing,
       error, ...refresh, retry: () => setAttempt(value => value + 1),

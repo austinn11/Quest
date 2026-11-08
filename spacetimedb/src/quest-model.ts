@@ -25,6 +25,8 @@ export const questTemplates = table({ name: 'quest_templates', public: true }, {
   // Defaults allow existing catalogue rows to migrate without deleting player data.
   locationName: t.option(t.string()).default(undefined),
   locationType: t.option(t.string()).default(undefined),
+  // What a photo must show to prove completion. Appended for migration safety.
+  photoGoal: t.option(t.string()).default(undefined),
 });
 
 export const playerQuestSlots = table({
@@ -49,11 +51,60 @@ export const questCompletions = table({ name: 'quest_completions' }, {
   slotIndex: t.u8(),
   xpAwarded: t.u32(),
   completedAt: t.timestamp().index('btree'),
+  // The AI judge's short description of the accepted photo, when one was submitted.
+  proofNote: t.option(t.string()).default(undefined),
+});
+
+// Private: a player's quest area (rounded to about 100 m). Read only through my_quest_area.
+export const playerQuestArea = table({ name: 'player_quest_area' }, {
+  playerIdentity: t.identity().primaryKey(),
+  latitude: t.f64(),
+  longitude: t.f64(),
+  updatedAt: t.timestamp(),
+  placeCount: t.u32(),
+});
+
+// Private: quests generated from places near one player. Never deleted, so history resolves.
+export const localQuests = table({ name: 'local_quests' }, {
+  templateId: t.string().primaryKey(),
+  playerIdentity: t.identity().index('btree'),
+  title: t.string(),
+  description: t.string(),
+  category: QuestCategory,
+  difficulty: QuestDifficulty,
+  xpReward: t.u32(),
+  latitude: t.option(t.f64()),
+  longitude: t.option(t.f64()),
+  // Only the current area's quests are active for new assignments.
+  isActive: t.bool(),
+  locationName: t.option(t.string()),
+  locationType: t.option(t.string()),
+  photoGoal: t.option(t.string()),
+  createdAt: t.timestamp(),
+});
+
+// Private: per-player photo check rate limit.
+export const photoAttempts = table({ name: 'photo_attempts' }, {
+  playerIdentity: t.identity().primaryKey(),
+  windowStartedAt: t.timestamp(),
+  attemptsInWindow: t.u32(),
+  lastAttemptAt: t.timestamp(),
 });
 
 export type QuestTemplate = Infer<typeof questTemplates.rowType>;
 export type PlayerQuestSlot = Infer<typeof playerQuestSlots.rowType>;
 export type QuestCompletion = Infer<typeof questCompletions.rowType>;
+export type LocalQuest = Infer<typeof localQuests.rowType>;
+export type PlayerQuestArea = Infer<typeof playerQuestArea.rowType>;
+
+export function localQuestAsTemplate(quest: LocalQuest): QuestTemplate {
+  return {
+    templateId: quest.templateId, title: quest.title, description: quest.description,
+    category: quest.category, difficulty: quest.difficulty, xpReward: quest.xpReward,
+    latitude: quest.latitude, longitude: quest.longitude, isActive: quest.isActive,
+    locationName: quest.locationName, locationType: quest.locationType, photoGoal: quest.photoGoal,
+  };
+}
 export const SLOT_DIFFICULTIES = ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard'] as const;
 const rewards = { Easy: 50, Medium: 100, Hard: 200 } as const;
 
@@ -86,6 +137,7 @@ export function validateTemplate(template: QuestTemplate): string | null {
     if (value !== undefined && (!value.trim() || value.trim().length > limit)) return `${label} must contain 1 to ${limit} characters.`;
     if (value !== undefined && !hasLatitude) return 'Named quest locations require latitude and longitude.';
   }
+  if (template.photoGoal !== undefined && (!template.photoGoal.trim() || template.photoGoal.trim().length > 300)) return 'Photo goals must contain 1 to 300 characters.';
   return null;
 }
 

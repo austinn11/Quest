@@ -10,14 +10,66 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const LocalQuests = __t.object("LocalQuests", {
+  templateId: __t.string(),
+  playerIdentity: __t.identity(),
+  title: __t.string(),
+  description: __t.string(),
+  get category() {
+    return QuestCategory;
+  },
+  get difficulty() {
+    return QuestDifficulty;
+  },
+  xpReward: __t.u32(),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
+  isActive: __t.bool(),
+  locationName: __t.option(__t.string()),
+  locationType: __t.option(__t.string()),
+  photoGoal: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+});
+export type LocalQuests = __Infer<typeof LocalQuests>;
+
+export const MyLocalQuests = __t.object("MyLocalQuests", {});
+export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
+
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
+
+export const MyQuestArea = __t.object("MyQuestArea", {});
+export type MyQuestArea = __Infer<typeof MyQuestArea>;
 
 export const MyQuestCompletions = __t.object("MyQuestCompletions", {});
 export type MyQuestCompletions = __Infer<typeof MyQuestCompletions>;
 
 export const MyQuestSlots = __t.object("MyQuestSlots", {});
 export type MyQuestSlots = __Infer<typeof MyQuestSlots>;
+
+export const PhotoAttempts = __t.object("PhotoAttempts", {
+  playerIdentity: __t.identity(),
+  windowStartedAt: __t.timestamp(),
+  attemptsInWindow: __t.u32(),
+  lastAttemptAt: __t.timestamp(),
+});
+export type PhotoAttempts = __Infer<typeof PhotoAttempts>;
+
+export const PhotoVerdict = __t.object("PhotoVerdict", {
+  accepted: __t.bool(),
+  message: __t.string(),
+  observation: __t.string(),
+});
+export type PhotoVerdict = __Infer<typeof PhotoVerdict>;
+
+export const PlaceInput = __t.object("PlaceInput", {
+  id: __t.string(),
+  name: __t.string(),
+  kind: __t.string(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+});
+export type PlaceInput = __Infer<typeof PlaceInput>;
 
 export const Player = __t.object("Player", {
   identity: __t.identity(),
@@ -38,6 +90,15 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   level: __t.u32(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const PlayerQuestArea = __t.object("PlayerQuestArea", {
+  playerIdentity: __t.identity(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+  updatedAt: __t.timestamp(),
+  placeCount: __t.u32(),
+});
+export type PlayerQuestArea = __Infer<typeof PlayerQuestArea>;
 
 export const PlayerQuestSlots = __t.object("PlayerQuestSlots", {
   slotId: __t.string(),
@@ -71,6 +132,7 @@ export const QuestCompletions = __t.object("QuestCompletions", {
   slotIndex: __t.u8(),
   xpAwarded: __t.u32(),
   completedAt: __t.timestamp(),
+  proofNote: __t.option(__t.string()),
 });
 export type QuestCompletions = __Infer<typeof QuestCompletions>;
 
@@ -105,6 +167,7 @@ export const QuestTemplates = __t.object("QuestTemplates", {
   isActive: __t.bool(),
   locationName: __t.option(__t.string()),
   locationType: __t.option(__t.string()),
+  photoGoal: __t.option(__t.string()),
 });
 export type QuestTemplates = __Infer<typeof QuestTemplates>;
 

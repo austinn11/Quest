@@ -229,11 +229,48 @@ F11 appends optional `location_name` and `location_type` fields with empty defau
 
 Location-based Questboard cards have a **View on map** link. Links include the slot index and the exact assignment timestamp, so a refresh or deep link selects the same subscribed quest and centers its marker. Selecting another marker updates that target in the URL. Links never supply coordinates, player identity, XP, or difficulty. Non-geographic cards have no map link, and manually opening an unmapped assignment offers a return to its Questboard card.
 
-Map details reuse the Questboard's `CompleteQuestButton` and existing `completeQuest` reducer. Completion is disabled until the connection and subscription are current, and while initialization or refresh is pending. The subscribed cooldown state updates the marker and details; XP and Journal history update through their existing subscriptions. No additional completion API, optimistic quest record, or duplicate XP logic is added.
+Map details reuse the Questboard's `CompleteQuestButton`, which now completes quests with photo proof (see below). Completion is disabled until the connection and subscription are current, and while initialization or refresh is pending. The subscribed cooldown state updates the marker and details; XP and Journal history update through their existing subscriptions. No additional completion API, optimistic quest record, or duplicate XP logic is added.
 
 When a slot is replaced, the old marker and selected completion control disappear. The old URL reports that its assignment changed instead of silently selecting the replacement. A current map quest links back to its exact Questboard card. Journal entries offer **View completed quest on map** only while the matching template, slot, and completion timestamp still identify that slot's current cooldown quest. Once replaced, that map link disappears while the accomplishment and awarded XP remain in history.
 
 F13 is frontend-only and uses the already-published tables, views, and reducers. Tests cover assignment-specific links, malformed or stale targets, repeated templates, unmapped quests, current Journal links, subscription readiness, and the complete/replace gameplay flow.
+
+## Nearby quests
+
+**Find quests near me** (Questboard and Home) asks for location permission once and remembers the choice in this browser. While the app is open it watches your position:
+
+- With no quest area yet, or after moving more than **10 km** from it, the browser asks OpenStreetMap's free Overpass API for named parks, ponds, gardens, viewpoints, monuments, artwork, museums and historic sites within 8 km. Results are cached per ~1 km grid cell for a week.
+- The places go to the `setQuestArea` reducer, which treats them as untrusted. It re-validates every place (known kinds, numeric OpenStreetMap ids, coordinates, distance recomputed on the server, unsuitable names such as schools or playgrounds dropped). Then it generates up to 18 **local quests**: Bestiary, Crafting and Exploration at Easy (within ~1.5 km), Medium (~4 km) and Hard (~8 km).
+- Every **Available** slot then reloads, preferring local quests about two times in three. Cooldown slots keep their completed quest and refill from the new pool when they expire. Curated Dallas quests are offered only when your area is within 10 km of them.
+- Local quests and your area (rounded to about 100 m) live in **private** tables, read only through the `my_local_quests` and `my_quest_area` views. The public catalogue never reveals where anyone is. Old local quests are kept, inactive, so Journal history still resolves.
+
+Public Overpass servers can be slow or overloaded. If none responds, the board keeps its current quests and offers **Try again**. Tunables live in `shared/nearby-places.ts` and `spacetimedb/src/quest-config.ts`. To try it without travelling, override your position in Chrome DevTools (More tools > Sensors > Location).
+
+## Photo proof and the AI judge
+
+**Complete quest** opens the camera on a phone, or a file picker on desktop. The browser shrinks the photo to at most 1024 px JPEG and sends it to the `submitQuestPhoto` procedure, which:
+
+1. Checks ownership and assignment exactly like completion, and enforces a limit of 12 photo checks per hour and one every 5 seconds per player.
+2. Sends the quest title, objective, its **photo goal** (shown on each notice) and the image to an OpenAI-compatible `/chat/completions` endpoint. The judge prompt ignores any text written inside the photo and must answer with JSON. Anything other than an explicit acceptance is treated as a rejection.
+3. On acceptance, completes the quest through the same exactly-once logic as before, and saves the judge's short description as the completion's `proofNote`, shown in the Journal.
+
+The photo itself is not stored. Configure the judge with module environment variables; never commit the key:
+
+| Variable | Meaning |
+| --- | --- |
+| `AI_API_KEY` | Provider API key. Without it, any valid photo is accepted with "AI check not configured" (local development). With it, the one-click `completeQuest` reducer is refused so the photo check cannot be skipped. |
+| `AI_MODEL` | Vision-capable model ID. Required when a key is set. |
+| `AI_BASE_URL` | Defaults to AIsa, `https://api.aisa.one/v1`. Hugging Face: `https://router.huggingface.co/v1` with `Qwen/Qwen2.5-VL-7B-Instruct`. |
+
+List AIsa's model IDs (look for the `vision` capability) with your key, then publish with the values as shell variables, which override `spacetime.json` and are not written to it:
+
+```powershell
+curl.exe -s https://api.aisa.one/v1/models -H "Authorization: Bearer $env:AI_API_KEY"
+$env:AI_API_KEY = "<your key>"; $env:AI_MODEL = "<vision model id>"
+npm run spacetime:publish:local
+```
+
+Use `spacetime publish --env-only` to change only these values on an existing database. Check judge errors with `spacetime logs quest-db --server local`.
 
 ## Work on the backend
 
@@ -308,7 +345,8 @@ Quest/
     layout/                 Shared header, navigation, and page outlet
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
-    questboard/             Initialization, managed quest subscriptions, and shared quest UI
+    questboard/             Initialization, managed quest subscriptions, photo proof, and shared quest UI
+    location/               Opt-in location watching and nearby-place loading for local quests
     map/                    MapLibre rendering, styling, configuration, and location projection
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
@@ -318,12 +356,17 @@ Quest/
     src/quest-model.ts      Template/slot/history tables, fixed layout, and validation
     src/quest-seeds.ts      Twenty-one reusable templates (seven per difficulty)
     src/quest-locations.ts  Six curated geographic quests with verified site coordinates
-    src/quest-config.ts     Server-controlled difficulty cooldown durations
+    src/quest-config.ts     Cooldowns, local-quest bands, and photo-check limits
     src/quest-selection.ts Shared active-template selection and repeat preference
     src/quest-completion.ts Atomic completion history, XP, and cooldown transition
     src/quest-refresh.ts    Server-authoritative lazy slot replacement
+    src/local-quests.ts     Bestiary, Exploration and Crafting quests generated from nearby places
+    src/quest-area.ts       Quest-area reloads and photo-check transactions
+    src/photo-judge.ts      AI judge prompt, image checks, and verdict parsing
     package.json            Database module dependencies
   shared/progression.ts     Level thresholds and XP progress shared by server and React
+  shared/nearby-places.ts   OpenStreetMap query, place parsing and validation, area settings
+  shared/geo.ts             Distance and coordinate helpers
   .env.example              Shared frontend connection settings
   spacetime.json            CLI database, server, and module configuration
   package.json              Frontend dependencies and root development commands

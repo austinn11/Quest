@@ -2,7 +2,7 @@ import { SenderError } from 'spacetimedb/server';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { validateSlot, validateTemplate } from './quest-model';
-import { mostRecentCompletionTemplate, selectQuestTemplate } from './quest-selection';
+import { mostRecentCompletionTemplate, resolveQuest, selectQuestTemplate } from './quest-selection';
 
 export function refreshQuestSlots(ctx: Ctx): void {
   const authError = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
@@ -15,7 +15,7 @@ export function refreshQuestSlots(ctx: Ctx): void {
     const slot = board[index];
     if (slot.status.tag !== 'Cooldown') continue;
     if (!slot.playerIdentity.equals(ctx.sender)) throw new SenderError('This quest slot does not belong to you.');
-    const original = ctx.db.questTemplates.templateId.find(slot.templateId);
+    const original = resolveQuest(ctx, ctx.sender, slot.templateId);
     if (!original) throw new SenderError('The completed quest template is unavailable.');
     const slotError = validateSlot(slot, original, ctx.timestamp);
     if (slotError) throw new SenderError(slotError);

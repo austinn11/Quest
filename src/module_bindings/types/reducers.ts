@@ -10,11 +10,13 @@ import CompleteQuestReducer from "../complete_quest_reducer";
 import EnsurePlayerReducer from "../ensure_player_reducer";
 import InitializeQuestboardReducer from "../initialize_questboard_reducer";
 import RefreshQuestSlotsReducer from "../refresh_quest_slots_reducer";
+import SetQuestAreaReducer from "../set_quest_area_reducer";
 import SetUsernameReducer from "../set_username_reducer";
 
 export type CompleteQuestParams = __Infer<typeof CompleteQuestReducer>;
 export type EnsurePlayerParams = __Infer<typeof EnsurePlayerReducer>;
 export type InitializeQuestboardParams = __Infer<typeof InitializeQuestboardReducer>;
 export type RefreshQuestSlotsParams = __Infer<typeof RefreshQuestSlotsReducer>;
+export type SetQuestAreaParams = __Infer<typeof SetQuestAreaReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
 
