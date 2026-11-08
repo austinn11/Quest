@@ -1,45 +1,24 @@
 import { useEffect, useRef } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { useSpacetimeDB } from 'spacetimedb/react';
 import { SignOutButton } from '../auth/SignOutButton';
 import { usePlayer } from '../player/PlayerProvider';
 import { LevelUpNotice } from '../player/LevelUpNotice';
-
-const navigation = [
-  { to: '/', label: 'Home' },
-  { to: '/map', label: 'World Map' },
-  { to: '/questboard', label: 'Questboard' },
-  { to: '/journal', label: 'Quest Journal' },
-  { to: '/bestiary', label: 'Bestiary' },
-  { to: '/guild', label: 'Guild' },
-  { to: '/friends', label: 'Friends' },
-  { to: '/profile', label: 'Profile' },
-];
+import { AppNavigation } from './AppNavigation';
+import { navigationPageTitle } from './navigation';
 
 export function AppLayout() {
   const { pathname, hash } = useLocation();
   const { isActive, identity, connectionError } = useSpacetimeDB();
   const { error, retry } = usePlayer();
   const main = useRef<HTMLElement>(null);
-  const nav = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const page = navigation.find(item => item.to === pathname)?.label ?? 'Page not found';
+    const page = navigationPageTitle(pathname);
     document.title = `${page} | Quest`;
     // Questboard handles its card anchor after assignments render.
     if (pathname !== '/questboard' || !/^#quest-slot-[0-5]$/.test(hash)) main.current?.focus();
   }, [pathname, hash]);
-
-  useEffect(() => {
-    const menu = nav.current;
-    const active = menu?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!menu || !active) return;
-    // Keep the selected destination visible in the narrow, horizontally scrolling menu.
-    const bounds = menu.getBoundingClientRect();
-    const item = active.getBoundingClientRect();
-    if (item.left < bounds.left) menu.scrollLeft -= bounds.left - item.left;
-    else if (item.right > bounds.right) menu.scrollLeft += item.right - bounds.right;
-  }, [pathname]);
 
   return (
     <div className="app-shell">
@@ -53,9 +32,7 @@ export function AppLayout() {
             </svg>
             <span>Quest</span>
           </Link>
-          <nav ref={nav} className="app-nav" aria-label="Main navigation">
-            {navigation.map(item => <NavLink key={item.to} to={item.to} end={item.to === '/'}>{item.label}</NavLink>)}
-          </nav>
+          <AppNavigation />
           <div className="app-header-account"><SignOutButton /></div>
         </div>
       </header>

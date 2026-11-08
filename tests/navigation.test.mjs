@@ -4,6 +4,7 @@ import { createServer } from 'vite';
 import { Timestamp } from 'spacetimedb';
 import { postLoginPath } from '../src/auth/return-path.ts';
 import { totalXpForLevel } from '../shared/progression.ts';
+import { isNavigationRouteActive, navigationPageTitle } from '../src/layout/navigation.ts';
 
 let server;
 let renderPage;
@@ -39,13 +40,36 @@ for (const [path, title] of pages) {
     const nav = html.match(/<nav\b[^>]*aria-label="Main navigation"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
     assert.ok(nav);
     const links = [...nav.matchAll(/<a\b([^>]*)>/g)].map(match => match[1]);
-    assert.deepEqual(links.map(link => link.match(/href="([^"]*)"/)[1]), pages.map(page => page[0]));
+    assert.deepEqual(links.map(link => link.match(/href="([^"]*)"/)[1]), ['/', '/map', '/questboard', '/journal', '/bestiary', '/friends', '/guild', '/profile']);
+    const primary = [...nav.matchAll(/<(?:a|button)\b[^>]*class="app-nav-(?:link|trigger)[^"]*"[^>]*>([^<]+)/g)];
+    assert.deepEqual(primary.map(item => item[1]), ['Home', 'World Map', 'Quests', 'Social', 'Profile']);
+    const parent = ['/questboard', '/journal', '/bestiary'].includes(path) ? 'Quests' : ['/friends', '/guild'].includes(path) ? 'Social' : null;
+    const activeParent = nav.match(/<button[^>]*class="app-nav-trigger active"[^>]*>([^<]+)/)?.[1] ?? null;
+    assert.equal(activeParent, parent);
     const active = links.filter(link => link.includes('aria-current="page"'));
     assert.equal(active.length, 1);
     assert.ok(active[0].includes(`href="${path}"`));
     assert.ok(html.includes('Sign out'));
   });
 }
+
+test('navigation uses closed accessible disclosures and preserves existing page names and routes', () => {
+  const html = renderPage('/journal');
+  const nav = html.match(/<nav\b[^>]*aria-label="Main navigation"[^>]*>([\s\S]*?)<\/nav>/)[1];
+  assert.ok(nav.includes('>Quest Log</a>'));
+  assert.ok(!nav.includes('Quest Journal'));
+  assert.ok(nav.includes('>Guilds</a>'));
+  for (const group of ['quests', 'social']) {
+    assert.ok(nav.includes(`aria-expanded="false" aria-controls="nav-${group}-options"`));
+    assert.match(nav, new RegExp(`<ul id="nav-${group}-options"[^>]*hidden=""`));
+  }
+  assert.equal(navigationPageTitle('/journal'), 'Quest Journal');
+  assert.equal(navigationPageTitle('/guild'), 'Guild');
+  assert.equal(navigationPageTitle('/missing'), 'Page not found');
+  assert.equal(isNavigationRouteActive('/guild/members', '/guild'), true);
+  assert.equal(isNavigationRouteActive('/guildhouse', '/guild'), false);
+  assert.equal(isNavigationRouteActive('/map', '/'), false);
+});
 
 test('profile route retains the username editor and progression display', () => {
   const html = renderPage('/profile');
@@ -171,7 +195,8 @@ test('questboard renders six assigned quests in slot order with catalogue object
     xpReward: { Easy: 50, Medium: 100, Hard: 200 }[slot.difficulty.tag],
   }));
   const html = renderPage('/questboard', { slots: slots.reverse(), templates, ready: true, error: null, retry: () => {} });
-  assert.equal((html.match(/<li\b/g) ?? []).length, 6);
+  const questList = html.match(/<ol class="questboard"[^>]*>([\s\S]*?)<\/ol>/)?.[1];
+  assert.equal((questList.match(/<li\b/g) ?? []).length, 6);
   assert.equal((html.match(/class="quest-status">Available<\/span>/g) ?? []).length, 6);
   assert.equal((html.match(/<ol class="questboard"/g) ?? []).length, 1);
   assert.ok(!html.includes('Questboard overview'));

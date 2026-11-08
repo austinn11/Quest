@@ -87,11 +87,21 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .app-header-inner { width: min(100% - 3rem, 70rem); min-height: 5rem; margin: auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2.5rem; }
 .app-brand { display: inline-flex; align-items: center; gap: .65rem; font-size: 1.4rem; font-weight: 500; letter-spacing: -.06em; text-decoration: none; }
 .app-brand-mark { width: 1.6rem; height: 1.6rem; flex-shrink: 0; }
-.app-nav { display: flex; justify-content: center; gap: 1.5rem; min-width: 0; }
-.app-nav a { position: relative; display: inline-flex; align-items: center; min-height: 3rem; white-space: nowrap; color: var(--muted-foreground); font-size: .82rem; text-decoration: none; transition: color .2s; }
-.app-nav a::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary); transform: scaleX(0); transition: transform .2s; }
-.app-nav a:hover, .app-nav a.active { color: var(--foreground); }
-.app-nav a.active::after { transform: scaleX(1); }
+.app-nav { position: relative; min-width: 0; }
+.app-nav-list { display: flex; justify-content: center; align-items: center; gap: 1.5rem; list-style: none; margin: 0; padding: 0; }
+.app-nav-group { position: relative; }
+.app-nav-link, .app-nav-trigger { position: relative; display: inline-flex; align-items: center; min-height: 3rem; padding: 0; border: 0; border-radius: 0; background: transparent; white-space: nowrap; color: var(--muted-foreground); font-size: .82rem; font-weight: 400; text-decoration: none; transition: color .2s; }
+.app-nav-link::after, .app-nav-trigger::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary); transform: scaleX(0); transition: transform .2s; }
+.app-nav-link:hover, .app-nav-trigger:hover:enabled, .app-nav-link.active, .app-nav-trigger.active { background: transparent; color: var(--foreground); box-shadow: none; }
+.app-nav-link.active::after, .app-nav-trigger.active::after { transform: scaleX(1); }
+.app-nav-chevron { width: .8rem; height: .8rem; transition: transform .2s; }
+.app-nav-trigger[aria-expanded="true"] .app-nav-chevron { transform: rotate(180deg); }
+.nav-dropdown { position: absolute; z-index: 2; top: calc(100% + .3rem); left: -.75rem; min-width: 13rem; margin: 0; padding: .4rem; list-style: none; border: 1px solid var(--border); border-radius: .65rem; background: var(--card); box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 9%, transparent); max-height: calc(100dvh - 9rem); overflow-y: auto; }
+.nav-dropdown[hidden] { display: none; }
+.nav-dropdown a { display: flex; align-items: center; min-height: 2.75rem; padding: .6rem .85rem; border-radius: .35rem; color: var(--muted-foreground); font-size: .82rem; text-decoration: none; }
+.nav-dropdown a:hover, .nav-dropdown a:focus-visible, .nav-dropdown a.active { background: var(--secondary); color: var(--foreground); }
+.nav-dropdown a.active { font-weight: 500; }
+.nav-dropdown a:focus-visible { outline-offset: -2px; }
 .app-header-account { justify-self: end; }
 .app-header-account .secondary { min-height: 2.25rem; padding: .35rem .9rem; font-size: .78rem; }
 .app-header-account .error { position: absolute; right: 1rem; max-width: 20rem; padding: .75rem; background: var(--card); border: 1px solid var(--border); }
@@ -387,7 +397,8 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 }
 @media (max-width: 1000px) {
   .app-header-inner { grid-template-columns: minmax(0, 1fr) auto; gap: 0 1rem; padding-top: .85rem; }
-  .app-nav { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; gap: 1.5rem; overflow-x: auto; scrollbar-width: thin; padding-inline: 3px; }
+  .app-nav { grid-row: 2; grid-column: 1 / -1; }
+  .app-nav-list { justify-content: flex-start; }
   .app-header-account { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 700px) {
@@ -399,6 +410,10 @@ input:disabled { opacity: .6; cursor: not-allowed; }
   .notice-sheet { padding: 1.25rem; }
 }
 @media (max-width: 480px) {
+  .app-nav-list { justify-content: space-between; gap: .4rem; }
+  .app-nav-link, .app-nav-trigger { font-size: .72rem; gap: .25rem; }
+  .app-nav-group { position: static; }
+  .nav-dropdown { left: 0; right: 0; min-width: 0; }
   .foundation { margin: 3rem auto; }
   .form-row { flex-direction: column; align-items: stretch; }
   .progression-stats dd { font-size: 1.05rem; }
