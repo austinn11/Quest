@@ -237,7 +237,7 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .journal-capture:hover span { text-decoration: underline; }
 
 /* Guilds */
-.guild-crest { display: inline-grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.9rem; color: oklch(0.98 0.01 80); font-family: "Rye", Georgia, serif; font-size: 1rem; letter-spacing: .04em; clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%); background: var(--crest); box-shadow: inset 0 0 0 3px color-mix(in oklab, white 25%, transparent); }
+.guild-crest { display: inline-grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.9rem; color: oklch(0.98 0.01 80); font-family: var(--font-mono); font-size: .95rem; font-weight: 500; letter-spacing: .06em; clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%); background: var(--crest); box-shadow: inset 0 0 0 3px color-mix(in oklab, white 25%, transparent); }
 .crest-sm { width: 2rem; height: 2.3rem; font-size: .8rem; }
 .crest-lg { width: 4.5rem; height: 5.2rem; font-size: 1.7rem; }
 .crest-moss { --crest: oklch(0.48 0.08 140); }

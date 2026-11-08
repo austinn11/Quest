@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { GUILD_CRESTS, GuildCrest, useGuild } from '../guild/GuildProvider';
 import { QuestDate } from '../questboard/QuestDate';
+import { PageHeading } from '../ui/PageHeading';
 
 const errorText = (error: unknown) => typeof error === 'string' ? error : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 
@@ -21,7 +22,7 @@ export function GuildPage() {
   const { guild, ready } = useGuild();
   return (
     <>
-      <header className="page-heading"><h1>Guild</h1></header>
+      <PageHeading title="Guild" />
       {!ready ? <p role="status">Opening the guild hall...</p> : guild ? <YourGuild /> : <FindAGuild />}
     </>
   );
