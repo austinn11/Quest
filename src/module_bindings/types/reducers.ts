@@ -7,8 +7,10 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import EnsurePlayerReducer from "../ensure_player_reducer";
+import InitializeQuestboardReducer from "../initialize_questboard_reducer";
 import SetUsernameReducer from "../set_username_reducer";
 
 export type EnsurePlayerParams = __Infer<typeof EnsurePlayerReducer>;
+export type InitializeQuestboardParams = __Infer<typeof InitializeQuestboardReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
 

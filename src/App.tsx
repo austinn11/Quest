@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AppLayout } from './layout/AppLayout';
 import { PlayerProvider } from './player/PlayerProvider';
+import { QuestboardProvider } from './questboard/QuestboardProvider';
 import { DashboardPage } from './pages/DashboardPage';
 import { WorldMapPage } from './pages/WorldMapPage';
 import { QuestboardPage } from './pages/QuestboardPage';
@@ -24,5 +25,5 @@ export function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter><PlayerProvider><AppRoutes /></PlayerProvider></BrowserRouter>;
+  return <BrowserRouter><PlayerProvider><QuestboardProvider><AppRoutes /></QuestboardProvider></PlayerProvider></BrowserRouter>;
 }

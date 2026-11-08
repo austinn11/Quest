@@ -180,11 +180,154 @@ test('template validation rejects malformed content, invalid enums, forged rewar
   assert.equal(db.model.validateTemplate({ ...template, latitude: 90, longitude: -180 }), null);
 });
 
-test('only non-personal templates are public and no quest mutation APIs exist in F05', () => {
+test('only non-personal templates are public and quest creation/completion APIs remain absent', () => {
   const { db } = setup();
   assert.equal(db.templateVisibility, 'Public');
   assert.equal(db.slotVisibility, 'Private');
   assert.equal(db.completionVisibility, 'Private');
   for (const name of ['createQuest', 'acceptQuest', 'completeQuest', 'generateQuests', 'refreshQuest']) assert.equal(db.moduleExports.includes(name), false);
   assert.ok(db.templates().every(template => !('playerIdentity' in template) && !('creatorIdentity' in template)));
+});
+
+test('initialization creates exactly six unique Available quests using active templates and server-owned fields', () => {
+  const { db, alice } = setup();
+  db.initialize(alice);
+  const slots = db.slots(alice).sort((a, b) => a.slotIndex - b.slotIndex);
+  assert.equal(slots.length, 6);
+  assert.deepEqual(slots.map(slot => slot.slotIndex), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(slots.map(slot => slot.difficulty.tag), ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard']);
+  assert.equal(new Set(slots.map(slot => slot.templateId)).size, 6);
+  for (const slot of slots) {
+    const template = db.templates().find(template => template.templateId === slot.templateId);
+    assert.equal(db.model.validateSlot(slot, template, db.now()), null);
+    assert.equal(template.isActive, true);
+    assert.equal(slot.status.tag, 'Available');
+    assert.equal(slot.completedAt, undefined);
+    assert.equal(slot.refreshAt, undefined);
+    assert.equal(slot.assignedAt.microsSinceUnixEpoch, db.now().microsSinceUnixEpoch);
+  }
+  assert.equal(db.profile(alice).xp, 0);
+  assert.deepEqual(db.completions(alice), []);
+});
+
+test('repeated calls, new connections, deactivated templates and cooldowns never reroll an initialized board', () => {
+  const { db, alice } = setup();
+  db.initialize(alice);
+  const first = db.slots(alice)[0];
+  db.putSlotFixture(alice, first.templateId, first.slotIndex, {
+    status: { tag: 'Cooldown' }, completedAt: db.now(), refreshAt: new Timestamp(10n),
+  });
+  db.setTemplateActiveForTest(first.templateId, false);
+  const before = db.slots(alice);
+  for (const template of db.templates()) db.setTemplateActiveForTest(template.templateId, false);
+  db.advanceClock(20n);
+  for (let count = 0; count < 3; count++) db.initialize(alice);
+  const reconnect = db.auth('alice');
+  db.connect(reconnect);
+  db.initialize(reconnect);
+  assert.deepEqual(db.slots(reconnect), before);
+  assert.equal(db.profile(reconnect).xp, 0);
+});
+
+test('two authenticated players initialize independently and see only their own persistent boards', () => {
+  const { db, alice, bob } = setup();
+  db.initialize(alice);
+  const first = db.slots(alice);
+  assert.deepEqual(db.slots(bob), []);
+  db.advanceClock(100n);
+  db.initialize(bob);
+  assert.equal(db.slots(bob).length, 6);
+  assert.equal(new Set([...first, ...db.slots(bob)].map(slot => slot.slotId)).size, 12);
+  assert.deepEqual(db.slots(db.auth('alice')), first);
+  assert.ok(db.slots(bob).every(slot => slot.playerIdentity.equals(db.profile(bob).identity)));
+  assert.deepEqual(db.slots(db.auth('stranger')), []);
+});
+
+test('initialization rejects untrusted authentication and missing profiles without writing slots', () => {
+  const { db, alice } = setup();
+  assert.throws(() => db.initialize(db.internal()), /Sign in/);
+  assert.throws(() => db.initialize(db.auth('alice', 'another-client')), /Sign in to Quest/);
+  const missing = db.auth('missing-profile');
+  assert.throws(() => db.initialize(missing), /Create your player profile/);
+  assert.deepEqual(db.slots(missing), []);
+  assert.deepEqual(db.slots(alice), []);
+});
+
+test('inactive templates are excluded even when they were previously eligible', () => {
+  const { db, alice } = setup();
+  const excluded = new Set();
+  for (const difficulty of ['Easy', 'Medium', 'Hard']) {
+    const template = templatesByDifficulty(db, difficulty)[0];
+    excluded.add(template.templateId);
+    db.setTemplateActiveForTest(template.templateId, false);
+  }
+  db.initialize(alice);
+  assert.equal(db.slots(alice).length, 6);
+  assert.ok(db.slots(alice).every(slot => !excluded.has(slot.templateId)));
+});
+
+test('insufficient templates at any difficulty leave no partial board and can be retried', () => {
+  for (const [difficulty, allowed] of [['Easy', 2], ['Medium', 1], ['Hard', 0]]) {
+    const { db, alice, bob } = setup();
+    db.initialize(bob);
+    const bobBefore = db.slots(bob);
+    const disabled = templatesByDifficulty(db, difficulty).slice(allowed);
+    for (const template of disabled) db.setTemplateActiveForTest(template.templateId, false);
+    assert.throws(() => db.initialize(alice), new RegExp(`Not enough active ${difficulty}`));
+    assert.deepEqual(db.slots(alice), []);
+    assert.deepEqual(db.slots(bob), bobBefore);
+    assert.deepEqual(db.completions(alice), []);
+    for (const template of disabled) db.setTemplateActiveForTest(template.templateId, true);
+    db.initialize(alice);
+    assert.equal(db.slots(alice).length, 6);
+  }
+});
+
+test('a partial board is reported and preserved rather than rerolled or silently filled', () => {
+  const { db, alice } = setup();
+  db.putSlotFixture(alice, templatesByDifficulty(db, 'Easy')[0].templateId, 0);
+  const before = db.slots(alice);
+  assert.throws(() => db.initialize(alice), /Questboard is incomplete/);
+  assert.deepEqual(db.slots(alice), before);
+});
+
+test('the latest completion is avoided when alternatives exist and history remains unchanged', () => {
+  const { db, alice, bob } = setup();
+  const recent = templatesByDifficulty(db, 'Easy')[0];
+  db.putSlotFixture(alice, recent.templateId, 0, { status: { tag: 'Cooldown' }, completedAt: db.now(), refreshAt: new Timestamp(10n) });
+  db.appendCompletionFixture(alice, 0);
+  const history = db.completions(alice);
+  db.removeSlotsForTest(alice);
+  db.initialize(alice);
+  assert.ok(db.slots(alice).every(slot => slot.templateId !== recent.templateId));
+  assert.deepEqual(db.completions(alice), history);
+  assert.deepEqual(db.completions(bob), []);
+});
+
+test('recent-completion preference falls back to repetition when needed to fill unique slots', () => {
+  const { db, alice } = setup();
+  const easy = templatesByDifficulty(db, 'Easy');
+  const recent = easy[0];
+  db.putSlotFixture(alice, recent.templateId, 0, { status: { tag: 'Cooldown' }, completedAt: db.now(), refreshAt: new Timestamp(10n) });
+  db.appendCompletionFixture(alice, 0);
+  db.removeSlotsForTest(alice);
+  for (const template of easy.slice(3)) db.setTemplateActiveForTest(template.templateId, false);
+  db.initialize(alice);
+  const ids = db.slots(alice).filter(slot => slot.difficulty.tag === 'Easy').map(slot => slot.templateId);
+  assert.equal(new Set(ids).size, 3);
+  assert.equal(ids[2], recent.templateId);
+});
+
+test('SpacetimeDB randomness is reproducible for a fixed test seed and can produce different boards', () => {
+  const generate = seed => {
+    const db = createPlayerHarness(seed);
+    const alice = db.auth('alice');
+    db.ensure(alice);
+    db.seedTemplates();
+    db.initialize(alice);
+    return db.slots(alice).sort((a, b) => a.slotIndex - b.slotIndex).map(slot => slot.templateId);
+  };
+  assert.deepEqual(generate(42n), generate(42n));
+  const boards = new Set([1n, 2n, 3n, 4n].map(seed => JSON.stringify(generate(seed))));
+  assert.ok(boards.size > 1);
 });

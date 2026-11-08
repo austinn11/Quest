@@ -1,7 +1,7 @@
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
-import { questTemplates, playerQuestSlots, questCompletions, validateTemplate } from './quest-model';
+import { questTemplates, playerQuestSlots, questCompletions, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { seedTemplates } from './quest-seeds';
 
 // Private by default. Players can read only their own row through myPlayer below.
@@ -90,6 +90,58 @@ export const ensurePlayer = spacetimedb.reducer(ctx => {
     username: '',
     usernameKey: '',
   });
+});
+
+export const initializeQuestboard = spacetimedb.reducer(ctx => {
+  const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
+  if (error) throw new SenderError(error);
+  if (!ctx.db.player.identity.find(ctx.sender)) {
+    throw new SenderError('Create your player profile before initializing your Questboard.');
+  }
+
+  const existing = [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)];
+  if (existing.length) {
+    // Initialization never rerolls existing quests, including cooldown or inactive assignments.
+    const complete = existing.length === SLOT_DIFFICULTIES.length && SLOT_DIFFICULTIES.every((difficulty, index) =>
+      existing.some(slot => slot.slotId === slotIdFor(ctx.sender, index) && slot.slotIndex === index && slot.difficulty.tag === difficulty)
+    );
+    if (!complete) throw new SenderError('Your Questboard is incomplete. Please contact the team to restore it.');
+    return;
+  }
+
+  // History is a preference, not a permanent blacklist. A small catalogue must remain usable.
+  let latest: ReturnType<typeof ctx.db.questCompletions.completionId.find> = null;
+  for (const completion of ctx.db.questCompletions.playerIdentity.filter(ctx.sender)) {
+    if (!latest || completion.completedAt.microsSinceUnixEpoch > latest.completedAt.microsSinceUnixEpoch ||
+      (completion.completedAt.microsSinceUnixEpoch === latest.completedAt.microsSinceUnixEpoch && completion.completionId > latest.completionId)) {
+      latest = completion;
+    }
+  }
+
+  const used = new Set<string>();
+  const assignments = SLOT_DIFFICULTIES.map((difficulty, slotIndex) => {
+    const eligible = [...ctx.db.questTemplates.difficulty.filter({ tag: difficulty })]
+      .filter(template => template.isActive && !used.has(template.templateId))
+      .sort((a, b) => a.templateId < b.templateId ? -1 : a.templateId > b.templateId ? 1 : 0);
+    const alternatives = eligible.filter(template => template.templateId !== latest?.templateId);
+    const choices = alternatives.length ? alternatives : eligible;
+    if (!choices.length) throw new SenderError(`Not enough active ${difficulty} quest templates to initialize your Questboard. Please retry later.`);
+    const template = choices[ctx.random.integerInRange(0, choices.length - 1)];
+    const templateError = validateTemplate(template);
+    if (templateError) throw new SenderError(templateError);
+    used.add(template.templateId);
+    const slot = {
+      slotId: slotIdFor(ctx.sender, slotIndex), playerIdentity: ctx.sender, slotIndex,
+      difficulty: template.difficulty, templateId: template.templateId,
+      status: { tag: 'Available' as const }, assignedAt: ctx.timestamp,
+      completedAt: undefined, refreshAt: undefined,
+    };
+    const slotError = validateSlot(slot, template, ctx.timestamp);
+    if (slotError) throw new SenderError(slotError);
+    return slot;
+  });
+  // Selection and all six inserts share the reducer transaction. Failure leaves no partial board.
+  for (const slot of assignments) ctx.db.playerQuestSlots.insert(slot);
 });
 
 export const setUsername = spacetimedb.reducer(

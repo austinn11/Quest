@@ -6,12 +6,14 @@ import * as model from '../spacetimedb/src/quest-model';
 const clientId = 'quest-test-client';
 let nextConnection = 1n;
 
-export function createPlayerHarness() {
-  const harness = createModuleTestHarness(module.default, module);
+export function createPlayerHarness(rngSeed = 42n) {
+  const harness = createModuleTestHarness(module.default, module, { rngSeed });
   const configuredContext = (ctx: Parameters<typeof module.ensurePlayer>[0]) => new Proxy(ctx, {
     get(target, key) {
       if (key === 'env') return { SPACETIMEAUTH_CLIENT_ID: clientId };
       const value = Reflect.get(target, key, target);
+      // The callable RNG also owns shuffle/integerInRange methods; binding strips them.
+      if (key === 'random') return value;
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
@@ -27,6 +29,10 @@ export function createPlayerHarness() {
     ensure(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return harness.withReducerTx(auth, ctx => module.ensurePlayer(configuredContext(ctx)));
     },
+    initialize(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      return harness.withReducerTx(auth, ctx => module.initializeQuestboard(configuredContext(ctx)));
+    },
+    internal: () => TestAuth.internal(),
     setUsername(auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) {
       return harness.withReducerTx(auth, ctx => module.setUsername(configuredContext(ctx), { username }));
     },
@@ -48,7 +54,7 @@ export function createPlayerHarness() {
     },
     slots(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestSlots(harness.viewContext(auth)); },
     completions(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myQuestCompletions(harness.viewContext(auth)); },
-    // Fixtures exercise the schema without adding generation or completion reducers to the app.
+    // Fixtures exercise historical and invalid states without exposing test reducers to clients.
     putSlotFixture(auth: ReturnType<typeof TestAuth.fromJwtPayload>, templateId: string, slotIndex: number, changes: Partial<model.PlayerQuestSlot> = {}) {
       harness.withReducerTx(auth, ctx => {
         const template = ctx.db.questTemplates.templateId.find(templateId)!;
@@ -77,6 +83,11 @@ export function createPlayerHarness() {
         const error = model.validateNewCompletion(completion, slot, template);
         if (error) throw new Error(error);
         return ctx.db.questCompletions.insert(completion);
+      });
+    },
+    removeSlotsForTest(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
+      harness.withReducerTx(auth, ctx => {
+        for (const slot of ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)) ctx.db.playerQuestSlots.slotId.delete(slot.slotId);
       });
     },
     now: () => harness.clock.now(),

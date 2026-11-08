@@ -1,6 +1,6 @@
 # Quest
 
-Quest turns real-world activities into fantasy RPG quests. Adventurers will discover nearby challenges, accept them into a quest journal, and earn XP as they complete them.
+Quest turns real-world activities into fantasy RPG quests. Adventurers receive a personal six-slot Questboard and will earn XP as they complete its adventures.
 
 
 ## Prerequisites
@@ -69,7 +69,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | --- | --- |
 | `/` | Dashboard / Home |
 | `/map` | World Map placeholder |
-| `/questboard` | Available quests placeholder |
+| `/questboard` | Personal six-slot Questboard |
 | `/journal` | Personal quests placeholder |
 | `/profile` | Player profile, progression, and username editor |
 
@@ -145,9 +145,21 @@ Slot IDs are derived from the player identity and position, so future reducers c
 
 Completion rows are independent of slots and may reference the same template across different completed assignments. Their XP and time are historical snapshots; replacing a slot does not rewrite them. Validation rejects mismatched owners, templates, positions, times, and rewards.
 
-Frontend bindings expose `tables.questTemplates`, `tables.myQuestSlots`, and `tables.myQuestCompletions`. There are no quest creation, acceptance, generation, completion, refresh, or reward reducers in F05. No slot rows or completion history are created during login: assigning actual quests is the next feature. Tests use explicit datastore fixtures to verify the schema without introducing gameplay APIs.
+Frontend bindings expose `tables.questTemplates`, `tables.myQuestSlots`, and `tables.myQuestCompletions`. Players cannot create or accept quests. Completion, cooldown refresh, and XP awarding are subsequent features.
 
 Generation must use `slotDifficulty`, `slotIdFor`, and `validateSlot`; future completion logic must validate its transition and append a history row atomically with the XP award. Templates should be deactivated rather than deleted when history refers to them. Avoiding simultaneous duplicates does not mean excluding every historically completed template forever.
+
+## Questboard initialization (F06)
+
+After sign-in, React waits for the private player profile subscription, then calls `initializeQuestboard()` with no arguments. The reducer verifies SpacetimeAuth and the existing player using `ctx.sender`. It assigns exactly three Easy, two Medium, and one Hard template from the active catalogue, without duplicates. The frontend supplies no identity, difficulty, template, or XP values.
+
+Selection uses SpacetimeDB's supported, deterministic server RNG (`ctx.random.integerInRange`), documented in the [reducer context reference](https://spacetimedb.com/docs/functions/reducers/reducer-context/). The most recently completed template is avoided when alternatives exist; it can be used if necessary to fill the board without duplicates. Templates are never permanently excluded just because they appear in history.
+
+All six assignments are committed in one transaction. Insufficient active templates produce an error and leave no partial board. Repeated calls and reconnections preserve an existing complete board, including cooldown slots and templates that have since been deactivated. A partial or malformed board produces an error and is preserved for repair rather than being silently regenerated. There is no reroll endpoint.
+
+`QuestboardProvider` remains mounted across navigation, owns subscriptions to `my_quest_slots` and `quest_templates`, and initializes after profile creation. `/questboard` displays the six assigned objectives, categories, difficulties, statuses, and template XP, with loading and retryable error states. Slot rows are private; each player subscribes only to their own view.
+
+To verify F06 manually, sign in and open **Questboard**. Confirm six distinct quests in the 3/2/1 layout, then refresh and sign out/back in: the same assignments must return. A different Google account should receive its own board; two players may share templates, but their slot records remain independent. Completing quests and refilling cooldown slots are not implemented yet.
 
 ## Work on the backend
 
@@ -200,7 +212,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, the six-slot layout, owner-only slots/history, template validation and idempotent seeding, XP preservation, and level boundaries. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
+`npm test` checks authentication policy and uses the SDK's real test datastore to verify per-player views, persistent usernames, quest validation and visibility, six-slot generation, inactive-template exclusion, repeat avoidance and fallback, atomic failure/retry, reconnect persistence, owner isolation, idempotent seeding, XP preservation, and level boundaries. Route tests cover Questboard loading, errors, and assigned quest rendering. `typecheck` checks both frontend and backend TypeScript. `build` runs those checks and builds the frontend into `dist/`. `npm run preview` serves that production build locally. These checks do not publish or complete a real Google login.
 
 To verify F02 end to end:
 
@@ -222,6 +234,7 @@ Quest/
     layout/                 Shared header, navigation, and page outlet
     pages/                  Dashboard, map, questboard, journal, and profile routes
     player/                 Persistent player profile provider
+    questboard/             Questboard initialization and private subscriptions
     module_bindings/        Generated SpacetimeDB client bindings
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks

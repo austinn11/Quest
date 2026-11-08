@@ -6,8 +6,9 @@ import { Identity, Timestamp } from 'spacetimedb';
 import { AppRoutes } from '../src/App';
 import { DbConnection } from '../src/module_bindings';
 import { PlayerContext } from '../src/player/PlayerProvider';
+import { QuestboardContext } from '../src/questboard/QuestboardProvider';
 
-export function renderPage(path: string) {
+export function renderPage(path: string, board = { slots: [], templates: [], ready: false, error: null as string | null, retry: () => {} }) {
   return renderToStaticMarkup(
     <StaticRouter location={path}>
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
@@ -18,7 +19,7 @@ export function renderPage(path: string) {
             error: null,
             retry: () => {},
           }}>
-            <AppRoutes />
+            <QuestboardContext.Provider value={board}><AppRoutes /></QuestboardContext.Provider>
           </PlayerContext.Provider>
         </SpacetimeDBProvider>
       </AuthProvider>
