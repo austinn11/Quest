@@ -22,7 +22,7 @@ test('completion, cooldown, replacement, and another completion form a persisten
   const original = db.slots(alice).find(slot => slot.slotIndex === 0);
   for (const index of [0, 3, 5]) db.complete(alice, index);
   assert.equal(db.profile(alice).xp, 350);
-  assert.equal(db.profile(alice).level, 4);
+  assert.equal(db.profile(alice).level, 2);
   const savedHistory = db.completions(alice);
   assert.equal(savedHistory.length, 3);
   assert.throws(() => db.complete(alice, 0, original.assignedAt), /cooldown|already completed/);

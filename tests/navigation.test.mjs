@@ -51,6 +51,19 @@ test('profile route retains the username editor and progression display', () => 
   assert.ok(html.includes('150'));
 });
 
+test('Profile, Dashboard and Questboard show identical XP-derived level and next-level progress', () => {
+  for (const path of ['/profile', '/', '/questboard']) {
+    const html = renderPage(path, {}, 350);
+    assert.ok(html.includes('<dt>Level</dt><dd>2</dd>'));
+    assert.ok(html.includes('<dt>Total XP</dt><dd>350</dd>'));
+    assert.ok(html.includes('<dt>XP to level 3</dt><dd>150</dd>'));
+    assert.ok(html.includes('aria-label="XP progress toward level 3"'));
+    assert.ok(html.includes('aria-valuemax="300" aria-valuenow="150"'));
+    assert.ok(html.includes('width:50%'));
+    assert.ok(!html.includes('Level up!'));
+  }
+});
+
 test('world map lists only assigned geographic quests and retains non-geographic quest access', () => {
   const slots = [
     { slotId: 'test:0', slotIndex: 0, templateId: 'campus', assignedAt: Timestamp.UNIX_EPOCH, status: { tag: 'Available' }, difficulty: { tag: 'Easy' } },

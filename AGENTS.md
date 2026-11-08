@@ -7,6 +7,7 @@
 - Use React, TypeScript, and Vite in `src/`, with the primary backend in `spacetimedb/src/index.ts`.
 - Maincloud's `quest-db` is the default development database. Frontend settings use `VITE_SPACETIMEDB_HOST` and `VITE_SPACETIMEDB_DB_NAME`; CLI settings live in `spacetime.json`.
 - Keep quest completion and XP authoritative in reducers; validate ownership using `ctx.sender` and reject duplicate rewards.
+- Keep leveling and progress calculations in `shared/progression.ts`; total XP is authoritative and level is derived using the F10 curve.
 - Build one complete gameplay flow at a time. Discuss major architecture or dependency changes before implementing them.
 - Run `npm run build` for frontend and backend type checks plus the frontend production build. Use `npm run spacetime:build` to bundle the database module.
 - Update generated client bindings with `npm run spacetime:generate` after changing the schema or reducers. Do not edit generated bindings manually.

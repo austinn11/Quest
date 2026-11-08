@@ -50,7 +50,7 @@ test('a new connection for the same subject keeps its account and XP', () => {
   assert.equal(restored.identity.toHexString(), original.identity.toHexString());
   assert.equal(restored.createdAt.microsSinceUnixEpoch, original.createdAt.microsSinceUnixEpoch);
   assert.equal(restored.xp, 150);
-  assert.equal(restored.level, 2);
+  assert.equal(restored.level, 1);
   assert.equal(restored.username, 'ReturningHero');
   assert.equal(db.rowCount(), 1);
 });
@@ -89,7 +89,7 @@ test('editing a username preserves XP, level, identity, and creation time', () =
   assert.equal(after.username, 'BraveKnight');
   assert.equal(after.identity.toHexString(), before.identity.toHexString());
   assert.equal(after.xp, 250);
-  assert.equal(after.level, 3);
+  assert.equal(after.level, 2);
   assert.equal(after.createdAt.microsSinceUnixEpoch, before.createdAt.microsSinceUnixEpoch);
 });
 
@@ -138,8 +138,23 @@ test('derived levels change at exact XP boundaries', () => {
   const db = createPlayerHarness();
   const auth = db.auth('player');
   db.ensure(auth);
-  for (const [xp, level] of [[0, 1], [99, 1], [100, 2], [199, 2], [200, 3]]) {
+  for (const [xp, level] of [[0, 1], [199, 1], [200, 2], [499, 2], [500, 3], [899, 3], [900, 4], [1400, 5]]) {
     db.awardXp(auth, xp);
     assert.equal(db.profile(auth).level, level);
   }
+});
+
+test('one persisted XP update can gain multiple levels and survives a new authenticated connection', () => {
+  const db = createPlayerHarness();
+  const auth = db.auth('multi-level-player');
+  db.ensure(auth);
+  db.awardXp(auth, 199);
+  assert.equal(db.profile(auth).level, 1);
+  db.awardXp(auth, 1599);
+  assert.equal(db.profile(auth).level, 5);
+  const reconnect = db.auth('multi-level-player');
+  db.ensure(reconnect);
+  assert.equal(db.profile(reconnect).xp, 1599);
+  assert.equal(db.profile(reconnect).level, 5);
+  assert.equal(db.rowCount(), 1);
 });

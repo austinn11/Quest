@@ -5,6 +5,7 @@ import { QuestDate } from '../questboard/QuestDate';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
 import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
 import { QuestCooldown } from '../questboard/QuestCooldown';
+import { PlayerProgress } from '../player/PlayerProgress';
 
 export function QuestboardPage() {
   const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, retry, now, refreshing, refreshSlots } = useQuestboard();
@@ -30,6 +31,7 @@ export function QuestboardPage() {
         <p>Your six adventures, ready to explore. Inspect a quest to plan your next journey.</p>
         <div className="questboard-actions"><Link to="/journal">Read your Quest Journal</Link><button type="button" className="secondary" disabled={!canInteract || refreshing} onClick={() => { void refreshSlots(); }}>{refreshing ? 'Checking replacements...' : 'Check for new quests'}</button></div>
       </header>
+      <section className="panel" aria-label="Adventurer progression"><PlayerProgress /></section>
       <QuestSyncNotice page="Questboard" />
       {hasSnapshot && slots.length > 0 && (
         <ol className="questboard" aria-label="Your quest slots">

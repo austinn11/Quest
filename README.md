@@ -113,13 +113,31 @@ Database owners retain administrative access to private tables.
 
 ### Adventurer profiles (F03)
 
-On the first authenticated connection, the app creates a private player record. The profile shows your username, total XP, derived level, join date, and account ID. The existing `xp` column holds cumulative total XP; level is calculated on the server as `1 + floor(xp / 100)`, with level 1 at zero XP.
+On the first authenticated connection, the app creates a private player record. The profile shows your username, total XP, derived level, next-level progress, join date, and account ID. The existing `xp` column holds authoritative cumulative XP; level and progress use the F10 curve below and are never stored as independent player state.
 
 Choose an adventurer username in the profile, then use **Edit username** to change it. Usernames use 3 to 24 ASCII letters, numbers, or underscores. Capitalization is preserved for display, but uniqueness is checked without regard to case. A rename releases the old name. Duplicate or invalid names are rejected by the server without changing the saved profile.
 
 `setUsername` accepts only a username and updates the player identified by `ctx.sender`; it cannot change another account, XP, or creation time. Existing profiles receive empty username fields during migration and can choose a name when they next open the app. The private normalized username index enforces availability inside a transaction. Only the public spelling is returned in the per-user view.
 
 To check F03 in the browser, choose a name, refresh, edit it, and sign out/back in. The saved name should return. With a second Google account, choose a different name and confirm both accounts retain their own names. Trying the first account's name (including different capitalization) should display an availability error.
+
+## Player leveling and XP progression (F10)
+
+`shared/progression.ts` contains the pure calculations bundled into both SpacetimeDB and React. The additional XP needed to advance from level L is `200 + 100 * (L - 1)`. The cumulative XP required to reach level L is `50 * (L - 1) * (L + 2)`.
+
+| Level | Total XP required | XP needed for the next level |
+| --- | --- | --- |
+| 1 | 0 | 200 |
+| 2 | 200 | 300 |
+| 3 | 500 | 400 |
+| 4 | 900 | 500 |
+| 5 | 1,400 | 600 |
+
+The server's private player view derives level from saved total XP. Profile, Dashboard, and Questboard all use the same shared helper and reusable progress display, showing current level, total XP, remaining XP, and XP earned within the current level. For example, 350 total XP means level 2 with 150/300 XP toward level 3 and 150 XP remaining. No client-side reward or progression mutation is added.
+
+A single notice in the application layout observes authoritative profile subscription updates and announces any level gains, including multiple levels in one update. Initial loading, page refreshes, username changes, and switching accounts do not replay past level-ups. Notifications dismiss automatically or manually, and animations respect reduced-motion preferences. Reconnects and refreshes preserve progression because total XP remains in SpacetimeDB. Applying F10 preserves XP and recalculates existing players' derived levels using the new curve.
+
+Tests cover every reachable u32 level threshold immediately before, at, and after it, current-level progress, multiple-level gains, invalid inputs, persistent server profiles, and consistent displays across all three pages.
 
 ## Quest templates and slots (F05)
 
@@ -286,7 +304,7 @@ Quest/
   spacetimedb/
     src/index.ts            Tables, private account view, reducers, and lifecycle hooks
     src/auth-policy.ts      Trusted issuer and client audience checks
-    src/player-profile.ts   Username validation and derived level rules
+    src/player-profile.ts   Username validation and shared level calculation export
     src/quest-model.ts      Template/slot/history tables, fixed layout, and validation
     src/quest-seeds.ts      Twenty-one reusable templates (seven per difficulty)
     src/quest-locations.ts  Six curated geographic quests with verified site coordinates
@@ -295,6 +313,7 @@ Quest/
     src/quest-completion.ts Atomic completion history, XP, and cooldown transition
     src/quest-refresh.ts    Server-authoritative lazy slot replacement
     package.json            Database module dependencies
+  shared/progression.ts     Level thresholds and XP progress shared by server and React
   .env.example              Shared frontend connection settings
   spacetime.json            CLI database, server, and module configuration
   package.json              Frontend dependencies and root development commands

@@ -84,6 +84,17 @@ summary { cursor: pointer; }
 .questboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 .quest-completion { margin-top: 1rem; }
 .quest-cooldown { color: #6c5129; font-size: .9rem; }
+.progression-stats { display: flex; flex-wrap: wrap; gap: .75rem 2rem; margin: .8rem 0 1rem; }
+.progression-stats dt { color: #645d51; font-size: .85rem; }
+.progression-stats dd { margin: 0; font-family: Georgia, serif; font-size: 1.5rem; font-weight: 700; }
+.xp-labels { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; color: #645d51; }
+.xp-meter { height: .85rem; overflow: hidden; background: #e6ddc9; border: 1px solid #b9aa91; border-radius: 1rem; margin: .4rem 0; }
+.xp-meter-fill { height: 100%; background: linear-gradient(90deg, #486443, #84945b); transition: width .5s ease; }
+.xp-caption { margin-bottom: 0; }
+.level-up-notice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; background: #fff4d4; border: 2px solid #ad873a; border-radius: .75rem; box-shadow: 0 3px 14px #97712722; animation: level-up-arrive .4s ease-out; }
+.level-up-notice p { margin: .25rem 0; }
+@keyframes level-up-arrive { from { opacity: 0; transform: translateY(-.5rem); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .xp-meter-fill { transition: none; } .level-up-notice { animation: none; } }
 
 @media (max-width: 900px) {
   .questboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }

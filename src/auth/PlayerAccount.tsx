@@ -1,5 +1,6 @@
 import { usePlayer } from '../player/PlayerProvider';
 import { UsernameEditor } from './UsernameEditor';
+import { PlayerProgress } from '../player/PlayerProgress';
 
 export function PlayerAccount() {
   const { player, ready, error: profileError, retry } = usePlayer();
@@ -19,9 +20,8 @@ export function PlayerAccount() {
       ) : (
         <>
           <h3 className="profile-name">{player.username || 'An adventurer awaits a name'}</h3>
+          <PlayerProgress />
           <dl className="profile-stats">
-            <div><dt>Level</dt><dd>{player.level}</dd></div>
-            <div><dt>Total XP</dt><dd>{player.xp.toLocaleString()}</dd></div>
             <div><dt>Adventurer since</dt><dd className="profile-date">{new Date(Number(player.createdAt.microsSinceUnixEpoch / 1000n)).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</dd></div>
           </dl>
           <UsernameEditor username={player.username} disabled={!ready} />

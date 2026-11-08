@@ -5,7 +5,4 @@ export function normalizeUsername(value: string): string | null {
   return /^[A-Za-z0-9_]{3,24}$/.test(username) ? username : null;
 }
 
-// XP is cumulative. Derive the level so it can never drift from the saved total.
-export function levelForXp(totalXp: number): number {
-  return 1 + Math.floor(totalXp / 100);
-}
+export { levelForXp } from '../../shared/progression';

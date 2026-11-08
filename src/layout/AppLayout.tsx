@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useSpacetimeDB } from 'spacetimedb/react';
 import { SignOutButton } from '../auth/SignOutButton';
 import { usePlayer } from '../player/PlayerProvider';
+import { LevelUpNotice } from '../player/LevelUpNotice';
 
 const navigation = [
   { to: '/', label: 'Home' },
@@ -48,6 +49,7 @@ export function AppLayout() {
             <button className="secondary" type="button" onClick={retry}>Retry profile</button>
           </div>
         )}
+        <LevelUpNotice />
         <Outlet />
       </main>
     </div>

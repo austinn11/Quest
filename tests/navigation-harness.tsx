@@ -7,8 +7,9 @@ import { AppRoutes } from '../src/App';
 import { DbConnection } from '../src/module_bindings';
 import { PlayerContext } from '../src/player/PlayerProvider';
 import { QuestboardContext, type QuestboardState } from '../src/questboard/QuestboardProvider';
+import { levelForXp } from '../shared/progression';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150) {
   const questState: QuestboardState = {
     slots: [], templates: [], completions: [], connected: true, ready: false,
     hasSnapshot: board.ready ?? false, initializing: false, error: null,
@@ -20,7 +21,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}) {
       <AuthProvider authority="https://auth.spacetimedb.com/oidc" client_id="test" redirect_uri="http://localhost:5173/callback" automaticSilentRenew={false}>
         <SpacetimeDBProvider connectionBuilder={DbConnection.builder().withUri('http://localhost:3000').withDatabaseName('test')}>
           <PlayerContext.Provider value={{
-            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp: 150, level: 2, createdAt: Timestamp.UNIX_EPOCH },
+            player: { identity: Identity.zero(), displayName: 'Test Adventurer', username: 'TestHero', xp, level: levelForXp(xp), createdAt: Timestamp.UNIX_EPOCH },
             ready: true,
             error: null,
             retry: () => {},
