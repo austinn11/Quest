@@ -11,7 +11,7 @@
 - Build one complete gameplay flow at a time. Discuss major architecture or dependency changes before implementing them.
 - Run `npm run build` for frontend and backend type checks plus the frontend production build. Use `npm run spacetime:build` to bundle the database module.
 - Update generated client bindings with `npm run spacetime:generate` after changing the schema or reducers. Do not edit generated bindings manually.
-- Keep local environment files and build artifacts out of the public repository. See README.md for setup and commands.
+- Keep local environment files and build artifacts out of the public repository. See README.md for setup and commands, and docs/TECHNICAL.md for system details.
 
 # SpacetimeDB Core Concepts
 
