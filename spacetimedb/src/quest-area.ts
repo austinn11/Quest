@@ -89,6 +89,12 @@ export function applyQuestArea(ctx: Ctx, latitude: number, longitude: number, pl
 // Photo step 1 (transaction): confirm the quest can be completed and count the attempt.
 export function beginPhotoCheck(ctx: Ctx, args: { slotIndex: number; expectedAssignedAt: Timestamp }): QuestTemplate {
   const { template } = prepareCompletion(ctx, args);
+  countPhotoAttempt(ctx);
+  return template;
+}
+
+// One shared limit for every photo check (quests and party quests) protects the AI credits.
+export function countPhotoAttempt(ctx: Ctx) {
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const hour = 60n * 60n * 1_000_000n;
   const attempts = ctx.db.photoAttempts.playerIdentity.find(ctx.sender);
@@ -109,7 +115,6 @@ export function beginPhotoCheck(ctx: Ctx, args: { slotIndex: number; expectedAss
   } else {
     ctx.db.photoAttempts.insert({ playerIdentity: ctx.sender, windowStartedAt: ctx.timestamp, attemptsInWindow: 1, lastAttemptAt: ctx.timestamp });
   }
-  return template;
 }
 
 // Photo step 3 (transaction): an accepted photo completes the quest exactly once.

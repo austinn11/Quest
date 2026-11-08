@@ -24,6 +24,40 @@ export const CreatureCaptures = __t.object("CreatureCaptures", {
 });
 export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
 
+export const FriendCard = __t.object("FriendCard", {
+  friendshipId: __t.u64(),
+  username: __t.string(),
+  level: __t.u32(),
+  totalXp: __t.u32(),
+  inYourParty: __t.bool(),
+  inAParty: __t.bool(),
+});
+export type FriendCard = __Infer<typeof FriendCard>;
+
+export const FriendRequest = __t.object("FriendRequest", {
+  requestId: __t.u64(),
+  fromIdentity: __t.identity(),
+  toIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type FriendRequest = __Infer<typeof FriendRequest>;
+
+export const FriendRequestCard = __t.object("FriendRequestCard", {
+  requestId: __t.u64(),
+  username: __t.string(),
+  incoming: __t.bool(),
+  createdAt: __t.timestamp(),
+});
+export type FriendRequestCard = __Infer<typeof FriendRequestCard>;
+
+export const Friendship = __t.object("Friendship", {
+  friendshipId: __t.u64(),
+  firstIdentity: __t.identity(),
+  secondIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type Friendship = __Infer<typeof Friendship>;
+
 export const Guild = __t.object("Guild", {
   guildId: __t.u64(),
   name: __t.string(),
@@ -160,6 +194,12 @@ export type LocalQuests = __Infer<typeof LocalQuests>;
 export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
 export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
 
+export const MyFriendRequests = __t.object("MyFriendRequests", {});
+export type MyFriendRequests = __Infer<typeof MyFriendRequests>;
+
+export const MyFriends = __t.object("MyFriends", {});
+export type MyFriends = __Infer<typeof MyFriends>;
+
 export const MyGuild = __t.object("MyGuild", {});
 export type MyGuild = __Infer<typeof MyGuild>;
 
@@ -172,6 +212,15 @@ export type MyGuildQuests = __Infer<typeof MyGuildQuests>;
 export const MyLocalQuests = __t.object("MyLocalQuests", {});
 export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
 
+export const MyParty = __t.object("MyParty", {});
+export type MyParty = __Infer<typeof MyParty>;
+
+export const MyPartyInvites = __t.object("MyPartyInvites", {});
+export type MyPartyInvites = __Infer<typeof MyPartyInvites>;
+
+export const MyPartyMembers = __t.object("MyPartyMembers", {});
+export type MyPartyMembers = __Infer<typeof MyPartyMembers>;
+
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
 
@@ -183,6 +232,72 @@ export type MyQuestCompletions = __Infer<typeof MyQuestCompletions>;
 
 export const MyQuestSlots = __t.object("MyQuestSlots", {});
 export type MyQuestSlots = __Infer<typeof MyQuestSlots>;
+
+export const Party = __t.object("Party", {
+  partyId: __t.u64(),
+  leaderIdentity: __t.identity(),
+  questTemplateId: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+  lastQuestTitle: __t.option(__t.string()),
+  lastCompletedBy: __t.option(__t.string()),
+  lastObservation: __t.option(__t.string()),
+  lastXpEach: __t.option(__t.u32()),
+  lastCompletedAt: __t.option(__t.timestamp()),
+});
+export type Party = __Infer<typeof Party>;
+
+export const PartyCard = __t.object("PartyCard", {
+  partyId: __t.u64(),
+  isLeader: __t.bool(),
+  leaderName: __t.string(),
+  questTemplateId: __t.option(__t.string()),
+  questTitle: __t.option(__t.string()),
+  questDescription: __t.option(__t.string()),
+  questCategory: __t.option(__t.string()),
+  questXpEach: __t.option(__t.u32()),
+  questPhotoGoal: __t.option(__t.string()),
+  questLocationName: __t.option(__t.string()),
+  lastQuestTitle: __t.option(__t.string()),
+  lastCompletedBy: __t.option(__t.string()),
+  lastObservation: __t.option(__t.string()),
+  lastXpEach: __t.option(__t.u32()),
+  lastCompletedAt: __t.option(__t.timestamp()),
+});
+export type PartyCard = __Infer<typeof PartyCard>;
+
+export const PartyInvite = __t.object("PartyInvite", {
+  inviteId: __t.u64(),
+  partyId: __t.u64(),
+  toIdentity: __t.identity(),
+  fromIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type PartyInvite = __Infer<typeof PartyInvite>;
+
+export const PartyInviteCard = __t.object("PartyInviteCard", {
+  inviteId: __t.u64(),
+  fromName: __t.string(),
+  partySize: __t.u32(),
+  createdAt: __t.timestamp(),
+});
+export type PartyInviteCard = __Infer<typeof PartyInviteCard>;
+
+export const PartyMember = __t.object("PartyMember", {
+  playerIdentity: __t.identity(),
+  partyId: __t.u64(),
+  joinedAt: __t.timestamp(),
+});
+export type PartyMember = __Infer<typeof PartyMember>;
+
+export const PartyMemberCard = __t.object("PartyMemberCard", {
+  memberId: __t.string(),
+  username: __t.string(),
+  level: __t.u32(),
+  isLeader: __t.bool(),
+  isYou: __t.bool(),
+  joinedAt: __t.timestamp(),
+});
+export type PartyMemberCard = __Infer<typeof PartyMemberCard>;
 
 export const PhotoAttempts = __t.object("PhotoAttempts", {
   playerIdentity: __t.identity(),

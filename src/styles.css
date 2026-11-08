@@ -299,6 +299,30 @@ input:disabled { opacity: .6; cursor: not-allowed; }
   .roster-role, .roster-level { display: none; }
 }
 
+/* Friends and parties */
+.social-list, .party-members { list-style: none; margin: .75rem 0 0; padding: 0; }
+.social-list li, .party-members li { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; padding: .7rem 0; border-top: 1px solid var(--border); }
+.social-name { font-weight: 500; }
+.party-members li.is-you .social-name { font-weight: 600; }
+.social-meta { flex: 1; color: var(--muted-foreground); font-family: var(--font-mono); font-size: .7rem; }
+.social-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
+.party-avatar { display: inline-grid; place-items: center; flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; background: var(--accent); color: var(--primary); font-family: var(--font-mono); font-size: .85rem; }
+.party-empty { margin-top: .75rem; }
+.party-empty p { margin-top: 0; }
+.party-quest { margin-top: 1.25rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.party-quest .eyebrow { margin: 0 0 .5rem; }
+.party-quest-head { display: flex; align-items: center; gap: .6rem; }
+.party-quest-head h3 { flex: 1; font-size: 1.05rem; }
+.party-quest-head .icon { color: var(--primary); }
+.party-quest-reward { font-family: var(--font-mono); font-size: .8rem; }
+.party-quest > button { margin-top: .5rem; }
+.party-quest-picker { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin-top: 1rem; font-weight: 400; }
+.party-quest-picker span { color: var(--muted-foreground); font-size: .875rem; }
+.party-quest-picker select { flex: 1; min-width: 12rem; padding: .45rem .6rem; border: 1px solid var(--input); border-radius: calc(var(--radius) - 2px); background: var(--background); color: inherit; font: inherit; }
+.party-last { margin: 1rem 0 0; padding-top: .75rem; border-top: 1px dashed var(--border); color: var(--muted-foreground); font-size: .875rem; }
+.party-leave { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: 1rem; }
+.add-friend { margin-top: .5rem; max-width: 32rem; }
+
 /* Nearby quests and photo proof */
 .area-notice { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; margin: 0 0 1.75rem; padding: 1rem 0; border-block: 1px solid var(--border); font-size: .85rem; }
 .area-notice > .icon { color: var(--primary); }

@@ -9,8 +9,16 @@ import { PlayerContext } from '../src/player/PlayerProvider';
 import { QuestboardContext, type QuestboardState } from '../src/questboard/QuestboardProvider';
 import { getTotalPlayerXp, levelForXp, type SkillXp } from '../shared/progression';
 import { GuildContext, type GuildState } from '../src/guild/GuildProvider';
+import { SocialContext, type SocialState } from '../src/social/SocialProvider';
 
-export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}) {
+export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150, skills: SkillXp = { explorationXp: xp, bestiaryXp: 0, craftingXp: 0 }, guildState: Partial<GuildState> = {}, socialState: Partial<SocialState> = {}) {
+  const social: SocialState = {
+    friends: [], requests: [], invites: [], party: null, partyMembers: [], ready: true,
+    sendFriendRequest: async () => {}, respondFriendRequest: async () => {}, removeFriend: async () => {}, createParty: async () => {},
+    inviteToParty: async () => {}, respondPartyInvite: async () => {}, leaveParty: async () => {}, setPartyQuest: async () => {},
+    submitPartyQuestPhoto: async () => ({ accepted: false, message: '', observation: '', creature: '' }),
+    ...socialState,
+  };
   xp = getTotalPlayerXp(skills);
   const guild: GuildState = {
     guild: null, members: [], directory: [], quests: [], ready: true, refreshGuildQuests: async () => {},
@@ -34,7 +42,7 @@ export function renderPage(path: string, board: Partial<QuestboardState> = {}, x
             error: null,
             retry: () => {},
           }}>
-            <QuestboardContext.Provider value={questState}><GuildContext.Provider value={guild}><AppRoutes /></GuildContext.Provider></QuestboardContext.Provider>
+            <QuestboardContext.Provider value={questState}><GuildContext.Provider value={guild}><SocialContext.Provider value={social}><AppRoutes /></SocialContext.Provider></GuildContext.Provider></QuestboardContext.Provider>
           </PlayerContext.Provider>
         </SpacetimeDBProvider>
       </AuthProvider>

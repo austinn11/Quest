@@ -28,6 +28,7 @@ const pages = [
   ['/journal', 'Quest Journal'],
   ['/bestiary', 'Bestiary'],
   ['/guild', 'Guild'],
+  ['/friends', 'Friends'],
   ['/profile', 'Player Profile'],
 ];
 
@@ -458,4 +459,30 @@ test('guild members see shared guild quests with progress, their share and rewar
   assert.ok(html.includes('Completed'));
   assert.match(html, /\d days? left/);
   assert.ok(renderPage('/guild', {}, 150, undefined, { guild, quests: [] }).includes('Posting this week'));
+});
+
+test('the Friends page shows requests, friends with party invites, and the party with its shared quest', () => {
+  const friends = [{ friendshipId: 1n, username: 'Bob', level: 3, totalXp: 750, inYourParty: true, inAParty: true }, { friendshipId: 2n, username: 'Cara', level: 1, totalXp: 0, inYourParty: false, inAParty: false }];
+  const requests = [{ requestId: 9n, username: 'Dan', incoming: true, createdAt: new Timestamp(1n) }];
+  const invites = [{ inviteId: 4n, fromName: 'Eve', partySize: 2, createdAt: new Timestamp(1n) }];
+  const party = { partyId: 1n, isLeader: true, leaderName: 'TestHero', questTemplateId: 'easy-birdwatch', questTitle: 'A Feathered Encounter', questDescription: 'Observe a bird.', questCategory: 'Bestiary', questXpEach: 62, questPhotoGoal: 'A bird photographed outdoors.', questLocationName: undefined, lastQuestTitle: 'Scout the Campus', lastCompletedBy: 'Bob', lastObservation: undefined, lastXpEach: 62, lastCompletedAt: new Timestamp(1_000_000n) };
+  const partyMembers = [{ memberId: 'a', username: 'TestHero', level: 1, isLeader: true, isYou: true, joinedAt: new Timestamp(1n) }, { memberId: 'b', username: 'Bob', level: 3, isLeader: false, isYou: false, joinedAt: new Timestamp(2n) }];
+  const html = renderPage('/friends', {}, 150, undefined, {}, { friends, requests, invites, party, partyMembers });
+  assert.ok(html.includes('<h1>Friends</h1>'));
+  assert.ok(html.includes('Eve invited you to their party (2/4)'));
+  assert.ok(html.includes('wants to be friends'));
+  assert.ok(html.includes('A Feathered Encounter'));
+  assert.ok(html.includes('+62 XP each'));
+  assert.ok(html.includes('Complete together'));
+  assert.ok(html.includes('Change the party quest'));
+  assert.ok(html.includes('completed by Bob'));
+  assert.ok(html.includes('In your party'));
+  assert.equal((html.match(/>Invite to party<\/button>/g) ?? []).length, 1, 'only friends outside your party get an invite button');
+
+  const solo = renderPage('/friends', {}, 150, undefined, {}, {});
+  assert.ok(solo.includes('Start a party'));
+  assert.ok(solo.includes('No friends yet'));
+  const member = renderPage('/friends', {}, 150, undefined, {}, { party: { ...party, isLeader: false, leaderName: 'Bob', questTitle: undefined, questTemplateId: undefined }, partyMembers });
+  assert.ok(member.includes('Waiting for Bob to choose a party quest.'));
+  assert.ok(!member.includes('Party quest</span>'));
 });

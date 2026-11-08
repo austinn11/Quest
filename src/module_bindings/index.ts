@@ -36,28 +36,42 @@ import {
 // Import all reducer arg schemas
 import CompleteQuestReducer from "./complete_quest_reducer";
 import CreateGuildReducer from "./create_guild_reducer";
+import CreatePartyReducer from "./create_party_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import InitializeQuestboardReducer from "./initialize_questboard_reducer";
+import InviteToPartyReducer from "./invite_to_party_reducer";
 import JoinGuildByCodeReducer from "./join_guild_by_code_reducer";
 import JoinOpenGuildReducer from "./join_open_guild_reducer";
 import LeaveGuildReducer from "./leave_guild_reducer";
+import LeavePartyReducer from "./leave_party_reducer";
 import RefreshGuildQuestsReducer from "./refresh_guild_quests_reducer";
 import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
+import RemoveFriendReducer from "./remove_friend_reducer";
+import RespondFriendRequestReducer from "./respond_friend_request_reducer";
+import RespondPartyInviteReducer from "./respond_party_invite_reducer";
+import SendFriendRequestReducer from "./send_friend_request_reducer";
 import SetGuildOpenReducer from "./set_guild_open_reducer";
+import SetPartyQuestReducer from "./set_party_quest_reducer";
 import SetQuestAreaReducer from "./set_quest_area_reducer";
 import SetUsernameReducer from "./set_username_reducer";
 
 // Import all procedure arg schemas
+import * as SubmitPartyQuestPhotoProcedure from "./submit_party_quest_photo_procedure";
 import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 
 // Import all table schema definitions
 import GuildRow from "./guild_table";
 import GuildDirectoryRow from "./guild_directory_table";
 import MyCreatureCapturesRow from "./my_creature_captures_table";
+import MyFriendRequestsRow from "./my_friend_requests_table";
+import MyFriendsRow from "./my_friends_table";
 import MyGuildRow from "./my_guild_table";
 import MyGuildMembersRow from "./my_guild_members_table";
 import MyGuildQuestsRow from "./my_guild_quests_table";
 import MyLocalQuestsRow from "./my_local_quests_table";
+import MyPartyRow from "./my_party_table";
+import MyPartyInvitesRow from "./my_party_invites_table";
+import MyPartyMembersRow from "./my_party_members_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestAreaRow from "./my_quest_area_table";
 import MyQuestCompletionsRow from "./my_quest_completions_table";
@@ -117,6 +131,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyCreatureCapturesRow),
+  myFriendRequests: __table({
+    name: 'my_friend_requests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendRequestsRow),
+  myFriends: __table({
+    name: 'my_friends',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendsRow),
   myGuild: __table({
     name: 'my_guild',
     indexes: [
@@ -145,6 +173,27 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyLocalQuestsRow),
+  myParty: __table({
+    name: 'my_party',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyRow),
+  myPartyInvites: __table({
+    name: 'my_party_invites',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyInvitesRow),
+  myPartyMembers: __table({
+    name: 'my_party_members',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyMembersRow),
   myPlayer: __table({
     name: 'my_player',
     indexes: [
@@ -179,20 +228,29 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("complete_quest", CompleteQuestReducer),
   __reducerSchema("create_guild", CreateGuildReducer),
+  __reducerSchema("create_party", CreatePartyReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("initialize_questboard", InitializeQuestboardReducer),
+  __reducerSchema("invite_to_party", InviteToPartyReducer),
   __reducerSchema("join_guild_by_code", JoinGuildByCodeReducer),
   __reducerSchema("join_open_guild", JoinOpenGuildReducer),
   __reducerSchema("leave_guild", LeaveGuildReducer),
+  __reducerSchema("leave_party", LeavePartyReducer),
   __reducerSchema("refresh_guild_quests", RefreshGuildQuestsReducer),
   __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
+  __reducerSchema("remove_friend", RemoveFriendReducer),
+  __reducerSchema("respond_friend_request", RespondFriendRequestReducer),
+  __reducerSchema("respond_party_invite", RespondPartyInviteReducer),
+  __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("set_guild_open", SetGuildOpenReducer),
+  __reducerSchema("set_party_quest", SetPartyQuestReducer),
   __reducerSchema("set_quest_area", SetQuestAreaReducer),
   __reducerSchema("set_username", SetUsernameReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("submit_party_quest_photo", SubmitPartyQuestPhotoProcedure.params, SubmitPartyQuestPhotoProcedure.returnType),
   __procedureSchema("submit_quest_photo", SubmitQuestPhotoProcedure.params, SubmitQuestPhotoProcedure.returnType),
 );
 

@@ -3,6 +3,7 @@ import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils
 import * as module from '../spacetimedb/src/index';
 import * as model from '../spacetimedb/src/quest-model';
 import * as questArea from '../spacetimedb/src/quest-area';
+import * as social from '../spacetimedb/src/social';
 import type { PlaceInput } from '../shared/nearby-places';
 
 const clientId = 'quest-test-client';
@@ -80,6 +81,24 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
     guildMembers(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuildMembers(harness.viewContext(auth)); },
     guildDirectory() { return module.guildDirectory(harness.anonymousViewContext()); },
     guildQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myGuildQuests(harness.viewContext(auth)); },
+    social: {
+      sendFriendRequest: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) => harness.withReducerTx(auth, ctx => module.sendFriendRequest(configuredContext(ctx), { username })),
+      respondFriendRequest: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, requestId: bigint, accept: boolean) => harness.withReducerTx(auth, ctx => module.respondFriendRequest(configuredContext(ctx), { requestId, accept })),
+      removeFriend: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) => harness.withReducerTx(auth, ctx => module.removeFriend(configuredContext(ctx), { username })),
+      createParty: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => harness.withReducerTx(auth, ctx => module.createParty(configuredContext(ctx))),
+      inviteToParty: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, username: string) => harness.withReducerTx(auth, ctx => module.inviteToParty(configuredContext(ctx), { username })),
+      respondPartyInvite: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, inviteId: bigint, accept: boolean) => harness.withReducerTx(auth, ctx => module.respondPartyInvite(configuredContext(ctx), { inviteId, accept })),
+      leaveParty: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => harness.withReducerTx(auth, ctx => module.leaveParty(configuredContext(ctx))),
+      setPartyQuest: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, templateId: string) => harness.withReducerTx(auth, ctx => module.setPartyQuest(configuredContext(ctx), { templateId })),
+      beginPartyPhoto: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => harness.withReducerTx(auth, ctx => social.beginPartyPhotoCheck(configuredContext(ctx))),
+      finishPartyQuest: (auth: ReturnType<typeof TestAuth.fromJwtPayload>, templateId: string, note: string) => harness.withReducerTx(auth, ctx => social.finishPartyQuest(configuredContext(ctx), templateId, note)),
+      friends: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => module.myFriends(harness.viewContext(auth)),
+      requests: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => module.myFriendRequests(harness.viewContext(auth)),
+      invites: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => module.myPartyInvites(harness.viewContext(auth)),
+      party: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => module.myParty(harness.viewContext(auth)),
+      partyMembers: (auth: ReturnType<typeof TestAuth.fromJwtPayload>) => module.myPartyMembers(harness.viewContext(auth)),
+      visibility: ['friendship', 'friendRequest', 'party', 'partyMember', 'partyInvite'].map(name => (module.default.schemaType.tables as Record<string, { tableDef: { tableAccess: { tag: string } } }>)[name].tableDef.tableAccess.tag),
+    },
     refreshGuildQuests(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {
       return harness.withReducerTx(auth, ctx => module.refreshGuildQuests(configuredContext(ctx)));
     },

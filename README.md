@@ -73,6 +73,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | `/journal` | Completed adventures and historical XP |
 | `/bestiary` | Creatures captured for Bestiary bounties, with their photos |
 | `/guild` | Your guild, its members and invite code, or the guild directory |
+| `/friends` | Your party and its shared quest, friend requests, and friends list |
 | `/profile` | Player profile, progression, and username editor |
 
 The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
@@ -326,6 +327,25 @@ Targets scale with the guild's size when the quests are drawn.
 - Quests last 7 days. Opening the Guild page replaces expired quests (`refreshGuildQuests`), so guilds created earlier also get a board.
 - `guild_quest` and `guild_quest_contribution` are private; members read their guild's board, progress and own share through `my_guild_quests`. Disbanding a guild removes its quests.
 
+## Friends and parties
+
+The **Friends** page brings players together by username. You need a username of your own (set on Profile) first.
+
+- **Friends:**
+  - Send a request by username. The other player accepts or declines it, or either side can cancel it.
+  - If they had already asked you, sending a request back accepts theirs.
+  - Friends see each other's username, level, total XP, and whether they are in a party. You can remove a friend at any time.
+- **Parties:**
+  - Up to 4 friends. Inviting a friend starts a party if you aren't in one, and joining a party clears your other invites.
+  - When the leader leaves, the longest-standing member leads. The last member out ends the party.
+- **Party quest:**
+  - The leader picks one Available quest from their own Questboard.
+  - Any member completes it with photo proof (the same AI judge and photo-check limit as normal quests, via the `submitPartyQuestPhoto` procedure).
+  - On acceptance, **every member** earns the quest's XP plus a 25% party bonus, in that quest's skill, exactly once. The party then shows who completed it and the leader picks the next one.
+  - The leader's own Questboard slot is not used up.
+
+All five tables (`friendship`, `friend_request`, `party`, `party_member`, `party_invite`) are private. Clients read them through the per-player views `my_friends`, `my_friend_requests`, `my_party_invites`, `my_party` and `my_party_members`, which identify other players only by their chosen username.
+
 ## Work on the backend
 
 To publish backend changes to the shared Maincloud database, authenticate with an account that has access, then publish:
@@ -422,6 +442,7 @@ Quest/
     src/bounties.ts         Bestiary bounty targets for each kind of place and difficulty
     src/guilds.ts           Guild tables, membership rules, and roster/directory helpers
     src/guild-quests.ts     Shared weekly guild quests, progress, contributions, and rewards
+    src/social.ts           Friends, friend requests, parties, invites, and party quests
     src/quest-area.ts       Quest-area reloads and photo-check transactions
     src/photo-judge.ts      AI judge prompt, image checks, and verdict parsing
     package.json            Database module dependencies
