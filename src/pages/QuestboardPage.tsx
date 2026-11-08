@@ -57,34 +57,24 @@ export function QuestboardPage() {
               const destination = destinations.get(slot.slotId);
               const bounty = template?.category.tag === 'Bestiary';
               const capture = bounty && cooldown ? captureFor(slot) : undefined;
-              const target = template?.bountyTarget ?? template?.title;
               return (
                 <li key={slot.slotId} id={`quest-slot-${slot.slotIndex}`} tabIndex={-1} className={`quest-card notice difficulty-${slot.difficulty.tag.toLowerCase()}${cooldown ? ' quest-card-cooldown' : ''}`}>
-                  <article className={`notice-sheet${bounty ? ' bounty-sheet' : ''}`}>
+                  <article className="notice-sheet">
                     <span className="notice-pin" aria-hidden="true" />
                     <div className="notice-body">
-                      {bounty && template ? (
-                        <header className="bounty-head">
-                          <p className="bounty-wanted" aria-hidden="true">Wanted</p>
-                          <div className="bounty-portrait">
-                            {capture ? (
-                              <>
-                                <img src={capture.photo} alt={`Your capture: ${capture.creature}`} />
-                                <span className="bounty-stamp" aria-hidden="true">Captured</span>
-                              </>
-                            ) : <span className="bounty-unknown" aria-hidden="true">?</span>}
-                          </div>
-                          <h2><span className="visually-hidden">Wanted: </span>{target}</h2>
-                          {template.title !== `Wanted: ${target}` && <p className="bounty-alias">{template.title}</p>}
-                          {template.locationName && <p className="bounty-seen">Last seen near {template.locationName}</p>}
-                          {capture && <p className="bounty-caught">Captured: {capture.creature}</p>}
-                        </header>
-                      ) : <h2>{template?.title ?? 'Quest details unavailable'}</h2>}
+                      <h2>{template?.title ?? 'Quest details unavailable'}</h2>
                       <p className="quest-meta">
                         {template && <CategoryIcon category={template.category.tag} />}
                         <span>{template ? `${template.category.tag} · ` : ''}<span className="difficulty-label">{slot.difficulty.tag}</span></span>
+                        {bounty && template?.bountyTarget && <span className="bounty-tag">Bounty</span>}
                         <span className={`quest-status${cooldown ? ' is-cooldown' : ''}`}>{slot.status.tag}</span>
                       </p>
+                      {capture && (
+                        <p className="notice-capture">
+                          <img src={capture.photo} alt={`Your capture: ${capture.creature}`} />
+                          <span>Captured: {capture.creature}</span>
+                        </p>
+                      )}
                       {template
                         ? <p className="quest-objective">{template.description}</p>
                         : <p>This quest's template is unavailable. Your assignment is still saved.</p>}
@@ -102,9 +92,7 @@ export function QuestboardPage() {
                       </details>
                     </div>
                     <div className="notice-footer">
-                      {template && (bounty
-                        ? <p className="quest-reward bounty-reward"><span>Reward</span> <strong>{template.xpReward} XP</strong></p>
-                        : <p className="quest-reward">{template.xpReward} XP reward</p>)}
+                      {template && <p className="quest-reward">{template.xpReward} XP reward</p>}
                       {cooldown && <p className="quest-done"><CheckIcon /> {bounty ? 'Bounty claimed' : 'Completed'}</p>}
                       <CompleteQuestButton slot={slot} disabled={!canInteract || refreshing || !template} bounty={bounty} />
                       {destination && <Link className="notice-link" to={questMapPath(slot)}>View on map</Link>}

@@ -217,18 +217,6 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .quest-details dd { font-size: .85rem; }
 .quest-details dd { margin: 0; }
 
-/* Bounties keep their identity through small labels and the player's photography. */
-.bounty-wanted { margin: 0 0 .65rem; color: var(--primary); font-family: var(--font-mono); font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; }
-.bounty-portrait { position: relative; display: grid; place-items: center; width: 100%; min-height: 4.5rem; margin: 0 0 1rem; overflow: hidden; border: 1px solid var(--border); border-radius: .5rem; background: var(--secondary); }
-.bounty-portrait img { display: block; width: 100%; height: 10rem; object-fit: cover; }
-.bounty-unknown { display: flex; align-items: center; gap: .6rem; color: var(--muted-foreground); font-family: var(--font-mono); font-size: .62rem; }
-.bounty-stamp { position: absolute; right: .5rem; bottom: .5rem; padding: .2rem .6rem; border-radius: 999px; background: var(--card); color: var(--success); font-family: var(--font-mono); font-size: .6rem; letter-spacing: .04em; }
-.bounty-head h2 { font-size: 1.15rem; font-weight: 500; letter-spacing: -.025em; }
-.bounty-alias { margin: .1rem 0 0; color: var(--muted-foreground); font-size: .875rem; font-style: italic; }
-.bounty-seen { margin: .25rem 0 0; font-size: .875rem; }
-.bounty-caught { margin: .25rem 0 0; color: var(--success); font-size: .85rem; }
-.bounty-reward { display: flex; align-items: baseline; gap: .5rem; }
-.bounty-reward span { color: var(--muted-foreground); }
 
 
 /* Questboard paper: torn notices pinned to a faint wooden board, and WANTED posters for bounties.
@@ -292,21 +280,13 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 
 .notice-body > h2 { font-size: 1rem; letter-spacing: normal; line-height: 1.4; }
 
-.bounty-sheet { --notice: oklch(0.94 0.035 80); --ink: oklch(0.36 0.09 35); --stamp: oklch(0.5 0.16 28); }
-.bounty-head { text-align: center; }
-.bounty-wanted { margin: 0; padding-bottom: .35rem; border-bottom: 3px double color-mix(in oklab, var(--ink) 60%, transparent); color: var(--ink); font-family: "Rye", Georgia, serif; font-size: 2.1rem; letter-spacing: .06em; line-height: 1; text-transform: uppercase; }
-.bounty-portrait { position: relative; display: grid; place-items: center; width: 100%; max-width: 15rem; aspect-ratio: 4 / 3; margin: .75rem auto .5rem; overflow: hidden; border: 2px solid oklch(0.36 0.06 50); background: color-mix(in oklab, oklch(0.36 0.06 50) 8%, transparent); box-shadow: inset 0 0 0 4px var(--notice); }
-.bounty-portrait img { width: 100%; height: 100%; object-fit: cover; filter: sepia(.35); }
-.bounty-unknown { color: color-mix(in oklab, oklch(0.36 0.06 50) 45%, transparent); font-family: "Rye", Georgia, serif; font-size: 3.5rem; line-height: 1; }
-.bounty-stamp { position: absolute; top: 50%; left: 50%; padding: .15rem .6rem; border: 3px solid var(--stamp); background: color-mix(in oklab, var(--notice) 55%, transparent); color: var(--stamp); font-family: "Rye", Georgia, serif; font-size: 1.25rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; transform: translate(-50%, -50%) rotate(-14deg); }
-.bounty-head h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.bounty-alias { margin: .1rem 0 0; color: var(--muted-foreground); font-size: .875rem; font-style: italic; }
-.bounty-seen { margin: .25rem 0 0; font-size: .875rem; }
-.bounty-caught { margin: .25rem 0 0; color: var(--stamp); font-weight: 600; }
-.bounty-sheet .quest-meta { justify-content: center; }
-.bounty-reward { display: flex; align-items: baseline; justify-content: center; gap: .5rem; font-size: 1.1rem; }
-.bounty-reward span { color: var(--ink); font-family: "Rye", Georgia, serif; letter-spacing: .06em; text-transform: uppercase; }
-.bounty-sheet .bounty-portrait img { height: 100%; }
+/* Every notice in a row is the same height; footers line up at the bottom. */
+.noticeboard .questboard { align-items: stretch; grid-auto-rows: 1fr; }
+.noticeboard .notice { display: flex; }
+.noticeboard .notice-sheet { flex: 1; }
+.bounty-tag { padding: 0 .45rem; border: 1px solid color-mix(in oklab, var(--primary) 45%, transparent); border-radius: 999px; color: var(--primary); font-size: .7rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.notice-capture { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 0; font-weight: 500; }
+.notice-capture img { width: 3.5rem; height: 2.6rem; object-fit: cover; border: 1px solid var(--border); border-radius: 3px; }
 /* Undo the card style's extra properties so the paper look is complete. */
 .noticeboard .notice { scroll-margin-top: 10rem; }
 .noticeboard .notice-sheet { height: auto; border: 0; border-radius: 0; }
@@ -314,9 +294,6 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .noticeboard .quest-status, .noticeboard .quest-details dt { font-family: inherit; letter-spacing: normal; }
 .noticeboard .quest-details dt { letter-spacing: .15em; }
 .noticeboard .quest-details summary { min-height: 0; color: inherit; }
-.bounty-sheet .bounty-portrait { min-height: 0; border-radius: 0; background: color-mix(in oklab, oklch(0.36 0.06 50) 8%, transparent); }
-.bounty-sheet .bounty-unknown { display: block; gap: 0; }
-.bounty-sheet .bounty-stamp { right: auto; bottom: auto; border-radius: 0; }
 @media (min-width: 640px) { .questboard { padding: 1.5rem; gap: 1.5rem; } }
 @media (min-width: 1024px) { .questboard { padding: 2rem; } }
 

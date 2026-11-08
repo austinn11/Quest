@@ -371,15 +371,14 @@ const heronBounty = {
   locationName: 'Duck Pond', locationType: 'Lake or pond', photoGoal: 'A heron or egret, photographed in the wild.', bountyTarget: 'Heron or Egret',
 };
 
-test('Bestiary quests are wanted posters that show the capture once claimed', () => {
+test('Bestiary bounties are ordinary paper notices with a bounty tag, and show the capture once claimed', () => {
   const open = { slotId: 'me:5', slotIndex: 5, difficulty: { tag: 'Hard' }, templateId: heronBounty.templateId, status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
   const html = renderPage('/questboard', { ready: true, slots: [open], templates: [heronBounty] });
-  assert.match(html, /class="notice-sheet bounty-sheet"/);
-  assert.match(html, /<p class="bounty-wanted" aria-hidden="true">Wanted<\/p>/);
-  assert.ok(html.includes('<h2><span class="visually-hidden">Wanted: </span>Heron or Egret</h2>'));
-  assert.ok(html.includes('Last seen near Duck Pond'));
-  assert.ok(html.includes('<strong>200 XP</strong>'));
-  assert.ok(!html.includes('bounty-alias'), 'a generated title is not repeated');
+  assert.match(html, /class="notice-sheet"/);
+  assert.ok(!html.includes('bounty-sheet') && !html.includes('bounty-wanted'), 'no wanted poster');
+  assert.ok(html.includes('<h2>Wanted: Heron or Egret</h2>'));
+  assert.ok(html.includes('<span class="bounty-tag">Bounty</span>'));
+  assert.ok(html.includes('200 XP reward'));
   assert.match(html, /<button type="button" aria-busy="false">Claim bounty<\/button>/);
 
   const completedAt = new Timestamp(5_000_000n);
@@ -393,12 +392,12 @@ test('Bestiary quests are wanted posters that show the capture once claimed', ()
   assert.ok(!done.includes('Claim bounty'));
 });
 
-test('catalogue bounties keep their original title beneath the wanted name', () => {
+test('catalogue bounties keep their own title', () => {
   const birdwatch = { templateId: 'easy-birdwatch', title: 'A Feathered Encounter', description: 'Observe a bird from a distance.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true, bountyTarget: 'Wild Bird' };
   const slot = { slotId: 'me:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'easy-birdwatch', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
   const html = renderPage('/questboard', { ready: true, slots: [slot], templates: [birdwatch] });
-  assert.ok(html.includes('Wild Bird</h2>'));
-  assert.ok(html.includes('<p class="bounty-alias">A Feathered Encounter</p>'));
+  assert.ok(html.includes('<h2>A Feathered Encounter</h2>'));
+  assert.ok(html.includes('<span class="bounty-tag">Bounty</span>'));
 });
 
 test('the Bestiary page lists private captures with photos, newest first, and has an empty state', () => {
