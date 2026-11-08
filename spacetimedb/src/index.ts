@@ -92,6 +92,10 @@ function seedQuestTemplates(ctx: Ctx) {
       // Backfill photo goals for catalogues created before photo proof existed.
       if (updated.photoGoal === undefined && template.photoGoal !== undefined) updated = { ...updated, photoGoal: template.photoGoal };
       if (updated.bountyTarget === undefined && template.bountyTarget !== undefined) updated = { ...updated, bountyTarget: template.bountyTarget };
+      // Keep catalogue wording current so the task always matches what the photo is checked for.
+      if (updated.title !== template.title || updated.description !== template.description || (template.photoGoal !== undefined && updated.photoGoal !== template.photoGoal)) {
+        updated = { ...updated, title: template.title, description: template.description, photoGoal: template.photoGoal ?? updated.photoGoal };
+      }
       if (updated !== existing) ctx.db.questTemplates.templateId.update(updated);
       continue;
     }
