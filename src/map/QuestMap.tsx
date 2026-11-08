@@ -86,7 +86,7 @@ export function QuestMap({ quests, selectedKey, onSelect, view, playerLocation }
     for (const [key, pin] of pins.current) {
       if (!keys.has(key)) { pin.marker.remove(); pins.current.delete(key); }
     }
-    for (const quest of quests) {
+    quests.forEach((quest, index) => {
       let pin = pins.current.get(quest.key);
       if (!pin) {
         const element = document.createElement('button');
@@ -95,17 +95,22 @@ export function QuestMap({ quests, selectedKey, onSelect, view, playerLocation }
         symbol.setAttribute('aria-hidden', 'true');
         element.append(symbol);
         element.addEventListener('click', () => selectionHandler.current(quest.key));
-        pin = { element, marker: new library.Marker({ element, anchor: 'bottom' }).setLngLat(quest.coordinates).addTo(map) };
+        pin = { element, marker: new library.Marker({ element, anchor: 'center' }).setLngLat(quest.coordinates).addTo(map) };
         pins.current.set(quest.key, pin);
       }
       const cooldown = quest.slot.status.tag === 'Cooldown';
-      pin.element.className = `quest-map-pin pin-${quest.slot.difficulty.tag.toLowerCase()}${cooldown ? ' pin-cooldown' : ''}${selectedKey === quest.key ? ' pin-selected' : ''}`;
+      // Toggle classes rather than replacing className: MapLibre's own marker classes position the pin.
+      pin.element.classList.remove('pin-easy', 'pin-medium', 'pin-hard');
+      pin.element.classList.add('quest-map-pin', `pin-${quest.slot.difficulty.tag.toLowerCase()}`);
+      pin.element.classList.toggle('pin-cooldown', cooldown);
+      pin.element.classList.toggle('pin-selected', selectedKey === quest.key);
       pin.element.setAttribute('aria-label', `${quest.template.title}, ${quest.slot.difficulty.tag}, ${quest.slot.status.tag}`);
       pin.element.setAttribute('aria-pressed', String(selectedKey === quest.key));
       pin.element.title = `${quest.template.title} / ${quest.slot.status.tag}`;
-      pin.element.firstElementChild!.textContent = cooldown ? '✓' : { Exploration: '✦', Bestiary: '♞', Crafting: '⚒' }[quest.template.category.tag];
+      // Numbers match the destination list beside the map.
+      pin.element.firstElementChild!.textContent = cooldown ? '✓' : String(index + 1);
       pin.marker.setLngLat(quest.coordinates);
-    }
+    });
   }, [map, library, quests, selectedKey, onSelect]);
 
   useEffect(() => {
@@ -139,7 +144,7 @@ export function QuestMap({ quests, selectedKey, onSelect, view, playerLocation }
   return (
     <div className="fantasy-map-frame">
       <div ref={container} className="fantasy-map" role="region" aria-label="Interactive world map" />
-      <span className="map-north" aria-hidden="true">N<br />✦</span>
+      <span className="map-north" aria-hidden="true">N</span>
       {loading && <p className="map-message" role="status">Unfurling the world map...</p>}
       {(error || tileError) && <div className="map-message map-error" role="alert"><p>{error ?? 'Some map tiles could not load. Quest locations are still listed beside the map.'}</p><button type="button" className="secondary" onClick={() => setAttempt(value => value + 1)}>Reload map</button></div>}
     </div>

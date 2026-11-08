@@ -1,6 +1,40 @@
 // Pure progression rules shared by the SpacetimeDB module and React.
-// Total XP is the saved u32 value; level and progress are always derived.
+// Total XP is derived from three server-owned skill counters. Level is never stored.
 export const MAX_TOTAL_XP = 0xffff_ffff;
+export const MAX_SKILL_LEVEL = 50;
+export const SKILLS = [
+  { category: 'Exploration', key: 'explorationXp' },
+  { category: 'Bestiary', key: 'bestiaryXp' },
+  { category: 'Crafting', key: 'craftingXp' },
+] as const;
+export type SkillXp = { explorationXp: number; bestiaryXp: number; craftingXp: number };
+export type SkillCategory = typeof SKILLS[number]['category'];
+
+export function getTotalPlayerXp(player: SkillXp): number {
+  for (const { key } of SKILLS) {
+    if (!Number.isInteger(player[key]) || player[key] < 0 || player[key] > MAX_TOTAL_XP) throw new RangeError('Skill XP must be a non-negative u32 integer.');
+  }
+  const total = player.explorationXp + player.bestiaryXp + player.craftingXp;
+  if (total > MAX_TOTAL_XP) throw new RangeError('Your XP total cannot receive this reward.');
+  return total;
+}
+
+const SKILL_TITLES = ['Beginner', 'Novice', 'Apprentice', 'Adept', 'Journeyman', 'Expert', 'Veteran', 'Master', 'Grandmaster', 'Legendary', 'Mythic'] as const;
+
+export function getSkillTitle(level: number): string {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_SKILL_LEVEL) throw new RangeError('Skill level must be from 1 to 50.');
+  return SKILL_TITLES[Math.floor(level / 5)];
+}
+
+export function skillXpAfterReward(player: SkillXp, category: SkillCategory, reward: number): SkillXp {
+  if (!Number.isInteger(reward) || reward < 0) throw new RangeError('XP reward must be a non-negative integer.');
+  const skill = SKILLS.find(skill => skill.category === category);
+  if (!skill) throw new RangeError('Choose a valid quest category.');
+  getTotalPlayerXp(player);
+  const updated = { ...player, [skill.key]: player[skill.key] + reward };
+  getTotalPlayerXp(updated);
+  return updated;
+}
 
 function validLevel(level: number): void {
   if (!Number.isSafeInteger(level) || level < 1) throw new RangeError('Level must be a positive safe integer.');
@@ -46,4 +80,33 @@ export function levelUpBetween(previousXp: number, totalXp: number) {
   const fromLevel = levelForXp(previousXp);
   const toLevel = levelForXp(totalXp);
   return toLevel > fromLevel ? { fromLevel, toLevel, levelsGained: toLevel - fromLevel } : null;
+}
+
+export function skillProgressionForXp(totalXp: number) {
+  const progress = progressionForXp(totalXp);
+  const isMaxLevel = progress.level >= MAX_SKILL_LEVEL;
+  const level = Math.min(progress.level, MAX_SKILL_LEVEL);
+  return {
+    ...progress, level, title: getSkillTitle(level), isMaxLevel,
+    levelStartXp: isMaxLevel ? totalXpForLevel(MAX_SKILL_LEVEL) : progress.levelStartXp,
+    xpIntoLevel: isMaxLevel ? totalXp - totalXpForLevel(MAX_SKILL_LEVEL) : progress.xpIntoLevel,
+    xpRequired: isMaxLevel ? 0 : progress.xpRequired,
+    nextLevel: isMaxLevel ? null : progress.nextLevel,
+    nextLevelXp: isMaxLevel ? null : progress.nextLevelXp,
+    xpRemaining: isMaxLevel ? 0 : progress.xpRemaining,
+    progressPercent: isMaxLevel ? 100 : progress.progressPercent,
+  };
+}
+
+export function progressionUpdateBetween(previous: SkillXp, current: SkillXp) {
+  const previousTotal = getTotalPlayerXp(previous);
+  const totalXp = getTotalPlayerXp(current);
+  if (SKILLS.some(({ key }) => current[key] < previous[key]) || totalXp <= previousTotal) return null;
+  const skills = SKILLS.filter(({ key }) => current[key] > previous[key]).map(({ key, category }) => {
+    const from = skillProgressionForXp(previous[key]);
+    const to = skillProgressionForXp(current[key]);
+    return { category, xpGained: current[key] - previous[key], fromLevel: from.level, toLevel: to.level,
+      newTitle: from.title !== to.title ? to.title : null };
+  });
+  return { totalXp, xpGained: totalXp - previousTotal, adventurer: levelUpBetween(previousTotal, totalXp), skills };
 }

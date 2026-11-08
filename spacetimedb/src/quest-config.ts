@@ -11,3 +11,23 @@ export const COOLDOWN_MICROS = {
 export function cooldownMicrosFor(difficulty: Infer<typeof QuestDifficulty>): bigint {
   return COOLDOWN_MICROS[difficulty.tag];
 }
+
+export const DIFFICULTY_MAX_METERS = { Easy: 1_500, Medium: 4_000, Hard: 8_000 } as const;
+// Areas are stored rounded to about 100 m (three decimal places).
+export const AREA_COORDINATE_DECIMALS = 3;
+// Local quests are preferred over generic catalogue quests about two times in three.
+export const LOCAL_QUEST_PREFERENCE = 2 / 3;
+export const MAX_LOCAL_QUESTS_PER_AREA = 18;
+
+// Photo proof: limits protect the AI credits from runaway retries.
+export const PHOTO_MAX_ATTEMPTS_PER_HOUR = 12;
+export const PHOTO_MIN_SECONDS_BETWEEN_ATTEMPTS = 5;
+export const PHOTO_MAX_DATA_URL_LENGTH = 2_000_000;
+// Google Gemini's OpenAI-compatible endpoint. Override with AI_BASE_URL and AI_MODEL for another provider.
+export const DEFAULT_AI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+// gemini-2.5-flash answered real-size photos in about 2 s; newer models were slower or returned 503 when busy.
+export const DEFAULT_AI_MODEL = 'gemini-2.5-flash';
+export const FALLBACK_AI_MODEL = 'gemini-3.1-flash-lite';
+export const AI_REQUEST_TIMEOUT_MS = 25_000;
+// Bestiary captures keep a smaller copy of the photo (about 640 px) in the player's private collection.
+export const CAPTURE_PHOTO_MAX_DATA_URL_LENGTH = 400_000;

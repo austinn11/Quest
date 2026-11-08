@@ -17,4 +17,11 @@ export default __t.row({
   createdAt: __t.timestamp().name("created_at"),
   username: __t.string(),
   level: __t.u32(),
+  explorationXp: __t.u32().name("exploration_xp"),
+  bestiaryXp: __t.u32().name("bestiary_xp"),
+  craftingXp: __t.u32().name("crafting_xp"),
+  progressionReady: __t.bool().name("progression_ready"),
+  rerollsUsed: __t.u8().name("rerolls_used"),
+  rerollResetAt: __t.option(__t.timestamp()).name("reroll_reset_at"),
+  avatar: __t.string(),
 });

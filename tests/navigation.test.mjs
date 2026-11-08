@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
-import { Timestamp } from 'spacetimedb';
+import { Identity, Timestamp } from 'spacetimedb';
 import { postLoginPath } from '../src/auth/return-path.ts';
+import { totalXpForLevel } from '../shared/progression.ts';
+import { isNavigationRouteActive, navigationPageTitle } from '../src/layout/navigation.ts';
 
 let server;
 let renderPage;
@@ -25,6 +27,9 @@ const pages = [
   ['/map', 'World Map'],
   ['/questboard', 'Questboard'],
   ['/journal', 'Quest Journal'],
+  ['/bestiary', 'Bestiary'],
+  ['/guild', 'Guild'],
+  ['/friends', 'Friends'],
   ['/profile', 'Player Profile'],
 ];
 
@@ -35,7 +40,12 @@ for (const [path, title] of pages) {
     const nav = html.match(/<nav\b[^>]*aria-label="Main navigation"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
     assert.ok(nav);
     const links = [...nav.matchAll(/<a\b([^>]*)>/g)].map(match => match[1]);
-    assert.deepEqual(links.map(link => link.match(/href="([^"]*)"/)[1]), pages.map(page => page[0]));
+    assert.deepEqual(links.map(link => link.match(/href="([^"]*)"/)[1]), ['/', '/map', '/questboard', '/journal', '/bestiary', '/friends', '/guild', '/profile']);
+    const primary = [...nav.matchAll(/<(?:a|button)\b[^>]*class="app-nav-(?:link|trigger)[^"]*"[^>]*>([^<]+)/g)];
+    assert.deepEqual(primary.map(item => item[1]), ['Home', 'World Map', 'Quests', 'Social', 'Profile']);
+    const parent = ['/questboard', '/journal', '/bestiary'].includes(path) ? 'Quests' : ['/friends', '/guild'].includes(path) ? 'Social' : null;
+    const activeParent = nav.match(/<button[^>]*class="app-nav-trigger active"[^>]*>([^<]+)/)?.[1] ?? null;
+    assert.equal(activeParent, parent);
     const active = links.filter(link => link.includes('aria-current="page"'));
     assert.equal(active.length, 1);
     assert.ok(active[0].includes(`href="${path}"`));
@@ -43,12 +53,54 @@ for (const [path, title] of pages) {
   });
 }
 
+test('navigation uses closed accessible disclosures and preserves existing page names and routes', () => {
+  const html = renderPage('/journal');
+  const nav = html.match(/<nav\b[^>]*aria-label="Main navigation"[^>]*>([\s\S]*?)<\/nav>/)[1];
+  assert.ok(nav.includes('>Quest Log</a>'));
+  assert.ok(!nav.includes('Quest Journal'));
+  assert.ok(nav.includes('>Guilds</a>'));
+  for (const group of ['quests', 'social']) {
+    assert.ok(nav.includes(`aria-expanded="false" aria-controls="nav-${group}-options"`));
+    assert.match(nav, new RegExp(`<ul id="nav-${group}-options"[^>]*hidden=""`));
+  }
+  assert.equal(navigationPageTitle('/journal'), 'Quest Journal');
+  assert.equal(navigationPageTitle('/guild'), 'Guild');
+  assert.equal(navigationPageTitle('/missing'), 'Page not found');
+  assert.equal(isNavigationRouteActive('/guild/members', '/guild'), true);
+  assert.equal(isNavigationRouteActive('/guildhouse', '/guild'), false);
+  assert.equal(isNavigationRouteActive('/map', '/'), false);
+});
+
 test('profile route retains the username editor and progression display', () => {
   const html = renderPage('/profile');
   assert.ok(html.includes('TestHero'));
   assert.ok(html.includes('Edit username'));
   assert.ok(html.includes('Total XP'));
   assert.ok(html.includes('150'));
+});
+
+test('profile displays independently derived skill titles, XP and accessible progress', () => {
+  const html = renderPage('/profile', {}, 0, { explorationXp: 199, bestiaryXp: 200, craftingXp: 1400 });
+  assert.ok(html.includes('<dt>Total XP</dt><dd>1,799</dd>'));
+  for (const [name, level, title, xp] of [['Exploration', 1, 'Beginner', '199'], ['Bestiary', 2, 'Beginner', '200'], ['Crafting', 5, 'Novice', '1,400']]) {
+    const card = html.match(new RegExp(`<article[^>]*aria-label="${name} progression"[\\s\\S]*?<\\/article>`))?.[0];
+    assert.ok(card);
+    assert.ok(card.includes(`Level ${level}`));
+    assert.ok(card.includes(title));
+    assert.ok(card.includes(`${xp} XP`));
+    assert.ok(card.includes('role="progressbar"'));
+  }
+});
+
+test('maximum skill progression shows Mythic and a full bar without a level 51 requirement', () => {
+  const html = renderPage('/profile', {}, 0, { explorationXp: totalXpForLevel(50) + 50000, bestiaryXp: 0, craftingXp: 0 });
+  const card = html.match(/<article[^>]*aria-label="Exploration progression"[\s\S]*?<\/article>/)?.[0];
+  assert.ok(card.includes('Level 50'));
+  assert.ok(card.includes('Mythic'));
+  assert.ok(card.includes('Maximum level reached'));
+  assert.ok(card.includes('aria-valuemax="100" aria-valuenow="100"'));
+  assert.ok(card.includes('width:100%'));
+  assert.ok(!card.includes('level 51'));
 });
 
 test('Profile, Dashboard and Questboard show identical XP-derived level and next-level progress', () => {
@@ -130,6 +182,26 @@ test('questboard displays loading and retryable initialization errors', () => {
   assert.ok(!html.includes('Preparing your Questboard...'));
 });
 
+test('Questboard renders the subscribed reroll allowance, cooldown gating and confirmation controls', () => {
+  const slot = { slotId: 'me:0', slotIndex: 0, templateId: 'reroll-ui', difficulty: { tag: 'Easy' }, status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const template = { templateId: 'reroll-ui', title: 'A small adventure', description: 'Take a short walk outdoors.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50 };
+  const board = { ready: true, slots: [slot], templates: [template] };
+  const html = renderPage('/questboard', board);
+  assert.match(html, /Free Rerolls: <span>2 \/ 2<\/span>/);
+  assert.match(html, /class="secondary quest-reroll">/);
+  assert.ok(html.includes('Reroll this quest?'));
+  assert.ok(html.includes('Confirm Reroll'));
+  const rerolls = { rerollsUsed: 2, rerollResetAt: new Timestamp(BigInt(Date.now() + 3_600_000) * 1000n) };
+  const exhausted = renderPage('/questboard', board, 150, undefined, {}, {}, {}, rerolls);
+  assert.match(exhausted, /Free Rerolls: <span>0 \/ 2<\/span>/);
+  assert.match(exhausted, /class="secondary quest-reroll" disabled=""/);
+  assert.ok(exhausted.includes('Next reset:'));
+  const cooldown = renderPage('/questboard', { ...board, slots: [{ ...slot, status: { tag: 'Cooldown' }, completedAt: Timestamp.UNIX_EPOCH, refreshAt: new Timestamp(1000000n) }] });
+  assert.match(cooldown, /class="secondary quest-reroll" disabled=""/);
+  const offline = renderPage('/questboard', { ...board, connected: false });
+  assert.match(offline, /class="secondary quest-reroll" disabled=""/);
+});
+
 test('questboard renders six assigned quests in slot order with catalogue objectives and rewards', () => {
   const difficulties = ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard'];
   const slots = difficulties.map((difficulty, slotIndex) => ({
@@ -143,7 +215,8 @@ test('questboard renders six assigned quests in slot order with catalogue object
     xpReward: { Easy: 50, Medium: 100, Hard: 200 }[slot.difficulty.tag],
   }));
   const html = renderPage('/questboard', { slots: slots.reverse(), templates, ready: true, error: null, retry: () => {} });
-  assert.equal((html.match(/<li\b/g) ?? []).length, 6);
+  const questList = html.match(/<ol class="questboard"[^>]*>([\s\S]*?)<\/ol>/)?.[1];
+  assert.equal((questList.match(/<li\b/g) ?? []).length, 6);
   assert.equal((html.match(/class="quest-status">Available<\/span>/g) ?? []).length, 6);
   assert.equal((html.match(/<ol class="questboard"/g) ?? []).length, 1);
   assert.ok(!html.includes('Questboard overview'));
@@ -270,4 +343,203 @@ test('login restores local deep links and rejects external or callback destinati
     assert.equal(postLoginPath({ returnTo }), '/');
   }
   assert.equal(postLoginPath(undefined), '/');
+});
+
+test('nearby quests are opt-in and each notice says what photo proves it', () => {
+  const slot = { slotId: 'me:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'local-000000000001', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const templates = [{
+    templateId: 'local-000000000001', title: 'Wildlife of Duck Pond', description: 'At Duck Pond, photograph a bird.',
+    category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true,
+    latitude: 32.99, longitude: -96.75, locationName: 'Duck Pond', locationType: 'Lake or pond',
+    photoGoal: 'A living bird photographed outdoors.',
+  }];
+  const html = renderPage('/questboard', { ready: true, slots: [slot], templates });
+  assert.ok(html.includes('Use my location'));
+  assert.ok(html.includes('A living bird photographed outdoors.'));
+  assert.match(html, /<input[^>]*type="file"[^>]*accept="image\/\*"[^>]*capture="environment"/);
+  assert.match(html, /<button type="button" aria-busy="false">Complete quest<\/button>/);
+  const located = renderPage('/questboard', {
+    ready: true, slots: [slot], templates,
+    location: { status: { kind: 'ready', message: 'Quests near you · 12 places within 8.0 km' }, enable() {}, disable() {}, retry() {} },
+  });
+  assert.ok(located.includes('Quests near you · 12 places within 8.0 km'));
+  assert.ok(located.includes('Existing quests, cooldowns, and rerolls stay unchanged'));
+
+});
+
+test('manual city fallback remains visible during location errors and discovery', () => {
+  for (const kind of ['locating', 'scouting', 'error']) {
+    const html = renderPage('/questboard', {
+      ready: true,
+      location: { status: { kind, message: 'Lookup failed' }, enable() {}, disable() {}, retry() {} },
+    });
+    assert.ok(html.includes('City or region'), `${kind} retains manual fallback`);
+    if (kind !== 'error') assert.match(html, /disabled=""/);
+  }
+});
+
+test('the journal shows what the AI judge saw in an accepted photo', () => {
+  const completions = [{ completionId: 1n, templateId: 'local-000000000001', slotIndex: 0, xpAwarded: 50, completedAt: new Timestamp(1000000n), proofNote: 'A grackle on a fence' }];
+  const templates = [{ templateId: 'local-000000000001', title: 'Wildlife of Duck Pond', description: 'Photograph a bird.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50 }];
+  const html = renderPage('/journal', { ready: true, completions, templates });
+  assert.ok(html.includes('The guild saw: A grackle on a fence'));
+});
+
+const PHOTO = 'data:image/jpeg;base64,QUJD';
+const heronBounty = {
+  templateId: 'local-000000000002', title: 'Wanted: Heron or Egret', description: 'A bounty is posted at Duck Pond. Capture a heron or egret on camera there.',
+  category: { tag: 'Bestiary' }, difficulty: { tag: 'Hard' }, xpReward: 200, isActive: true, latitude: 32.99, longitude: -96.75,
+  locationName: 'Duck Pond', locationType: 'Lake or pond', photoGoal: 'A heron or egret, photographed in the wild.', bountyTarget: 'Heron or Egret',
+};
+
+test('Bestiary quests use ordinary notices and completion controls, retaining their captured photo', () => {
+  const open = { slotId: 'me:5', slotIndex: 5, difficulty: { tag: 'Hard' }, templateId: heronBounty.templateId, status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const html = renderPage('/questboard', { ready: true, slots: [open], templates: [heronBounty] });
+  assert.match(html, /class="notice-sheet"/);
+  assert.ok(!html.includes('bounty-sheet') && !html.includes('bounty-wanted'), 'no wanted poster');
+  assert.ok(html.includes('<h2>Observe Heron or Egret</h2>'));
+  assert.doesNotMatch(html, /bounty/i);
+  assert.ok(html.includes('200 XP reward'));
+  assert.match(html, /<button type="button" aria-busy="false">Complete quest<\/button>/);
+
+  const completedAt = new Timestamp(5_000_000n);
+  const claimed = { ...open, status: { tag: 'Cooldown' }, completedAt, refreshAt: new Timestamp(9_000_000_000n) };
+  const completions = [{ completionId: 7n, templateId: heronBounty.templateId, slotIndex: 5, xpAwarded: 200, completedAt }];
+  const captures = [{ captureId: 1n, completionId: 7n, templateId: heronBounty.templateId, bountyTarget: 'Heron or Egret', creature: 'Great Egret', verified: true, photo: PHOTO, locationName: 'Duck Pond', capturedAt: completedAt }];
+  const done = renderPage('/questboard', { ready: true, slots: [claimed], templates: [heronBounty], completions, captures });
+  assert.ok(done.includes(`<img src="${PHOTO}" alt="Your capture: Great Egret"/>`));
+  assert.ok(done.includes('Captured: Great Egret'));
+  assert.ok(done.includes('Completed'));
+  assert.ok(!done.includes('Complete quest'));
+});
+
+test('Bestiary quests retain their regular title without a separate type badge', () => {
+  const birdwatch = { templateId: 'easy-birdwatch', title: 'A Feathered Encounter', description: 'Observe a bird from a distance.', category: { tag: 'Bestiary' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true, bountyTarget: 'Wild Bird' };
+  const slot = { slotId: 'me:0', slotIndex: 0, difficulty: { tag: 'Easy' }, templateId: 'easy-birdwatch', status: { tag: 'Available' }, assignedAt: Timestamp.UNIX_EPOCH };
+  const html = renderPage('/questboard', { ready: true, slots: [slot], templates: [birdwatch] });
+  assert.ok(html.includes('<h2>A Feathered Encounter</h2>'));
+  assert.doesNotMatch(html, /bounty/i);
+});
+
+test('the Bestiary page lists private captures with photos, newest first, and has an empty state', () => {
+  const captures = [
+    { captureId: 1n, completionId: 1n, templateId: 'a', bountyTarget: 'Wild Bird', creature: 'Northern Cardinal', verified: true, photo: PHOTO, locationName: 'Lone Oak Park', capturedAt: new Timestamp(1_000_000n) },
+    { captureId: 2n, completionId: 2n, templateId: 'b', bountyTarget: 'Turtle', creature: 'Red-eared Slider', verified: false, photo: PHOTO, locationName: undefined, capturedAt: new Timestamp(2_000_000n) },
+    { captureId: 3n, completionId: 3n, templateId: 'c', bountyTarget: 'Wild Bird', creature: 'northern cardinal', verified: true, photo: PHOTO, locationName: undefined, capturedAt: new Timestamp(3_000_000n) },
+  ];
+  const html = renderPage('/bestiary', { ready: true, captures });
+  assert.ok(html.includes('<h1>Bestiary</h1>'));
+  assert.ok(html.includes('<strong>3</strong> captures'));
+  assert.ok(html.includes('<strong>2</strong> species'));
+  const names = [...html.matchAll(/<h2>([^<]+)<\/h2>/g)].map(match => match[1]);
+  assert.deepEqual(names, ['northern cardinal', 'Red-eared Slider', 'Northern Cardinal']);
+  assert.equal((html.match(/<img src="data:image\/jpeg;base64,QUJD"/g) ?? []).length, 3);
+  assert.ok(html.includes('Verified by the guild'));
+  assert.ok(html.includes('Not AI-checked'));
+  assert.doesNotMatch(html, /bounty/i);
+  const empty = renderPage('/bestiary', { ready: true });
+  assert.ok(empty.includes('No creatures captured yet'));
+  assert.ok(empty.includes('See available quests'));
+  assert.ok(renderPage('/bestiary').includes('Opening your Bestiary...'));
+});
+
+test('journal entries for claimed bounties show the captured photo', () => {
+  const completedAt = new Timestamp(5_000_000n);
+  const completions = [{ completionId: 7n, templateId: heronBounty.templateId, slotIndex: 5, xpAwarded: 200, completedAt }];
+  const captures = [{ captureId: 1n, completionId: 7n, templateId: heronBounty.templateId, bountyTarget: 'Heron or Egret', creature: 'Great Egret', verified: true, photo: PHOTO, locationName: 'Duck Pond', capturedAt: completedAt }];
+  const html = renderPage('/journal', { ready: true, completions, templates: [heronBounty], captures });
+  assert.match(html, /<a class="journal-capture" href="\/bestiary"/);
+  assert.ok(html.includes('Captured: Great Egret'));
+});
+
+test('without a guild, the Guild page offers invite codes, founding, and the open directory', () => {
+  const directory = [
+    { guildId: 1n, name: 'Owl Watch', motto: 'Eyes open.', crest: 'dusk', isOpen: true, memberCount: 3, totalXp: 900n, foundedAt: new Timestamp(1n) },
+    { guildId: 2n, name: 'Fox Den', motto: '', crest: 'ember', isOpen: false, memberCount: 1, totalXp: 2000n, foundedAt: new Timestamp(1n) },
+  ];
+  const html = renderPage('/guild', {}, 150, undefined, { directory });
+  assert.ok(html.includes('<h1>Guild</h1>'));
+  assert.ok(html.includes('Join with an invite code'));
+  assert.ok(html.includes('Found a guild'));
+  assert.ok(html.indexOf('Fox Den') < html.indexOf('Owl Watch'), 'ranked by guild XP');
+  assert.ok(html.includes('3 members · 900 XP'));
+  assert.equal((html.match(/>Join<\/button>/g) ?? []).length, 1, 'only open guilds can be joined from the directory');
+  assert.ok(html.includes('Invite only'));
+  assert.ok(renderPage('/guild', {}, 150, undefined, { ready: false }).includes('Opening the guild hall...'));
+});
+
+test('members see their guild, invite code, and roster with the leader first', () => {
+  const guild = { guildId: 1n, name: 'The Wandering Owls', motto: 'We see the trail at night.', crest: 'dusk', isOpen: true, joinCode: 'K7Q2MX', role: 'Leader', memberCount: 2, totalXp: 1100n, foundedAt: new Timestamp(1_000_000n) };
+  const members = [
+    { memberId: 'b', name: 'Bob', xp: 750, level: 3, role: 'Member', joinedAt: new Timestamp(2n), isYou: false },
+    { memberId: 'a', name: 'Alice', xp: 350, level: 2, role: 'Leader', joinedAt: new Timestamp(1n), isYou: true },
+  ];
+  const html = renderPage('/guild', {}, 150, undefined, { guild, members });
+  assert.ok(html.includes('The Wandering Owls</h2>'));
+  assert.ok(html.includes('<span class="guild-crest crest-dusk crest-lg" aria-hidden="true">WO</span>'));
+  assert.ok(html.includes('<code class="guild-code">K7Q2MX</code>'));
+  assert.ok(html.indexOf('Alice (you)') < html.indexOf('Bob'));
+  assert.ok(html.includes('Make the guild invite only'));
+  assert.ok(html.includes('Leave guild'));
+  assert.ok(!html.includes('Found a guild'));
+  const member = renderPage('/guild', {}, 150, undefined, { guild: { ...guild, role: 'Member' }, members });
+  assert.ok(!member.includes('Make the guild invite only'));
+});
+
+test('guild members see shared guild quests with progress, their share and rewards', () => {
+  const guild = { guildId: 1n, name: 'Owl Watch', motto: '', crest: 'moss', isOpen: true, joinCode: 'K7Q2MX', role: 'Member', memberCount: 2, totalXp: 400n, foundedAt: new Timestamp(1n) };
+  const far = new Timestamp(BigInt(Date.now() + 3 * 86_400_000) * 1000n);
+  const quests = [
+    { guildQuestId: 1n, kind: 'Bestiary', title: 'The Great Hunt', description: 'Claim 5 Bestiary bounties as a guild.', target: 5, progress: 2, rewardXp: 100, startedAt: new Timestamp(1n), endsAt: far, completedAt: undefined, yourContribution: 1, contributors: 2 },
+    { guildQuestId: 2n, kind: 'Experience', title: 'Strength in Numbers', description: 'Earn 450 quest XP together this week.', target: 450, progress: 450, rewardXp: 150, startedAt: new Timestamp(1n), endsAt: far, completedAt: new Timestamp(2n), yourContribution: 200, contributors: 2 },
+  ];
+  const html = renderPage('/guild', {}, 150, undefined, { guild, quests });
+  assert.ok(html.includes('Guild quests'));
+  assert.ok(html.includes('The Great Hunt'));
+  assert.ok(html.includes('2 / 5'));
+  assert.ok(html.includes('Your share: 1'));
+  assert.ok(html.includes('Reward: +100 XP each'));
+  assert.ok(html.includes('aria-valuemax="5" aria-valuenow="2"'));
+  assert.ok(html.includes('+150 XP paid to 2 members'));
+  assert.ok(html.includes('Completed'));
+  assert.match(html, /\d days? left/);
+  assert.ok(renderPage('/guild', {}, 150, undefined, { guild, quests: [] }).includes('Posting this week'));
+});
+
+test('the Friends page shows requests, friends with party invites, and the party with its shared quest', () => {
+  const friends = [{ friendshipId: 1n, username: 'Bob', level: 3, totalXp: 750, inYourParty: true, inAParty: true }, { friendshipId: 2n, username: 'Cara', level: 1, totalXp: 0, inYourParty: false, inAParty: false }];
+  const requests = [{ requestId: 9n, username: 'Dan', incoming: true, createdAt: new Timestamp(1n) }];
+  const invites = [{ inviteId: 4n, fromName: 'Eve', partySize: 2, createdAt: new Timestamp(1n) }];
+  const party = { partyId: 1n, isLeader: true, leaderName: 'TestHero', questTemplateId: 'easy-birdwatch', questTitle: 'A Feathered Encounter', questDescription: 'Observe a bird.', questCategory: 'Bestiary', questXpEach: 62, questPhotoGoal: 'A bird photographed outdoors.', questLocationName: undefined, lastQuestTitle: 'Scout the Campus', lastCompletedBy: 'Bob', lastObservation: undefined, lastXpEach: 62, lastCompletedAt: new Timestamp(1_000_000n) };
+  const partyMembers = [{ memberId: 'a', username: 'TestHero', level: 1, isLeader: true, isYou: true, joinedAt: new Timestamp(1n) }, { memberId: 'b', username: 'Bob', level: 3, isLeader: false, isYou: false, joinedAt: new Timestamp(2n) }];
+  const html = renderPage('/friends', {}, 150, undefined, {}, { friends, requests, invites, party, partyMembers });
+  assert.ok(html.includes('<h1>Friends</h1>'));
+  assert.ok(html.includes('Eve invited you to their party (2/4)'));
+  assert.ok(html.includes('wants to be friends'));
+  assert.ok(html.includes('A Feathered Encounter'));
+  assert.ok(html.includes('+62 XP each'));
+  assert.ok(html.includes('Complete together'));
+  assert.ok(html.includes('Change the party quest'));
+  assert.ok(html.includes('completed by Bob'));
+  assert.ok(html.includes('In your party'));
+  assert.equal((html.match(/>Invite to party<\/button>/g) ?? []).length, 1, 'only friends outside your party get an invite button');
+
+  const solo = renderPage('/friends', {}, 150, undefined, {}, {});
+  assert.ok(solo.includes('Start a party'));
+  assert.ok(solo.includes('No friends yet'));
+  const member = renderPage('/friends', {}, 150, undefined, {}, { party: { ...party, isLeader: false, leaderName: 'Bob', questTitle: undefined, questTemplateId: undefined }, partyMembers });
+  assert.ok(member.includes('Waiting for Bob to choose a party quest.'));
+  assert.ok(!member.includes('Party quest</span>'));
+});
+test('Journal and historical map retain destination snapshots after a reusable template is assigned elsewhere', () => {
+  const completion = { completionId: 42n, playerIdentity: Identity.zero(), templateId: 'reusable-scout', slotIndex: 0, xpAwarded: 50, completedAt: Timestamp.UNIX_EPOCH,
+    questTitle: 'Explore Original Park', questObjective: 'Visit Original Park.', locationName: 'Original Park', latitude: 32.98, longitude: -96.75 };
+  const templates = [{ templateId: 'reusable-scout', title: 'Explore New Park', description: 'Visit New Park.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true, latitude: 30.26, longitude: -97.74, locationName: 'New Park' }];
+  const board = { ready: true, completions: [completion], templates };
+  const journal = renderPage('/journal', board);
+  assert.ok(journal.includes('Explore Original Park')); assert.ok(journal.includes('/map?completed=42'));
+  assert.ok(!journal.includes('Explore New Park'));
+  const map = renderPage('/map?completed=42', board);
+  assert.ok(map.includes('Explore Original Park')); assert.ok(map.includes('32.98000, -96.75000'));
+  assert.ok(!map.includes('Complete quest')); assert.ok(map.includes('View your Quest Journal'));
 });

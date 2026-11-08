@@ -1,0 +1,38 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:{$PORT:8080} {
+	bind 0.0.0.0
+	root * "{$QUEST_STATIC_ROOT:/srv}"
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# Railway handles public HTTPS. This listener is behind its proxy.
+	@health path /healthz
+	handle @health {
+		header Cache-Control no-store
+		respond "ok" 200
+	}
+	# Missing scripts, workers, fonts, or images must return 404, never the SPA.
+	@assets path /assets/*
+	handle @assets {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+	@files path_regexp file \.[^/]+$
+	handle @files {
+		header Cache-Control no-cache
+		file_server
+	}
+	handle {
+		header Cache-Control no-cache
+		try_files {path} /index.html
+		file_server
+	}
+}

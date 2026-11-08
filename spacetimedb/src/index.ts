@@ -1,11 +1,26 @@
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import { TimeDuration } from 'spacetimedb';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
-import { questTemplates, playerQuestSlots, questCompletions, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
+import { friendRequest, friendRequestRows, friendRows, friendship, party, partyInvite, partyInviteRows, partyMember, partyMemberRows, partyRow, beginPartyPhotoCheck, finishPartyQuest, createParty as createPartyHandler, inviteToParty as inviteToPartyHandler, leaveParty as leavePartyHandler, removeFriend as removeFriendHandler, respondFriendRequest as respondFriendRequestHandler, respondPartyInvite as respondPartyInviteHandler, sendFriendRequest as sendFriendRequestHandler, setPartyQuest as setPartyQuestHandler } from './social';
+import type { QuestTemplate } from './quest-model';
+import { favorite, toggleFavorite as toggleFavoriteHandler } from './favorites';
+import { guildQuest, guildQuestContribution, guildQuestRows, refreshGuildQuests as refreshGuildQuestsHandler } from './guild-quests';
+import { guild, guildInvite, guildMembership, guildStats, memberRows, createGuild as createGuildHandler, joinGuildByCode as joinGuildByCodeHandler, joinOpenGuild as joinOpenGuildHandler, leaveGuild as leaveGuildHandler, setGuildOpen as setGuildOpenHandler } from './guilds';
+import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
+import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
+import { beginPhotoCheck, finishPhotoCompletion } from './quest-area';
+import { AI_REQUEST_TIMEOUT_MS, DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL, FALLBACK_AI_MODEL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
 import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
 import { mostRecentCompletionTemplate, selectQuestTemplate } from './quest-selection';
+import { getTotalPlayerXp } from '../../shared/progression';
+import { initializePlayerSkills } from './player-progression';
+import { locations, discoveryCache, discoveryLimit, discoveryBudget } from './adventure-model';
+import { discoverRegion, searchRegions } from './adventure-region';
+import { rerollQuest as rerollQuestHandler } from './quest-reroll';
+import { questRefreshTimer, restoreQuestRefreshSchedules, runQuestRefresh } from './quest-schedule';
 
 // Private by default. Players can read only their own row through myPlayer below.
 const player = table(
@@ -13,20 +28,61 @@ const player = table(
   {
     identity: t.identity().primaryKey(),
     displayName: t.string(),
-    xp: t.u32(),
+    xp: t.u32(), // Frozen legacy audit value; rewards now update skill counters only.
     createdAt: t.timestamp(),
     // Appended defaults preserve profiles created before username setup existed.
     username: t.string().default(''),
     usernameKey: t.string().index('btree').default(''),
+    explorationXp: t.u32().default(0),
+    bestiaryXp: t.u32().default(0),
+    craftingXp: t.u32().default(0),
+    progressionReady: t.bool().default(false),
+    rerollsUsed: t.u8().default(0),
+    rerollResetAt: t.option(t.timestamp()).default(undefined),
   }
 );
 
+// Profile pictures live apart from the player row so ordinary profile reads stay small.
+const playerAvatar = table(
+  { name: 'player_avatar' },
+  {
+    identity: t.identity().primaryKey(),
+    photo: t.string(),
+    updatedAt: t.timestamp(),
+  }
+);
+const AVATAR_MAX_DATA_URL_LENGTH = 150_000;
+
 const spacetimedb = schema({
-  player,
+  player, playerAvatar, locations, discoveryCache, discoveryLimit, discoveryBudget, questRefreshTimer,
   questTemplates,
   playerQuestSlots,
   questCompletions,
-}, { env: { SPACETIMEAUTH_CLIENT_ID: t.string() } });
+  playerQuestArea,
+  localQuests,
+  photoAttempts,
+  creatureCaptures,
+  guild,
+  guildMembership,
+  guildInvite,
+  guildQuest,
+  guildQuestContribution,
+  friendship,
+  friendRequest,
+  party,
+  partyMember,
+  partyInvite,
+  favorite,
+}, { env: {
+  SPACETIMEAUTH_CLIENT_ID: t.string(),
+  // Photo judge: any OpenAI-compatible chat completions API, Google Gemini by default.
+  // Without a key, photos are accepted unchecked.
+  AI_API_KEY: t.option(t.string()),
+  AI_BASE_URL: t.option(t.string()),
+  AI_MODEL: t.option(t.string()),
+  OVERPASS_ENDPOINT: t.option(t.string()),
+  GEOCODING_ENDPOINT: t.option(t.string()),
+} });
 export default spacetimedb;
 
 export type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
@@ -35,10 +91,20 @@ function seedQuestTemplates(ctx: Ctx) {
   for (const template of seedTemplates) {
     const existing = ctx.db.questTemplates.templateId.find(template.templateId);
     if (existing) {
+      let updated = existing;
+      if (existing.questType.tag !== template.questType.tag) updated = { ...updated, questType: template.questType };
       // Label the existing campus point without moving it or altering its quest/reward.
       if (existing.templateId === 'easy-campus-scout' && existing.locationName === undefined && existing.latitude === template.latitude && existing.longitude === template.longitude) {
-        ctx.db.questTemplates.templateId.update({ ...existing, locationName: template.locationName, locationType: existing.locationType ?? template.locationType });
+        updated = { ...updated, locationName: template.locationName, locationType: existing.locationType ?? template.locationType };
       }
+      // Backfill photo goals for catalogues created before photo proof existed.
+      if (updated.photoGoal === undefined && template.photoGoal !== undefined) updated = { ...updated, photoGoal: template.photoGoal };
+      if (updated.bountyTarget === undefined && template.bountyTarget !== undefined) updated = { ...updated, bountyTarget: template.bountyTarget };
+      // Keep catalogue wording current so the task always matches what the photo is checked for.
+      if (updated.title !== template.title || updated.description !== template.description || (template.photoGoal !== undefined && updated.photoGoal !== template.photoGoal)) {
+        updated = { ...updated, title: template.title, description: template.description, photoGoal: template.photoGoal ?? updated.photoGoal };
+      }
+      if (updated !== existing) ctx.db.questTemplates.templateId.update(updated);
       continue;
     }
     const error = validateTemplate(template);
@@ -51,6 +117,26 @@ export const myQuestSlots = spacetimedb.view(
   { name: 'my_quest_slots', public: true },
   t.array(playerQuestSlots.rowType),
   ctx => [...ctx.db.playerQuestSlots.playerIdentity.filter(ctx.sender)]
+);
+
+export const myLocations = spacetimedb.view({ name: 'my_locations', public: true }, t.array(locations.rowType), ctx => [...ctx.db.locations.playerIdentity.filter(ctx.sender)]);
+
+export const myLocalQuests = spacetimedb.view(
+  { name: 'my_local_quests', public: true },
+  t.array(localQuests.rowType),
+  ctx => [...ctx.db.localQuests.playerIdentity.filter(ctx.sender)]
+);
+
+export const myCreatureCaptures = spacetimedb.view(
+  { name: 'my_creature_captures', public: true },
+  t.array(creatureCaptures.rowType),
+  ctx => [...ctx.db.creatureCaptures.playerIdentity.filter(ctx.sender)]
+);
+
+export const myQuestArea = spacetimedb.view(
+  { name: 'my_quest_area', public: true },
+  t.option(playerQuestArea.rowType),
+  ctx => ctx.db.playerQuestArea.playerIdentity.find(ctx.sender) ?? undefined
 );
 
 export const myQuestCompletions = spacetimedb.view(
@@ -66,6 +152,13 @@ const playerProfile = t.row('PlayerProfile', {
   createdAt: t.timestamp(),
   username: t.string(),
   level: t.u32(),
+  explorationXp: t.u32(),
+  bestiaryXp: t.u32(),
+  craftingXp: t.u32(),
+  progressionReady: t.bool(),
+  rerollsUsed: t.u8(),
+  rerollResetAt: t.option(t.timestamp()),
+  avatar: t.string(),
 });
 
 export const myPlayer = spacetimedb.view(
@@ -77,10 +170,17 @@ export const myPlayer = spacetimedb.view(
     return {
       identity: row.identity,
       displayName: row.displayName,
-      xp: row.xp,
+      xp: getTotalPlayerXp(row),
       createdAt: row.createdAt,
       username: row.username,
-      level: levelForXp(row.xp),
+      level: levelForXp(getTotalPlayerXp(row)),
+      explorationXp: row.explorationXp,
+      bestiaryXp: row.bestiaryXp,
+      craftingXp: row.craftingXp,
+      progressionReady: row.progressionReady,
+      rerollsUsed: row.rerollsUsed,
+      rerollResetAt: row.rerollResetAt,
+      avatar: ctx.db.playerAvatar.identity.find(ctx.sender)?.photo ?? '',
     };
   }
 );
@@ -88,7 +188,8 @@ export const myPlayer = spacetimedb.view(
 export const ensurePlayer = spacetimedb.reducer(ctx => {
   const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
   if (error) throw new SenderError(error);
-  if (ctx.db.player.identity.find(ctx.sender)) return;
+  const existing = ctx.db.player.identity.find(ctx.sender);
+  if (existing) { initializePlayerSkills(ctx, existing); return; }
 
   const claims = ctx.senderAuth.jwt!.fullPayload;
   const name = claims.name ?? claims.preferred_username;
@@ -99,6 +200,8 @@ export const ensurePlayer = spacetimedb.reducer(ctx => {
     createdAt: ctx.timestamp,
     username: '',
     usernameKey: '',
+    explorationXp: 0, bestiaryXp: 0, craftingXp: 0, progressionReady: true,
+    rerollsUsed: 0, rerollResetAt: undefined,
   });
 });
 
@@ -134,7 +237,7 @@ export const initializeQuestboard = spacetimedb.reducer(ctx => {
       slotId: slotIdFor(ctx.sender, slotIndex), playerIdentity: ctx.sender, slotIndex,
       difficulty: template.difficulty, templateId: template.templateId,
       status: { tag: 'Available' as const }, assignedAt: ctx.timestamp,
-      completedAt: undefined, refreshAt: undefined,
+      completedAt: undefined, refreshAt: undefined, locationId: template.assignedLocationId,
     };
     const slotError = validateSlot(slot, template, ctx.timestamp);
     if (slotError) throw new SenderError(slotError);
@@ -150,6 +253,98 @@ export const completeQuest = spacetimedb.reducer(
 );
 
 export const refreshQuestSlots = spacetimedb.reducer(refreshQuestSlotsHandler);
+export const refreshScheduledQuest = spacetimedb.reducer(
+  { onSchedule: questRefreshTimer }, { timer: questRefreshTimer.rowType },
+  (ctx, { timer }) => runQuestRefresh(ctx, timer)
+);
+export const rerollQuest = spacetimedb.reducer({ slotIndex: t.u8(), expectedAssignedAt: t.timestamp() }, rerollQuestHandler);
+
+export const searchAdventureRegions = spacetimedb.procedure({ query: t.string() }, t.string(), (ctx, { query }) => searchRegions(ctx, query));
+export const setAdventureRegion = spacetimedb.procedure({ latitude: t.f64(), longitude: t.f64(), label: t.string(), radiusMeters: t.u32() }, t.string(), (ctx, args) => discoverRegion(ctx, args));
+
+const JUDGE_UNAVAILABLE = 'The guild judge is unavailable right now. Please try again in a minute.';
+
+// Ask the AI judge about a photo. Returns undefined when no model could answer.
+function judgePhoto(
+  ctx: {
+    env: { AI_API_KEY?: string; AI_MODEL?: string; AI_BASE_URL?: string };
+    http: { fetch(url: string, init: { method: string; headers: Record<string, string>; body: string; timeout: TimeDuration }): { status: number; text(): string } };
+  },
+  quest: QuestTemplate,
+  image: string,
+): JudgeVerdict | undefined {
+  const apiKey = ctx.env.AI_API_KEY;
+  if (!apiKey) return { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '', creature: '' };
+  // With the default provider, a busy or slow model falls back to a lighter one.
+  const models = ctx.env.AI_MODEL ? [ctx.env.AI_MODEL] : [DEFAULT_AI_MODEL, FALLBACK_AI_MODEL];
+  const baseUrl = (ctx.env.AI_BASE_URL || DEFAULT_AI_BASE_URL).replace(/\/+$/, '');
+  for (const model of models) {
+    try {
+      const response = ctx.http.fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(buildJudgeRequest(quest, image, model)),
+        timeout: TimeDuration.fromMillis(AI_REQUEST_TIMEOUT_MS),
+      });
+      if (response.status >= 200 && response.status < 300) return parseJudgeResponse(response.text());
+      console.warn(`AI judge (${model}) returned HTTP ${response.status}: ${response.text().slice(0, 300)}`);
+      // Client errors such as a bad key or model will not improve with another model.
+      if (response.status !== 429 && response.status < 500) return undefined;
+    } catch (error) {
+      console.warn(`AI judge (${model}) request failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return undefined;
+}
+
+const PhotoVerdict = t.object('PhotoVerdict', {
+  accepted: t.bool(),
+  message: t.string(),
+  observation: t.string(),
+  // For a Bestiary bounty, the creature the judge identified.
+  creature: t.string(),
+});
+
+// Photo proof: an AI judge checks the photo against the quest, then completion runs exactly once.
+export const submitQuestPhoto = spacetimedb.procedure(
+  // capturePhoto: a smaller copy kept in the player's Bestiary when a bounty is accepted.
+  { slotIndex: t.u8(), expectedAssignedAt: t.timestamp(), image: t.string(), capturePhoto: t.option(t.string()) },
+  PhotoVerdict,
+  (ctx, { slotIndex, expectedAssignedAt, image, capturePhoto }) => {
+    const imageError = validateImageDataUrl(image);
+    if (imageError) return { accepted: false, message: imageError, observation: '', creature: '' };
+    const captureError = capturePhoto === undefined ? null : validateCapturePhoto(capturePhoto);
+    if (captureError) return { accepted: false, message: captureError, observation: '', creature: '' };
+    const args = { slotIndex, expectedAssignedAt };
+    // Expected refusals (sign-in, ownership, rate limit, changed assignment) roll back their
+    // transaction and come back as an ordinary verdict instead of a procedure failure.
+    const refusal = (error: unknown) => ({
+      accepted: false,
+      message: error instanceof Error ? error.message : 'Your photo could not be checked. Please try again.',
+      observation: '',
+      creature: '',
+    });
+    let quest: ReturnType<typeof beginPhotoCheck>;
+    try {
+      quest = ctx.withTx(tx => beginPhotoCheck(tx, args));
+    } catch (error) {
+      return refusal(error);
+    }
+    const apiKey = ctx.env.AI_API_KEY;
+    const verdict = judgePhoto(ctx, quest, image);
+    if (!verdict) return { accepted: false, message: JUDGE_UNAVAILABLE, observation: '', creature: '' };
+    if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation, creature: verdict.creature };
+    const accepted = verdict;
+    try {
+      const capture = capturePhoto === undefined ? undefined : { photo: capturePhoto, creature: accepted.creature, verified: Boolean(apiKey) };
+      ctx.withTx(tx => finishPhotoCompletion(tx, args, accepted.observation, capture));
+    } catch (error) {
+      return refusal(error);
+    }
+    const message = `${quest.category.tag === 'Bestiary' ? 'Bounty claimed!' : 'Quest complete!'} +${quest.xpReward} ${quest.category.tag} XP (+${quest.xpReward} total XP).`;
+    return { accepted: true, message, observation: verdict.observation, creature: verdict.creature || (quest.category.tag === 'Bestiary' ? quest.bountyTarget ?? '' : '') };
+  }
+);
 
 export const setUsername = spacetimedb.reducer(
   { username: t.string() },
@@ -172,6 +367,228 @@ export const setUsername = spacetimedb.reducer(
   }
 );
 
+// An empty photo removes the profile picture.
+export const setAvatar = spacetimedb.reducer(
+  { photo: t.string() },
+  (ctx, { photo }) => {
+    const error = authenticationError(ctx.senderAuth, ctx.env.SPACETIMEAUTH_CLIENT_ID);
+    if (error) throw new SenderError(error);
+    if (!ctx.db.player.identity.find(ctx.sender)) throw new SenderError('Your profile is still loading. Please retry.');
+    const existing = ctx.db.playerAvatar.identity.find(ctx.sender);
+    if (!photo) {
+      if (existing) ctx.db.playerAvatar.identity.delete(ctx.sender);
+      return;
+    }
+    const imageError = validateImageDataUrl(photo, AVATAR_MAX_DATA_URL_LENGTH);
+    if (imageError) throw new SenderError(imageError);
+    if (existing) ctx.db.playerAvatar.identity.update({ ...existing, photo, updatedAt: ctx.timestamp });
+    else ctx.db.playerAvatar.insert({ identity: ctx.sender, photo, updatedAt: ctx.timestamp });
+  }
+);
+
+// Guilds: found or join a guild with other players. One guild per player.
+export const createGuild = spacetimedb.reducer(
+  { name: t.string(), motto: t.string(), crest: t.string(), isOpen: t.bool() },
+  createGuildHandler
+);
+export const joinOpenGuild = spacetimedb.reducer({ guildId: t.u64() }, joinOpenGuildHandler);
+export const joinGuildByCode = spacetimedb.reducer({ joinCode: t.string() }, joinGuildByCodeHandler);
+export const leaveGuild = spacetimedb.reducer(leaveGuildHandler);
+export const setGuildOpen = spacetimedb.reducer({ isOpen: t.bool() }, setGuildOpenHandler);
+
+const GuildListing = t.row('GuildListing', {
+  guildId: t.u64().primaryKey(),
+  name: t.string(),
+  motto: t.string(),
+  crest: t.string(),
+  isOpen: t.bool(),
+  memberCount: t.u32(),
+  totalXp: t.u64(),
+  foundedAt: t.timestamp(),
+});
+
+// Public directory: counts and XP only, never members or invite codes.
+export const guildDirectory = spacetimedb.anonymousView(
+  { name: 'guild_directory', public: true },
+  t.array(GuildListing),
+  ctx => [...ctx.db.guild.iter()].map(row => ({
+    guildId: row.guildId, name: row.name, motto: row.motto, crest: row.crest,
+    isOpen: row.isOpen, foundedAt: row.foundedAt, ...guildStats(ctx, row.guildId),
+  }))
+);
+
+const PlayerGuild = t.row('PlayerGuild', {
+  guildId: t.u64().primaryKey(),
+  name: t.string(),
+  motto: t.string(),
+  crest: t.string(),
+  isOpen: t.bool(),
+  joinCode: t.string(),
+  role: t.string(),
+  memberCount: t.u32(),
+  totalXp: t.u64(),
+  foundedAt: t.timestamp(),
+});
+
+export const myGuild = spacetimedb.view(
+  { name: 'my_guild', public: true },
+  t.option(PlayerGuild),
+  ctx => {
+    const membership = ctx.db.guildMembership.playerIdentity.find(ctx.sender);
+    const row = membership && ctx.db.guild.guildId.find(membership.guildId);
+    if (!membership || !row) return undefined;
+    return {
+      guildId: row.guildId, name: row.name, motto: row.motto, crest: row.crest, isOpen: row.isOpen, foundedAt: row.foundedAt,
+      joinCode: ctx.db.guildInvite.guildId.find(row.guildId)?.joinCode ?? '',
+      role: membership.role.tag, ...guildStats(ctx, row.guildId),
+    };
+  }
+);
+
+const GuildMember = t.row('GuildMember', {
+  memberId: t.string().primaryKey(),
+  name: t.string(),
+  xp: t.u32(),
+  level: t.u32(),
+  role: t.string(),
+  joinedAt: t.timestamp(),
+  isYou: t.bool(),
+});
+
+// Members of the caller's own guild only.
+export const myGuildMembers = spacetimedb.view(
+  { name: 'my_guild_members', public: true },
+  t.array(GuildMember),
+  ctx => {
+    const membership = ctx.db.guildMembership.playerIdentity.find(ctx.sender);
+    return membership ? memberRows(ctx, ctx.sender, membership.guildId) : [];
+  }
+);
+
+// Guild quests: three shared weekly goals per guild, advanced by members' quest completions.
+export const refreshGuildQuests = spacetimedb.reducer(refreshGuildQuestsHandler);
+
+const GuildQuestCard = t.row('GuildQuestCard', {
+  guildQuestId: t.u64().primaryKey(),
+  kind: t.string(),
+  title: t.string(),
+  description: t.string(),
+  target: t.u32(),
+  progress: t.u32(),
+  rewardXp: t.u32(),
+  startedAt: t.timestamp(),
+  endsAt: t.timestamp(),
+  completedAt: t.option(t.timestamp()),
+  yourContribution: t.u32(),
+  contributors: t.u32(),
+});
+
+export const myGuildQuests = spacetimedb.view(
+  { name: 'my_guild_quests', public: true },
+  t.array(GuildQuestCard),
+  ctx => guildQuestRows(ctx)
+);
+
+// Friends and parties. Players find each other by username; everything else stays private.
+export const sendFriendRequest = spacetimedb.reducer({ username: t.string() }, sendFriendRequestHandler);
+export const respondFriendRequest = spacetimedb.reducer({ requestId: t.u64(), accept: t.bool() }, respondFriendRequestHandler);
+export const removeFriend = spacetimedb.reducer({ username: t.string() }, removeFriendHandler);
+export const createParty = spacetimedb.reducer(createPartyHandler);
+export const inviteToParty = spacetimedb.reducer({ username: t.string() }, inviteToPartyHandler);
+export const respondPartyInvite = spacetimedb.reducer({ inviteId: t.u64(), accept: t.bool() }, respondPartyInviteHandler);
+export const leaveParty = spacetimedb.reducer(leavePartyHandler);
+export const setPartyQuest = spacetimedb.reducer({ templateId: t.string() }, setPartyQuestHandler);
+
+const FriendCard = t.row('FriendCard', {
+  friendshipId: t.u64().primaryKey(),
+  username: t.string(),
+  level: t.u32(),
+  totalXp: t.u32(),
+  inYourParty: t.bool(),
+  inAParty: t.bool(),
+});
+export const myFriends = spacetimedb.view({ name: 'my_friends', public: true }, t.array(FriendCard), ctx => friendRows(ctx));
+
+const FriendRequestCard = t.row('FriendRequestCard', {
+  requestId: t.u64().primaryKey(),
+  username: t.string(),
+  incoming: t.bool(),
+  createdAt: t.timestamp(),
+});
+export const myFriendRequests = spacetimedb.view({ name: 'my_friend_requests', public: true }, t.array(FriendRequestCard), ctx => friendRequestRows(ctx));
+
+const PartyInviteCard = t.row('PartyInviteCard', {
+  inviteId: t.u64().primaryKey(),
+  fromName: t.string(),
+  partySize: t.u32(),
+  createdAt: t.timestamp(),
+});
+export const myPartyInvites = spacetimedb.view({ name: 'my_party_invites', public: true }, t.array(PartyInviteCard), ctx => partyInviteRows(ctx));
+
+const PartyCard = t.row('PartyCard', {
+  partyId: t.u64().primaryKey(),
+  isLeader: t.bool(),
+  leaderName: t.string(),
+  questTemplateId: t.option(t.string()),
+  questTitle: t.option(t.string()),
+  questDescription: t.option(t.string()),
+  questCategory: t.option(t.string()),
+  questXpEach: t.option(t.u32()),
+  questPhotoGoal: t.option(t.string()),
+  questLocationName: t.option(t.string()),
+  lastQuestTitle: t.option(t.string()),
+  lastCompletedBy: t.option(t.string()),
+  lastObservation: t.option(t.string()),
+  lastXpEach: t.option(t.u32()),
+  lastCompletedAt: t.option(t.timestamp()),
+});
+export const myParty = spacetimedb.view({ name: 'my_party', public: true }, t.option(PartyCard), ctx => partyRow(ctx));
+
+const PartyMemberCard = t.row('PartyMemberCard', {
+  memberId: t.string().primaryKey(),
+  username: t.string(),
+  level: t.u32(),
+  isLeader: t.bool(),
+  isYou: t.bool(),
+  joinedAt: t.timestamp(),
+});
+export const myPartyMembers = spacetimedb.view({ name: 'my_party_members', public: true }, t.array(PartyMemberCard), ctx => partyMemberRows(ctx));
+
+// Party quest: any member submits photo proof; on acceptance every member earns the XP plus a party bonus.
+export const submitPartyQuestPhoto = spacetimedb.procedure(
+  { image: t.string() },
+  PhotoVerdict,
+  (ctx, { image }) => {
+    const imageError = validateImageDataUrl(image);
+    if (imageError) return { accepted: false, message: imageError, observation: '', creature: '' };
+    const refusal = (error: unknown) => ({ accepted: false, message: error instanceof Error ? error.message : 'Your photo could not be checked. Please try again.', observation: '', creature: '' });
+    let quest: QuestTemplate;
+    try {
+      quest = ctx.withTx(tx => beginPartyPhotoCheck(tx));
+    } catch (error) {
+      return refusal(error);
+    }
+    const verdict = judgePhoto(ctx, quest, image);
+    if (!verdict) return { accepted: false, message: JUDGE_UNAVAILABLE, observation: '', creature: '' };
+    if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation, creature: verdict.creature };
+    let xpEach: number;
+    try {
+      xpEach = ctx.withTx(tx => finishPartyQuest(tx, quest.templateId, verdict.observation, quest));
+    } catch (error) {
+      return refusal(error);
+    }
+    return { accepted: true, message: `Party quest complete! Everyone in your party earned +${xpEach} ${quest.category.tag} XP.`, observation: verdict.observation, creature: verdict.creature };
+  }
+);
+
+// Favorites: star your own Bestiary captures and Quest Journal entries.
+export const toggleFavorite = spacetimedb.reducer({ kind: t.string(), itemId: t.u64() }, toggleFavoriteHandler);
+export const myFavorites = spacetimedb.view(
+  { name: 'my_favorites', public: true },
+  t.array(favorite.rowType),
+  ctx => [...ctx.db.favorite.playerIdentity.filter(ctx.sender)]
+);
+
 export const init = spacetimedb.init(ctx => {
   seedQuestTemplates(ctx);
 });
@@ -179,4 +596,5 @@ export const init = spacetimedb.init(ctx => {
 export const onConnect = spacetimedb.clientConnected(ctx => {
   // Existing databases do not rerun init on publish. Only fixed, missing samples are inserted.
   seedQuestTemplates(ctx);
+  restoreQuestRefreshSchedules(ctx);
 });

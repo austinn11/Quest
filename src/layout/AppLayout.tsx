@@ -1,17 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { useSpacetimeDB } from 'spacetimedb/react';
 import { SignOutButton } from '../auth/SignOutButton';
 import { usePlayer } from '../player/PlayerProvider';
 import { LevelUpNotice } from '../player/LevelUpNotice';
-
-const navigation = [
-  { to: '/', label: 'Home' },
-  { to: '/map', label: 'World Map' },
-  { to: '/questboard', label: 'Questboard' },
-  { to: '/journal', label: 'Quest Journal' },
-  { to: '/profile', label: 'Profile' },
-];
+import { AppNavigation } from './AppNavigation';
+import { navigationPageTitle } from './navigation';
 
 export function AppLayout() {
   const { pathname, hash } = useLocation();
@@ -20,7 +14,7 @@ export function AppLayout() {
   const main = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const page = navigation.find(item => item.to === pathname)?.label ?? 'Page not found';
+    const page = navigationPageTitle(pathname);
     document.title = `${page} | Quest`;
     // Questboard handles its card anchor after assignments render.
     if (pathname !== '/questboard' || !/^#quest-slot-[0-5]$/.test(hash)) main.current?.focus();
@@ -30,11 +24,17 @@ export function AppLayout() {
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="app-header">
-        <Link className="app-brand" to="/">Quest</Link>
-        <nav className="app-nav" aria-label="Main navigation">
-          {navigation.map(item => <NavLink key={item.to} to={item.to} end={item.to === '/'}>{item.label}</NavLink>)}
-        </nav>
-        <SignOutButton />
+        <div className="app-header-inner">
+          <Link className="app-brand" to="/" aria-label="Quest home">
+            <svg className="app-brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+              <path d="m12 2 2.8 7.2L22 12l-7.2 2.8L12 22l-2.8-7.2L2 12l7.2-2.8Z" />
+              <circle cx="12" cy="12" r="1.5" />
+            </svg>
+            <span>Quest</span>
+          </Link>
+          <AppNavigation />
+          <div className="app-header-account"><SignOutButton /></div>
+        </div>
       </header>
       <main ref={main} id="main-content" className="app-content" tabIndex={-1}>
         {!isActive && (

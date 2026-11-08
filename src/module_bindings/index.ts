@@ -35,15 +35,51 @@ import {
 
 // Import all reducer arg schemas
 import CompleteQuestReducer from "./complete_quest_reducer";
+import CreateGuildReducer from "./create_guild_reducer";
+import CreatePartyReducer from "./create_party_reducer";
 import EnsurePlayerReducer from "./ensure_player_reducer";
 import InitializeQuestboardReducer from "./initialize_questboard_reducer";
+import InviteToPartyReducer from "./invite_to_party_reducer";
+import JoinGuildByCodeReducer from "./join_guild_by_code_reducer";
+import JoinOpenGuildReducer from "./join_open_guild_reducer";
+import LeaveGuildReducer from "./leave_guild_reducer";
+import LeavePartyReducer from "./leave_party_reducer";
+import RefreshGuildQuestsReducer from "./refresh_guild_quests_reducer";
 import RefreshQuestSlotsReducer from "./refresh_quest_slots_reducer";
+import RemoveFriendReducer from "./remove_friend_reducer";
+import RerollQuestReducer from "./reroll_quest_reducer";
+import RespondFriendRequestReducer from "./respond_friend_request_reducer";
+import RespondPartyInviteReducer from "./respond_party_invite_reducer";
+import SendFriendRequestReducer from "./send_friend_request_reducer";
+import SetAvatarReducer from "./set_avatar_reducer";
+import SetGuildOpenReducer from "./set_guild_open_reducer";
+import SetPartyQuestReducer from "./set_party_quest_reducer";
 import SetUsernameReducer from "./set_username_reducer";
+import ToggleFavoriteReducer from "./toggle_favorite_reducer";
 
 // Import all procedure arg schemas
+import * as SearchAdventureRegionsProcedure from "./search_adventure_regions_procedure";
+import * as SetAdventureRegionProcedure from "./set_adventure_region_procedure";
+import * as SubmitPartyQuestPhotoProcedure from "./submit_party_quest_photo_procedure";
+import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 
 // Import all table schema definitions
+import GuildRow from "./guild_table";
+import GuildDirectoryRow from "./guild_directory_table";
+import MyCreatureCapturesRow from "./my_creature_captures_table";
+import MyFavoritesRow from "./my_favorites_table";
+import MyFriendRequestsRow from "./my_friend_requests_table";
+import MyFriendsRow from "./my_friends_table";
+import MyGuildRow from "./my_guild_table";
+import MyGuildMembersRow from "./my_guild_members_table";
+import MyGuildQuestsRow from "./my_guild_quests_table";
+import MyLocalQuestsRow from "./my_local_quests_table";
+import MyLocationsRow from "./my_locations_table";
+import MyPartyRow from "./my_party_table";
+import MyPartyInvitesRow from "./my_party_invites_table";
+import MyPartyMembersRow from "./my_party_members_table";
 import MyPlayerRow from "./my_player_table";
+import MyQuestAreaRow from "./my_quest_area_table";
 import MyQuestCompletionsRow from "./my_quest_completions_table";
 import MyQuestSlotsRow from "./my_quest_slots_table";
 import QuestTemplatesRow from "./quest_templates_table";
@@ -52,6 +88,21 @@ import QuestTemplatesRow from "./quest_templates_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  guild: __table({
+    name: 'guild',
+    indexes: [
+      { accessor: 'guildId', name: 'guild_guild_id_idx_btree', algorithm: 'btree', columns: [
+        'guildId',
+      ] },
+      { accessor: 'nameKey', name: 'guild_name_key_idx_btree', algorithm: 'btree', columns: [
+        'nameKey',
+      ] },
+    ],
+    constraints: [
+      { name: 'guild_guild_id_key', constraint: 'unique', columns: ['guildId'] },
+      { name: 'guild_name_key_key', constraint: 'unique', columns: ['nameKey'] },
+    ],
+  }, GuildRow),
   questTemplates: __table({
     name: 'quest_templates',
     indexes: [
@@ -72,6 +123,97 @@ const tablesSchema = __schema({
       { name: 'quest_templates_template_id_key', constraint: 'unique', columns: ['templateId'] },
     ],
   }, QuestTemplatesRow),
+  guildDirectory: __table({
+    name: 'guild_directory',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, GuildDirectoryRow),
+  myCreatureCaptures: __table({
+    name: 'my_creature_captures',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCreatureCapturesRow),
+  myFavorites: __table({
+    name: 'my_favorites',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFavoritesRow),
+  myFriendRequests: __table({
+    name: 'my_friend_requests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendRequestsRow),
+  myFriends: __table({
+    name: 'my_friends',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendsRow),
+  myGuild: __table({
+    name: 'my_guild',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildRow),
+  myGuildMembers: __table({
+    name: 'my_guild_members',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildMembersRow),
+  myGuildQuests: __table({
+    name: 'my_guild_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGuildQuestsRow),
+  myLocalQuests: __table({
+    name: 'my_local_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyLocalQuestsRow),
+  myLocations: __table({
+    name: 'my_locations',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyLocationsRow),
+  myParty: __table({
+    name: 'my_party',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyRow),
+  myPartyInvites: __table({
+    name: 'my_party_invites',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyInvitesRow),
+  myPartyMembers: __table({
+    name: 'my_party_members',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPartyMembersRow),
   myPlayer: __table({
     name: 'my_player',
     indexes: [
@@ -79,6 +221,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyPlayerRow),
+  myQuestArea: __table({
+    name: 'my_quest_area',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyQuestAreaRow),
   myQuestCompletions: __table({
     name: 'my_quest_completions',
     indexes: [
@@ -98,14 +247,35 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("complete_quest", CompleteQuestReducer),
+  __reducerSchema("create_guild", CreateGuildReducer),
+  __reducerSchema("create_party", CreatePartyReducer),
   __reducerSchema("ensure_player", EnsurePlayerReducer),
   __reducerSchema("initialize_questboard", InitializeQuestboardReducer),
+  __reducerSchema("invite_to_party", InviteToPartyReducer),
+  __reducerSchema("join_guild_by_code", JoinGuildByCodeReducer),
+  __reducerSchema("join_open_guild", JoinOpenGuildReducer),
+  __reducerSchema("leave_guild", LeaveGuildReducer),
+  __reducerSchema("leave_party", LeavePartyReducer),
+  __reducerSchema("refresh_guild_quests", RefreshGuildQuestsReducer),
   __reducerSchema("refresh_quest_slots", RefreshQuestSlotsReducer),
+  __reducerSchema("remove_friend", RemoveFriendReducer),
+  __reducerSchema("reroll_quest", RerollQuestReducer),
+  __reducerSchema("respond_friend_request", RespondFriendRequestReducer),
+  __reducerSchema("respond_party_invite", RespondPartyInviteReducer),
+  __reducerSchema("send_friend_request", SendFriendRequestReducer),
+  __reducerSchema("set_avatar", SetAvatarReducer),
+  __reducerSchema("set_guild_open", SetGuildOpenReducer),
+  __reducerSchema("set_party_quest", SetPartyQuestReducer),
   __reducerSchema("set_username", SetUsernameReducer),
+  __reducerSchema("toggle_favorite", ToggleFavoriteReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("search_adventure_regions", SearchAdventureRegionsProcedure.params, SearchAdventureRegionsProcedure.returnType),
+  __procedureSchema("set_adventure_region", SetAdventureRegionProcedure.params, SetAdventureRegionProcedure.returnType),
+  __procedureSchema("submit_party_quest_photo", SubmitPartyQuestPhotoProcedure.params, SubmitPartyQuestPhotoProcedure.returnType),
+  __procedureSchema("submit_quest_photo", SubmitQuestPhotoProcedure.params, SubmitQuestPhotoProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

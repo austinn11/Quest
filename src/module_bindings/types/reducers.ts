@@ -7,14 +7,48 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import CompleteQuestReducer from "../complete_quest_reducer";
+import CreateGuildReducer from "../create_guild_reducer";
+import CreatePartyReducer from "../create_party_reducer";
 import EnsurePlayerReducer from "../ensure_player_reducer";
 import InitializeQuestboardReducer from "../initialize_questboard_reducer";
+import InviteToPartyReducer from "../invite_to_party_reducer";
+import JoinGuildByCodeReducer from "../join_guild_by_code_reducer";
+import JoinOpenGuildReducer from "../join_open_guild_reducer";
+import LeaveGuildReducer from "../leave_guild_reducer";
+import LeavePartyReducer from "../leave_party_reducer";
+import RefreshGuildQuestsReducer from "../refresh_guild_quests_reducer";
 import RefreshQuestSlotsReducer from "../refresh_quest_slots_reducer";
+import RemoveFriendReducer from "../remove_friend_reducer";
+import RerollQuestReducer from "../reroll_quest_reducer";
+import RespondFriendRequestReducer from "../respond_friend_request_reducer";
+import RespondPartyInviteReducer from "../respond_party_invite_reducer";
+import SendFriendRequestReducer from "../send_friend_request_reducer";
+import SetAvatarReducer from "../set_avatar_reducer";
+import SetGuildOpenReducer from "../set_guild_open_reducer";
+import SetPartyQuestReducer from "../set_party_quest_reducer";
 import SetUsernameReducer from "../set_username_reducer";
+import ToggleFavoriteReducer from "../toggle_favorite_reducer";
 
 export type CompleteQuestParams = __Infer<typeof CompleteQuestReducer>;
+export type CreateGuildParams = __Infer<typeof CreateGuildReducer>;
+export type CreatePartyParams = __Infer<typeof CreatePartyReducer>;
 export type EnsurePlayerParams = __Infer<typeof EnsurePlayerReducer>;
 export type InitializeQuestboardParams = __Infer<typeof InitializeQuestboardReducer>;
+export type InviteToPartyParams = __Infer<typeof InviteToPartyReducer>;
+export type JoinGuildByCodeParams = __Infer<typeof JoinGuildByCodeReducer>;
+export type JoinOpenGuildParams = __Infer<typeof JoinOpenGuildReducer>;
+export type LeaveGuildParams = __Infer<typeof LeaveGuildReducer>;
+export type LeavePartyParams = __Infer<typeof LeavePartyReducer>;
+export type RefreshGuildQuestsParams = __Infer<typeof RefreshGuildQuestsReducer>;
 export type RefreshQuestSlotsParams = __Infer<typeof RefreshQuestSlotsReducer>;
+export type RemoveFriendParams = __Infer<typeof RemoveFriendReducer>;
+export type RerollQuestParams = __Infer<typeof RerollQuestReducer>;
+export type RespondFriendRequestParams = __Infer<typeof RespondFriendRequestReducer>;
+export type RespondPartyInviteParams = __Infer<typeof RespondPartyInviteReducer>;
+export type SendFriendRequestParams = __Infer<typeof SendFriendRequestReducer>;
+export type SetAvatarParams = __Infer<typeof SetAvatarReducer>;
+export type SetGuildOpenParams = __Infer<typeof SetGuildOpenReducer>;
+export type SetPartyQuestParams = __Infer<typeof SetPartyQuestReducer>;
 export type SetUsernameParams = __Infer<typeof SetUsernameReducer>;
+export type ToggleFavoriteParams = __Infer<typeof ToggleFavoriteReducer>;
 

@@ -12,6 +12,7 @@ import {
 import {
   QuestCategory,
   QuestDifficulty,
+  QuestType,
 } from "./types";
 
 
@@ -31,4 +32,10 @@ export default __t.row({
   isActive: __t.bool().name("is_active"),
   locationName: __t.option(__t.string()).name("location_name"),
   locationType: __t.option(__t.string()).name("location_type"),
+  photoGoal: __t.option(__t.string()).name("photo_goal"),
+  bountyTarget: __t.option(__t.string()).name("bounty_target"),
+  get questType() {
+    return QuestType.name("quest_type");
+  },
+  requiredLocationType: __t.option(__t.string()).name("required_location_type"),
 });

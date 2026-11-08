@@ -10,14 +10,361 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const CreatureCaptures = __t.object("CreatureCaptures", {
+  captureId: __t.u64(),
+  playerIdentity: __t.identity(),
+  completionId: __t.u64(),
+  templateId: __t.string(),
+  bountyTarget: __t.string(),
+  creature: __t.string(),
+  verified: __t.bool(),
+  photo: __t.string(),
+  locationName: __t.option(__t.string()),
+  capturedAt: __t.timestamp(),
+});
+export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
+
+export const DiscoveryBudget = __t.object("DiscoveryBudget", {
+  provider: __t.string(),
+  day: __t.u64(),
+  requests: __t.u32(),
+});
+export type DiscoveryBudget = __Infer<typeof DiscoveryBudget>;
+
+export const DiscoveryCache = __t.object("DiscoveryCache", {
+  key: __t.string(),
+  payload: __t.string(),
+  verifiedAt: __t.timestamp(),
+});
+export type DiscoveryCache = __Infer<typeof DiscoveryCache>;
+
+export const DiscoveryLimit = __t.object("DiscoveryLimit", {
+  key: __t.string(),
+  requestedAt: __t.timestamp(),
+});
+export type DiscoveryLimit = __Infer<typeof DiscoveryLimit>;
+
+export const Favorite = __t.object("Favorite", {
+  favoriteId: __t.u64(),
+  playerIdentity: __t.identity(),
+  kind: __t.string(),
+  itemId: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type Favorite = __Infer<typeof Favorite>;
+
+export const FriendCard = __t.object("FriendCard", {
+  friendshipId: __t.u64(),
+  username: __t.string(),
+  level: __t.u32(),
+  totalXp: __t.u32(),
+  inYourParty: __t.bool(),
+  inAParty: __t.bool(),
+});
+export type FriendCard = __Infer<typeof FriendCard>;
+
+export const FriendRequest = __t.object("FriendRequest", {
+  requestId: __t.u64(),
+  fromIdentity: __t.identity(),
+  toIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type FriendRequest = __Infer<typeof FriendRequest>;
+
+export const FriendRequestCard = __t.object("FriendRequestCard", {
+  requestId: __t.u64(),
+  username: __t.string(),
+  incoming: __t.bool(),
+  createdAt: __t.timestamp(),
+});
+export type FriendRequestCard = __Infer<typeof FriendRequestCard>;
+
+export const Friendship = __t.object("Friendship", {
+  friendshipId: __t.u64(),
+  firstIdentity: __t.identity(),
+  secondIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type Friendship = __Infer<typeof Friendship>;
+
+export const Guild = __t.object("Guild", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  nameKey: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  foundedAt: __t.timestamp(),
+});
+export type Guild = __Infer<typeof Guild>;
+
+export const GuildDirectory = __t.object("GuildDirectory", {});
+export type GuildDirectory = __Infer<typeof GuildDirectory>;
+
+export const GuildInvite = __t.object("GuildInvite", {
+  guildId: __t.u64(),
+  joinCode: __t.string(),
+});
+export type GuildInvite = __Infer<typeof GuildInvite>;
+
+export const GuildListing = __t.object("GuildListing", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  memberCount: __t.u32(),
+  totalXp: __t.u64(),
+  foundedAt: __t.timestamp(),
+});
+export type GuildListing = __Infer<typeof GuildListing>;
+
+export const GuildMember = __t.object("GuildMember", {
+  memberId: __t.string(),
+  name: __t.string(),
+  xp: __t.u32(),
+  level: __t.u32(),
+  role: __t.string(),
+  joinedAt: __t.timestamp(),
+  isYou: __t.bool(),
+});
+export type GuildMember = __Infer<typeof GuildMember>;
+
+export const GuildMembership = __t.object("GuildMembership", {
+  playerIdentity: __t.identity(),
+  guildId: __t.u64(),
+  get role() {
+    return GuildRole;
+  },
+  joinedAt: __t.timestamp(),
+});
+export type GuildMembership = __Infer<typeof GuildMembership>;
+
+export const GuildQuest = __t.object("GuildQuest", {
+  guildQuestId: __t.u64(),
+  guildId: __t.u64(),
+  get kind() {
+    return GuildQuestKind;
+  },
+  title: __t.string(),
+  description: __t.string(),
+  target: __t.u32(),
+  progress: __t.u32(),
+  rewardXp: __t.u32(),
+  startedAt: __t.timestamp(),
+  endsAt: __t.timestamp(),
+  completedAt: __t.option(__t.timestamp()),
+});
+export type GuildQuest = __Infer<typeof GuildQuest>;
+
+export const GuildQuestCard = __t.object("GuildQuestCard", {
+  guildQuestId: __t.u64(),
+  kind: __t.string(),
+  title: __t.string(),
+  description: __t.string(),
+  target: __t.u32(),
+  progress: __t.u32(),
+  rewardXp: __t.u32(),
+  startedAt: __t.timestamp(),
+  endsAt: __t.timestamp(),
+  completedAt: __t.option(__t.timestamp()),
+  yourContribution: __t.u32(),
+  contributors: __t.u32(),
+});
+export type GuildQuestCard = __Infer<typeof GuildQuestCard>;
+
+export const GuildQuestContribution = __t.object("GuildQuestContribution", {
+  contributionId: __t.u64(),
+  guildQuestId: __t.u64(),
+  playerIdentity: __t.identity(),
+  amount: __t.u32(),
+});
+export type GuildQuestContribution = __Infer<typeof GuildQuestContribution>;
+
+// The tagged union or sum type for the algebraic type `GuildQuestKind`.
+export const GuildQuestKind = __t.enum("GuildQuestKind", {
+  Bestiary: __t.unit(),
+  Exploration: __t.unit(),
+  Crafting: __t.unit(),
+  Experience: __t.unit(),
+});
+export type GuildQuestKind = __Infer<typeof GuildQuestKind>;
+
+// The tagged union or sum type for the algebraic type `GuildRole`.
+export const GuildRole = __t.enum("GuildRole", {
+  Leader: __t.unit(),
+  Member: __t.unit(),
+});
+export type GuildRole = __Infer<typeof GuildRole>;
+
+export const LocalQuests = __t.object("LocalQuests", {
+  templateId: __t.string(),
+  playerIdentity: __t.identity(),
+  title: __t.string(),
+  description: __t.string(),
+  get category() {
+    return QuestCategory;
+  },
+  get difficulty() {
+    return QuestDifficulty;
+  },
+  xpReward: __t.u32(),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
+  isActive: __t.bool(),
+  locationName: __t.option(__t.string()),
+  locationType: __t.option(__t.string()),
+  photoGoal: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+  bountyTarget: __t.option(__t.string()),
+});
+export type LocalQuests = __Infer<typeof LocalQuests>;
+
+export const Locations = __t.object("Locations", {
+  locationId: __t.u64(),
+  playerIdentity: __t.identity(),
+  externalSource: __t.string(),
+  externalPlaceId: __t.string(),
+  name: __t.string(),
+  locationType: __t.string(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+  region: __t.string(),
+  regionSelectedAt: __t.timestamp(),
+  lastVerifiedAt: __t.timestamp(),
+});
+export type Locations = __Infer<typeof Locations>;
+
+export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
+export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
+
+export const MyFavorites = __t.object("MyFavorites", {});
+export type MyFavorites = __Infer<typeof MyFavorites>;
+
+export const MyFriendRequests = __t.object("MyFriendRequests", {});
+export type MyFriendRequests = __Infer<typeof MyFriendRequests>;
+
+export const MyFriends = __t.object("MyFriends", {});
+export type MyFriends = __Infer<typeof MyFriends>;
+
+export const MyGuild = __t.object("MyGuild", {});
+export type MyGuild = __Infer<typeof MyGuild>;
+
+export const MyGuildMembers = __t.object("MyGuildMembers", {});
+export type MyGuildMembers = __Infer<typeof MyGuildMembers>;
+
+export const MyGuildQuests = __t.object("MyGuildQuests", {});
+export type MyGuildQuests = __Infer<typeof MyGuildQuests>;
+
+export const MyLocalQuests = __t.object("MyLocalQuests", {});
+export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
+
+export const MyLocations = __t.object("MyLocations", {});
+export type MyLocations = __Infer<typeof MyLocations>;
+
+export const MyParty = __t.object("MyParty", {});
+export type MyParty = __Infer<typeof MyParty>;
+
+export const MyPartyInvites = __t.object("MyPartyInvites", {});
+export type MyPartyInvites = __Infer<typeof MyPartyInvites>;
+
+export const MyPartyMembers = __t.object("MyPartyMembers", {});
+export type MyPartyMembers = __Infer<typeof MyPartyMembers>;
+
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
+
+export const MyQuestArea = __t.object("MyQuestArea", {});
+export type MyQuestArea = __Infer<typeof MyQuestArea>;
 
 export const MyQuestCompletions = __t.object("MyQuestCompletions", {});
 export type MyQuestCompletions = __Infer<typeof MyQuestCompletions>;
 
 export const MyQuestSlots = __t.object("MyQuestSlots", {});
 export type MyQuestSlots = __Infer<typeof MyQuestSlots>;
+
+export const Party = __t.object("Party", {
+  partyId: __t.u64(),
+  leaderIdentity: __t.identity(),
+  questTemplateId: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+  lastQuestTitle: __t.option(__t.string()),
+  lastCompletedBy: __t.option(__t.string()),
+  lastObservation: __t.option(__t.string()),
+  lastXpEach: __t.option(__t.u32()),
+  lastCompletedAt: __t.option(__t.timestamp()),
+  questSnapshot: __t.option(__t.string()),
+});
+export type Party = __Infer<typeof Party>;
+
+export const PartyCard = __t.object("PartyCard", {
+  partyId: __t.u64(),
+  isLeader: __t.bool(),
+  leaderName: __t.string(),
+  questTemplateId: __t.option(__t.string()),
+  questTitle: __t.option(__t.string()),
+  questDescription: __t.option(__t.string()),
+  questCategory: __t.option(__t.string()),
+  questXpEach: __t.option(__t.u32()),
+  questPhotoGoal: __t.option(__t.string()),
+  questLocationName: __t.option(__t.string()),
+  lastQuestTitle: __t.option(__t.string()),
+  lastCompletedBy: __t.option(__t.string()),
+  lastObservation: __t.option(__t.string()),
+  lastXpEach: __t.option(__t.u32()),
+  lastCompletedAt: __t.option(__t.timestamp()),
+});
+export type PartyCard = __Infer<typeof PartyCard>;
+
+export const PartyInvite = __t.object("PartyInvite", {
+  inviteId: __t.u64(),
+  partyId: __t.u64(),
+  toIdentity: __t.identity(),
+  fromIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type PartyInvite = __Infer<typeof PartyInvite>;
+
+export const PartyInviteCard = __t.object("PartyInviteCard", {
+  inviteId: __t.u64(),
+  fromName: __t.string(),
+  partySize: __t.u32(),
+  createdAt: __t.timestamp(),
+});
+export type PartyInviteCard = __Infer<typeof PartyInviteCard>;
+
+export const PartyMember = __t.object("PartyMember", {
+  playerIdentity: __t.identity(),
+  partyId: __t.u64(),
+  joinedAt: __t.timestamp(),
+});
+export type PartyMember = __Infer<typeof PartyMember>;
+
+export const PartyMemberCard = __t.object("PartyMemberCard", {
+  memberId: __t.string(),
+  username: __t.string(),
+  level: __t.u32(),
+  isLeader: __t.bool(),
+  isYou: __t.bool(),
+  joinedAt: __t.timestamp(),
+});
+export type PartyMemberCard = __Infer<typeof PartyMemberCard>;
+
+export const PhotoAttempts = __t.object("PhotoAttempts", {
+  playerIdentity: __t.identity(),
+  windowStartedAt: __t.timestamp(),
+  attemptsInWindow: __t.u32(),
+  lastAttemptAt: __t.timestamp(),
+});
+export type PhotoAttempts = __Infer<typeof PhotoAttempts>;
+
+export const PhotoVerdict = __t.object("PhotoVerdict", {
+  accepted: __t.bool(),
+  message: __t.string(),
+  observation: __t.string(),
+  creature: __t.string(),
+});
+export type PhotoVerdict = __Infer<typeof PhotoVerdict>;
 
 export const Player = __t.object("Player", {
   identity: __t.identity(),
@@ -26,8 +373,35 @@ export const Player = __t.object("Player", {
   createdAt: __t.timestamp(),
   username: __t.string(),
   usernameKey: __t.string(),
+  explorationXp: __t.u32(),
+  bestiaryXp: __t.u32(),
+  craftingXp: __t.u32(),
+  progressionReady: __t.bool(),
+  rerollsUsed: __t.u8(),
+  rerollResetAt: __t.option(__t.timestamp()),
 });
 export type Player = __Infer<typeof Player>;
+
+export const PlayerAvatar = __t.object("PlayerAvatar", {
+  identity: __t.identity(),
+  photo: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type PlayerAvatar = __Infer<typeof PlayerAvatar>;
+
+export const PlayerGuild = __t.object("PlayerGuild", {
+  guildId: __t.u64(),
+  name: __t.string(),
+  motto: __t.string(),
+  crest: __t.string(),
+  isOpen: __t.bool(),
+  joinCode: __t.string(),
+  role: __t.string(),
+  memberCount: __t.u32(),
+  totalXp: __t.u64(),
+  foundedAt: __t.timestamp(),
+});
+export type PlayerGuild = __Infer<typeof PlayerGuild>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),
@@ -36,8 +410,26 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   createdAt: __t.timestamp(),
   username: __t.string(),
   level: __t.u32(),
+  explorationXp: __t.u32(),
+  bestiaryXp: __t.u32(),
+  craftingXp: __t.u32(),
+  progressionReady: __t.bool(),
+  rerollsUsed: __t.u8(),
+  rerollResetAt: __t.option(__t.timestamp()),
+  avatar: __t.string(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const PlayerQuestArea = __t.object("PlayerQuestArea", {
+  playerIdentity: __t.identity(),
+  latitude: __t.f64(),
+  longitude: __t.f64(),
+  updatedAt: __t.timestamp(),
+  placeCount: __t.u32(),
+  label: __t.string(),
+  radiusMeters: __t.u32(),
+});
+export type PlayerQuestArea = __Infer<typeof PlayerQuestArea>;
 
 export const PlayerQuestSlots = __t.object("PlayerQuestSlots", {
   slotId: __t.string(),
@@ -53,6 +445,7 @@ export const PlayerQuestSlots = __t.object("PlayerQuestSlots", {
   assignedAt: __t.timestamp(),
   completedAt: __t.option(__t.timestamp()),
   refreshAt: __t.option(__t.timestamp()),
+  locationId: __t.option(__t.u64()),
 });
 export type PlayerQuestSlots = __Infer<typeof PlayerQuestSlots>;
 
@@ -71,6 +464,13 @@ export const QuestCompletions = __t.object("QuestCompletions", {
   slotIndex: __t.u8(),
   xpAwarded: __t.u32(),
   completedAt: __t.timestamp(),
+  proofNote: __t.option(__t.string()),
+  locationId: __t.option(__t.u64()),
+  questTitle: __t.option(__t.string()),
+  questObjective: __t.option(__t.string()),
+  locationName: __t.option(__t.string()),
+  latitude: __t.option(__t.f64()),
+  longitude: __t.option(__t.f64()),
 });
 export type QuestCompletions = __Infer<typeof QuestCompletions>;
 
@@ -81,6 +481,15 @@ export const QuestDifficulty = __t.enum("QuestDifficulty", {
   Hard: __t.unit(),
 });
 export type QuestDifficulty = __Infer<typeof QuestDifficulty>;
+
+export const QuestRefreshTimer = __t.object("QuestRefreshTimer", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  slotId: __t.string(),
+  playerIdentity: __t.identity(),
+  expectedAssignedAt: __t.timestamp(),
+});
+export type QuestRefreshTimer = __Infer<typeof QuestRefreshTimer>;
 
 // The tagged union or sum type for the algebraic type `QuestSlotStatus`.
 export const QuestSlotStatus = __t.enum("QuestSlotStatus", {
@@ -105,6 +514,19 @@ export const QuestTemplates = __t.object("QuestTemplates", {
   isActive: __t.bool(),
   locationName: __t.option(__t.string()),
   locationType: __t.option(__t.string()),
+  photoGoal: __t.option(__t.string()),
+  bountyTarget: __t.option(__t.string()),
+  get questType() {
+    return QuestType;
+  },
+  requiredLocationType: __t.option(__t.string()),
 });
 export type QuestTemplates = __Infer<typeof QuestTemplates>;
+
+// The tagged union or sum type for the algebraic type `QuestType`.
+export const QuestType = __t.enum("QuestType", {
+  Anywhere: __t.unit(),
+  Location: __t.unit(),
+});
+export type QuestType = __Infer<typeof QuestType>;
 

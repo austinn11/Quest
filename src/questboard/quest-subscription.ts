@@ -1,10 +1,15 @@
+import { atDestination } from '../../shared/quest-destinations';
 import { tables, type DbConnection, type EventContext, type SubscriptionHandle } from '../module_bindings';
-import type { PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
+import type { CreatureCaptures, PlayerQuestArea, PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
 
 export type QuestSnapshot = {
   slots: readonly PlayerQuestSlots[];
+  // The public catalogue plus this player's private local quests, in one lookup list.
   templates: readonly QuestTemplates[];
   completions: readonly QuestCompletions[];
+  area: PlayerQuestArea | null;
+  // Bestiary bounties the player has captured, with their photos.
+  captures: readonly CreatureCaptures[];
 };
 
 // One subscription owns the quest cache. The SDK replays this handle after reconnects.
@@ -17,17 +22,35 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
   let applied = false;
   let lastEvent: string | undefined;
   let handle: SubscriptionHandle | undefined;
+  // A decoding failure can prevent the SDK's onApplied/onError callbacks altogether.
+  // Surface a recoverable failure instead of leaving the initial screen loading forever.
+  const loadingTimeout = setTimeout(() => {
+    if (!stopped && !applied) callbacks.onError('Quest data did not finish syncing. Retry, and check that this app version matches the deployed database if the problem continues.');
+  }, 20_000);
   const snapshot = (): QuestSnapshot => ({
     slots: [...connection.db.myQuestSlots.iter()],
-    templates: [...connection.db.questTemplates.iter()],
+    templates: (() => {
+      const templates = new Map([...connection.db.questTemplates.iter(), ...connection.db.myLocalQuests.iter()].map(template => [template.templateId, { ...template, questType: 'questType' in template ? template.questType : { tag: template.latitude === undefined ? 'Anywhere' as const : 'Location' as const }, requiredLocationType: 'requiredLocationType' in template ? template.requiredLocationType : undefined }]));
+      const destinations = new Map([...connection.db.myLocations.iter()].map(place => [place.locationId, place]));
+      for (const slot of connection.db.myQuestSlots.iter()) {
+        if (slot.locationId === undefined) continue;
+        const template = templates.get(slot.templateId);
+        const location = destinations.get(slot.locationId);
+        if (template && location) templates.set(slot.templateId, atDestination(template, location));
+        else templates.delete(slot.templateId); // Never display a fabricated or stale destination.
+      }
+      return [...templates.values()];
+    })(),
     completions: [...connection.db.myQuestCompletions.iter()],
+    area: connection.db.myQuestArea.iter().next().value ?? null,
+    captures: [...connection.db.myCreatureCaptures.iter()],
   });
   const changed = (ctx: EventContext) => {
     if (stopped || !applied || ctx.event.id === lastEvent) return;
     lastEvent = ctx.event.id;
     callbacks.onChange(snapshot());
   };
-  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions];
+  const watched = [connection.db.myLocations, connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea, connection.db.myCreatureCaptures];
   for (const table of watched) {
     table.onInsert(changed);
     table.onUpdate(changed);
@@ -37,21 +60,28 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
     handle = connection.subscriptionBuilder()
       .onApplied(() => {
         if (stopped) return;
+        clearTimeout(loadingTimeout);
         applied = true;
         lastEvent = undefined;
         callbacks.onApplied(snapshot(), connection.connectionId.toHexString());
       })
       .onError(ctx => {
         if (stopped) return;
+        clearTimeout(loadingTimeout);
         applied = false;
-        callbacks.onError(ctx.event?.message ?? 'Your quest data could not be loaded.');
+        const message = ctx.event?.message ?? 'Your quest data could not be loaded.';
+        callbacks.onError(/no such table/i.test(message)
+          ? `This app requires a database update. The running backend does not match this branch. ${message}`
+          : message);
       })
-      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions]);
+      .subscribe([tables.myLocations, tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea, tables.myCreatureCaptures]);
   } catch (error) {
+    clearTimeout(loadingTimeout);
     callbacks.onError(error instanceof Error ? error.message : 'Your quest data could not be loaded.');
   }
   return () => {
     stopped = true;
+    clearTimeout(loadingTimeout);
     for (const table of watched) {
       table.removeOnInsert(changed);
       table.removeOnUpdate(changed);

@@ -6,5 +6,17 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as SearchAdventureRegionsProcedure from "../search_adventure_regions_procedure";
+import * as SetAdventureRegionProcedure from "../set_adventure_region_procedure";
+import * as SubmitPartyQuestPhotoProcedure from "../submit_party_quest_photo_procedure";
+import * as SubmitQuestPhotoProcedure from "../submit_quest_photo_procedure";
 
+export type SearchAdventureRegionsArgs = __Infer<typeof SearchAdventureRegionsProcedure.params>;
+export type SearchAdventureRegionsResult = __Infer<typeof SearchAdventureRegionsProcedure.returnType>;
+export type SetAdventureRegionArgs = __Infer<typeof SetAdventureRegionProcedure.params>;
+export type SetAdventureRegionResult = __Infer<typeof SetAdventureRegionProcedure.returnType>;
+export type SubmitPartyQuestPhotoArgs = __Infer<typeof SubmitPartyQuestPhotoProcedure.params>;
+export type SubmitPartyQuestPhotoResult = __Infer<typeof SubmitPartyQuestPhotoProcedure.returnType>;
+export type SubmitQuestPhotoArgs = __Infer<typeof SubmitQuestPhotoProcedure.params>;
+export type SubmitQuestPhotoResult = __Infer<typeof SubmitQuestPhotoProcedure.returnType>;
 
