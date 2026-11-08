@@ -3,6 +3,8 @@ import { SenderError, t, table, type Infer } from 'spacetimedb/server';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import type { QuestTemplate } from './quest-model';
+import { SKILLS, skillXpAfterReward, type SkillCategory, type SkillXp } from '../../shared/progression';
+import { initializePlayerSkills } from './player-progression';
 
 // Shared goals for a whole guild. Members' ordinary quest completions count toward them.
 export const GuildQuestKind = t.enum('GuildQuestKind', {
@@ -120,13 +122,29 @@ export function recordGuildProgress(ctx: Ctx, template: QuestTemplate, xpAwarded
   }
 }
 
+// How a guild quest's bonus is credited to the three skills. The XP goal is shared evenly.
+function rewardSplit(quest: GuildQuest): [SkillCategory, number][] {
+  if (quest.kind.tag !== 'Experience') return [[quest.kind.tag, quest.rewardXp]];
+  const share = Math.floor(quest.rewardXp / SKILLS.length);
+  return SKILLS.map(({ category }, index) => [category, index === 0 ? quest.rewardXp - share * (SKILLS.length - 1) : share]);
+}
+
 // Runs once, in the transaction that completes the guild quest.
 function rewardContributors(ctx: Ctx, quest: GuildQuest) {
   for (const contribution of ctx.db.guildQuestContribution.guildQuestId.filter(quest.guildQuestId)) {
     // Members who left still earned their share.
-    const player = ctx.db.player.identity.find(contribution.playerIdentity);
-    if (!player) continue;
-    ctx.db.player.identity.update({ ...player, xp: Math.min(0xffff_ffff, player.xp + quest.rewardXp) });
+    const found = ctx.db.player.identity.find(contribution.playerIdentity);
+    if (!found) continue;
+    try {
+      // Skill counters must be migrated first, or a later migration would recompute them without the bonus.
+      const player = initializePlayerSkills(ctx, found);
+      let skills: SkillXp = { explorationXp: player.explorationXp, bestiaryXp: player.bestiaryXp, craftingXp: player.craftingXp };
+      for (const [category, amount] of rewardSplit(quest)) skills = skillXpAfterReward(skills, category, amount);
+      ctx.db.player.identity.update({ ...player, ...skills });
+    } catch (error) {
+      // One contributor's unmigratable history or full XP must not block the others or the completion.
+      console.warn(`Guild quest ${quest.guildQuestId} reward skipped for a contributor: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 

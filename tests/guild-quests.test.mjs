@@ -129,3 +129,20 @@ test('disbanding a guild removes its quests', () => {
   assert.equal(db.guildQuests(bob).length, 3);
   assert.deepEqual(db.guildQuests(alice), []);
 });
+
+test('guild quest bonuses are credited to the matching skill, and the XP goal is shared across skills', () => {
+  const { db, alice } = setup(['alice']);
+  db.createGuild(alice, 'Owl Watch');
+  const skillKey = { Bestiary: 'bestiaryXp', Exploration: 'explorationXp', Crafting: 'craftingXp' };
+  const kind = db.guildQuests(alice).map(quest => quest.kind).find(kind => kind !== 'Experience');
+  const { target, rewardXp } = questOf(db, alice, kind);
+  for (let done = 0; done < target; done++) completeCategory(db, alice, kind);
+  const stored = db.storedPlayer(alice);
+  const experienceDone = questOf(db, alice, 'Experience')?.completedAt;
+  // target quests of 50 XP each plus the guild bonus, all in this kind's skill (plus any XP-goal share).
+  assert.ok(stored[skillKey[kind]] >= 50 * target + rewardXp);
+  for (const other of Object.keys(skillKey).filter(category => category !== kind)) {
+    assert.equal(stored[skillKey[other]], experienceDone ? 50 : 0, `${other} only receives an XP-goal share`);
+  }
+  assert.equal(db.profile(alice).xp, stored.explorationXp + stored.bestiaryXp + stored.craftingXp);
+});

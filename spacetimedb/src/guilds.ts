@@ -3,6 +3,7 @@ import type { Identity } from 'spacetimedb';
 import type { Ctx } from './index';
 import { authenticationError } from './auth-policy';
 import { levelForXp } from './player-profile';
+import { getTotalPlayerXp, type SkillXp } from '../../shared/progression';
 import { ensureGuildQuests, removeGuildQuests } from './guild-quests';
 
 export const GUILD_MAX_MEMBERS = 20;
@@ -129,7 +130,7 @@ export function setGuildOpen(ctx: Ctx, { isOpen }: { isOpen: boolean }) {
 // The read-only slice of the database the view helpers need (views get a read-only db).
 type GuildReadDb = {
   db: {
-    player: { identity: { find(identity: Identity): { xp: number; username: string } | null | undefined } };
+    player: { identity: { find(identity: Identity): (SkillXp & { username: string }) | null | undefined } };
     guildMembership: { guildId: { filter(guildId: bigint): Iterable<GuildMembership> } };
   };
 };
@@ -140,7 +141,8 @@ export function guildStats(ctx: GuildReadDb, guildId: bigint) {
   let totalXp = 0n;
   for (const membership of ctx.db.guildMembership.guildId.filter(guildId)) {
     memberCount++;
-    totalXp += BigInt(ctx.db.player.identity.find(membership.playerIdentity)?.xp ?? 0);
+    const player = ctx.db.player.identity.find(membership.playerIdentity);
+    totalXp += BigInt(player ? getTotalPlayerXp(player) : 0);
   }
   return { memberCount, totalXp };
 }
@@ -148,7 +150,7 @@ export function guildStats(ctx: GuildReadDb, guildId: bigint) {
 export function memberRows(ctx: GuildReadDb, viewer: Identity, guildId: bigint) {
   return [...ctx.db.guildMembership.guildId.filter(guildId)].map(membership => {
     const player = ctx.db.player.identity.find(membership.playerIdentity);
-    const xp = player?.xp ?? 0;
+    const xp = player ? getTotalPlayerXp(player) : 0;
     return {
       memberId: membership.playerIdentity.toHexString().slice(0, 16),
       name: player?.username || 'Unnamed adventurer',
