@@ -4,6 +4,7 @@ import { QuestDate } from '../questboard/QuestDate';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
 import { locatedQuests } from '../map/quest-locations';
 import { completionMapLocation, questMapPath } from '../map/quest-navigation';
+import { PageHeading } from '../ui/PageHeading';
 
 export function JournalPage() {
   const { slots, completions, templates, captures, ready, hasSnapshot, subscriptionError } = useQuestboard();
@@ -17,10 +18,9 @@ export function JournalPage() {
   const earnedXp = history.reduce((total, completion) => total + completion.xpAwarded, 0);
   return (
     <>
-      <header className="page-heading page-heading-row">
-        <h1>Quest Journal</h1>
+      <PageHeading title="Quest Journal">
         <Link to="/questboard">Return to your Questboard</Link>
-      </header>
+      </PageHeading>
       <QuestSyncNotice page="Journal" />
       {hasSnapshot && history.length > 0 && (
         <section aria-labelledby="history-heading">

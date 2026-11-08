@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useQuestboard } from '../questboard/QuestboardProvider';
 import { QuestDate } from '../questboard/QuestDate';
 import { QuestSyncNotice } from '../questboard/QuestSyncNotice';
+import { PageHeading } from '../ui/PageHeading';
 
 // The player's private collection of creatures captured for Bestiary bounties.
 export function BestiaryPage() {
@@ -13,10 +14,9 @@ export function BestiaryPage() {
   const kinds = new Set(collection.map(capture => capture.creature.toLowerCase())).size;
   return (
     <>
-      <header className="page-heading page-heading-row">
-        <h1>Bestiary</h1>
+      <PageHeading title="Bestiary">
         <Link to="/questboard">See open bounties</Link>
-      </header>
+      </PageHeading>
       <QuestSyncNotice page="Bestiary" />
       {hasSnapshot && collection.length > 0 && (
         <>

@@ -1,5 +1,6 @@
 import { PlayerAccount } from '../auth/PlayerAccount';
+import { PageHeading } from '../ui/PageHeading';
 
 export function ProfilePage() {
-  return <><header className="page-heading"><h1>Player Profile</h1></header><PlayerAccount /></>;
+  return <><PageHeading title="Player Profile" /><PlayerAccount /></>;
 }

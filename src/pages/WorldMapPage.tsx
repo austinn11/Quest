@@ -9,6 +9,7 @@ import { questMapPath, resolveQuestMapTarget } from '../map/quest-navigation';
 import { CompleteQuestButton } from '../questboard/CompleteQuestButton';
 import { QuestCooldown } from '../questboard/QuestCooldown';
 import { CheckIcon } from '../ui/icons';
+import { PageHeading } from '../ui/PageHeading';
 
 export function WorldMapPage() {
   const { slots, templates, ready, connected, hasSnapshot, initializing, error, subscriptionError, now, refreshing } = useQuestboard();
@@ -57,10 +58,9 @@ export function WorldMapPage() {
 
   return (
     <>
-      <header className="page-heading page-heading-row">
-        <h1>World Map</h1>
+      <PageHeading title="World Map">
         <Link to="/questboard">Questboard</Link>
-      </header>
+      </PageHeading>
       <QuestSyncNotice page="Questboard" />
       <div className="map-toolbar" aria-label="Map controls">
         <button type="button" className="secondary" onClick={() => navigate('default')}>Default area</button>
