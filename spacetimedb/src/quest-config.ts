@@ -23,6 +23,8 @@ export const MAX_LOCAL_QUESTS_PER_AREA = 18;
 export const PHOTO_MAX_ATTEMPTS_PER_HOUR = 12;
 export const PHOTO_MIN_SECONDS_BETWEEN_ATTEMPTS = 5;
 export const PHOTO_MAX_DATA_URL_LENGTH = 2_000_000;
-export const DEFAULT_AI_BASE_URL = 'https://api.aisa.one/v1';
+// Google Gemini's OpenAI-compatible endpoint. Override with AI_BASE_URL and AI_MODEL for another provider.
+export const DEFAULT_AI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+export const DEFAULT_AI_MODEL = 'gemini-3.8-flash';
 // Bestiary captures keep a smaller copy of the photo (about 640 px) in the player's private collection.
 export const CAPTURE_PHOTO_MAX_DATA_URL_LENGTH = 400_000;

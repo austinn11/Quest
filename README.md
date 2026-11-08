@@ -259,15 +259,15 @@ Photos for other quests are not stored; Bestiary bounties keep one (see below). 
 
 | Variable | Meaning |
 | --- | --- |
-| `AI_API_KEY` | Provider API key. Without it, any valid photo is accepted with "AI check not configured" (local development). With it, the one-click `completeQuest` reducer is refused so the photo check cannot be skipped. |
-| `AI_MODEL` | Vision-capable model ID. Required when a key is set. |
-| `AI_BASE_URL` | Defaults to AIsa, `https://api.aisa.one/v1`. Hugging Face: `https://router.huggingface.co/v1` with `Qwen/Qwen2.5-VL-7B-Instruct`. |
+| `AI_API_KEY` | A Google Gemini API key. Without it, any valid photo is accepted with "AI check not configured" (local development). With it, the one-click `completeQuest` reducer is refused so the photo check cannot be skipped. |
+| `AI_MODEL` | Optional. Defaults to `gemini-3.8-flash`. `gemini-2.5-flash` answers faster (about 1 s instead of 5 s). |
+| `AI_BASE_URL` | Optional. Defaults to Gemini's OpenAI-compatible endpoint, `https://generativelanguage.googleapis.com/v1beta/openai`. Any OpenAI-compatible provider with vision models works with a matching `AI_MODEL`. |
 
-List AIsa's model IDs (look for the `vision` capability) with your key, then publish with the values as shell variables, which override `spacetime.json` and are not written to it:
+List the models your key can use, then publish with the key as a shell variable, which overrides `spacetime.json` and is not written to it:
 
 ```powershell
-curl.exe -s https://api.aisa.one/v1/models -H "Authorization: Bearer $env:AI_API_KEY"
-$env:AI_API_KEY = "<your key>"; $env:AI_MODEL = "<vision model id>"
+curl.exe -s https://generativelanguage.googleapis.com/v1beta/openai/models -H "Authorization: Bearer $env:AI_API_KEY"
+$env:AI_API_KEY = "<your Gemini key>"
 npm run spacetime:publish:local
 ```
 

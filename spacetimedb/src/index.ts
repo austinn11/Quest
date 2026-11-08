@@ -5,7 +5,7 @@ import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile'
 import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
 import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
 import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
-import { DEFAULT_AI_BASE_URL } from './quest-config';
+import { DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
 import { completeQuest as completeQuestHandler } from './quest-completion';
 import { refreshQuestSlots as refreshQuestSlotsHandler } from './quest-refresh';
@@ -36,7 +36,8 @@ const spacetimedb = schema({
   creatureCaptures,
 }, { env: {
   SPACETIMEAUTH_CLIENT_ID: t.string(),
-  // Photo judge: any OpenAI-compatible chat completions API. Without a key, photos are accepted unchecked.
+  // Photo judge: any OpenAI-compatible chat completions API, Google Gemini by default.
+  // Without a key, photos are accepted unchecked.
   AI_API_KEY: t.option(t.string()),
   AI_BASE_URL: t.option(t.string()),
   AI_MODEL: t.option(t.string()),
@@ -243,8 +244,7 @@ export const submitQuestPhoto = spacetimedb.procedure(
     if (!apiKey) {
       verdict = { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '', creature: '' };
     } else {
-      const model = ctx.env.AI_MODEL;
-      if (!model) return { accepted: false, message: 'The AI judge is missing its AI_MODEL setting. Ask the server owner to set it.', observation: '', creature: '' };
+      const model = ctx.env.AI_MODEL || DEFAULT_AI_MODEL;
       const baseUrl = (ctx.env.AI_BASE_URL || DEFAULT_AI_BASE_URL).replace(/\/+$/, '');
       const unavailable = { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '', creature: '' };
       try {
