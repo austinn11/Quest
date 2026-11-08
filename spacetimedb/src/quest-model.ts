@@ -27,6 +27,8 @@ export const questTemplates = table({ name: 'quest_templates', public: true }, {
   locationType: t.option(t.string()).default(undefined),
   // What a photo must show to prove completion. Appended for migration safety.
   photoGoal: t.option(t.string()).default(undefined),
+  // Bestiary quests are bounties for a named creature.
+  bountyTarget: t.option(t.string()).default(undefined),
 });
 
 export const playerQuestSlots = table({
@@ -81,6 +83,23 @@ export const localQuests = table({ name: 'local_quests' }, {
   locationType: t.option(t.string()),
   photoGoal: t.option(t.string()),
   createdAt: t.timestamp(),
+  bountyTarget: t.option(t.string()).default(undefined),
+});
+
+// Private: a creature captured for a Bestiary bounty, with the player's photo. Read through my_creature_captures.
+export const creatureCaptures = table({ name: 'creature_captures' }, {
+  captureId: t.u64().primaryKey().autoInc(),
+  playerIdentity: t.identity().index('btree'),
+  completionId: t.u64().index('btree'),
+  templateId: t.string(),
+  bountyTarget: t.string(),
+  // The creature the AI judge identified, or the bounty target when no judge is configured.
+  creature: t.string(),
+  verified: t.bool(),
+  // A small JPEG data URL (about 640 px) captured by the player.
+  photo: t.string(),
+  locationName: t.option(t.string()),
+  capturedAt: t.timestamp(),
 });
 
 // Private: per-player photo check rate limit.
@@ -96,6 +115,7 @@ export type PlayerQuestSlot = Infer<typeof playerQuestSlots.rowType>;
 export type QuestCompletion = Infer<typeof questCompletions.rowType>;
 export type LocalQuest = Infer<typeof localQuests.rowType>;
 export type PlayerQuestArea = Infer<typeof playerQuestArea.rowType>;
+export type CreatureCapture = Infer<typeof creatureCaptures.rowType>;
 
 export function localQuestAsTemplate(quest: LocalQuest): QuestTemplate {
   return {
@@ -103,6 +123,7 @@ export function localQuestAsTemplate(quest: LocalQuest): QuestTemplate {
     category: quest.category, difficulty: quest.difficulty, xpReward: quest.xpReward,
     latitude: quest.latitude, longitude: quest.longitude, isActive: quest.isActive,
     locationName: quest.locationName, locationType: quest.locationType, photoGoal: quest.photoGoal,
+    bountyTarget: quest.bountyTarget,
   };
 }
 export const SLOT_DIFFICULTIES = ['Easy', 'Easy', 'Easy', 'Medium', 'Medium', 'Hard'] as const;
@@ -138,6 +159,10 @@ export function validateTemplate(template: QuestTemplate): string | null {
     if (value !== undefined && !hasLatitude) return 'Named quest locations require latitude and longitude.';
   }
   if (template.photoGoal !== undefined && (!template.photoGoal.trim() || template.photoGoal.trim().length > 300)) return 'Photo goals must contain 1 to 300 characters.';
+  if (template.bountyTarget !== undefined) {
+    if (template.category.tag !== 'Bestiary') return 'Only Bestiary quests can post a bounty.';
+    if (template.bountyTarget.trim().length < 2 || template.bountyTarget.trim().length > 60) return 'Bounty targets must contain 2 to 60 characters.';
+  }
   return null;
 }
 

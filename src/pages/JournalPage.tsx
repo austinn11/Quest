@@ -6,7 +6,8 @@ import { locatedQuests } from '../map/quest-locations';
 import { completionMapLocation, questMapPath } from '../map/quest-navigation';
 
 export function JournalPage() {
-  const { slots, completions, templates, ready, hasSnapshot, subscriptionError } = useQuestboard();
+  const { slots, completions, templates, captures, ready, hasSnapshot, subscriptionError } = useQuestboard();
+  const capturesByCompletion = new Map(captures.map(capture => [capture.completionId.toString(), capture]));
   const destinations = locatedQuests(slots, templates);
   const catalogue = new Map(templates.map(template => [template.templateId, template]));
   const history = [...completions].sort((a, b) => {
@@ -32,6 +33,7 @@ export function JournalPage() {
             {history.map(completion => {
               const template = catalogue.get(completion.templateId);
               const destination = completionMapLocation(completion, destinations);
+              const capture = capturesByCompletion.get(completion.completionId.toString());
               return (
                 <li key={completion.completionId.toString()} className="journal-entry">
                   <p className="journal-date"><QuestDate timestamp={completion.completedAt} /></p>
@@ -44,6 +46,12 @@ export function JournalPage() {
                       ? <p className="quest-meta">{template.category.tag} · {template.difficulty.tag}{template.locationName ? ` · ${template.locationName}` : ''}</p>
                       : <p>The template is no longer available. Your accomplishment remains recorded.</p>}
                     {template && <p className="quest-objective">{template.description}</p>}
+                    {capture && (
+                      <Link className="journal-capture" to="/bestiary">
+                        <img src={capture.photo} alt={`Your photo of ${capture.creature}`} loading="lazy" />
+                        <span>Captured: {capture.creature}</span>
+                      </Link>
+                    )}
                     {completion.proofNote && <p className="proof-note">The guild saw: {completion.proofNote}</p>}
                     {destination && <p><Link to={questMapPath(destination.slot)}>View completed quest on map</Link></p>}
                   </div>

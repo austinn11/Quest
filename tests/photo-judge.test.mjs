@@ -47,14 +47,14 @@ test('the judge request sends the quest, its photo goal and the image to an Open
 
 test('accepted verdicts are read from plain JSON, fenced JSON and content parts', () => {
   assert.deepEqual(judge.parseJudgeResponse(reply('{"accepted": true, "observation": "A grackle on a fence", "reason": ""}')),
-    { accepted: true, observation: 'A grackle on a fence', reason: '' });
+    { accepted: true, observation: 'A grackle on a fence', reason: '', creature: '' });
   assert.equal(judge.parseJudgeResponse(reply('```json\n{"accepted": true, "observation": "A heron"}\n```')).accepted, true);
   assert.equal(judge.parseJudgeResponse(reply([{ type: 'text', text: '{"accepted": true, "observation": "Ducks"}' }])).observation, 'Ducks');
 });
 
 test('rejections carry a friendly reason and anything ambiguous fails closed', () => {
   const rejected = judge.parseJudgeResponse(reply('{"accepted": false, "observation": "A parking lot", "reason": "Try a photo of a bird."}'));
-  assert.deepEqual(rejected, { accepted: false, observation: 'A parking lot', reason: 'Try a photo of a bird.' });
+  assert.deepEqual(rejected, { accepted: false, observation: 'A parking lot', reason: 'Try a photo of a bird.', creature: '' });
   assert.equal(judge.parseJudgeResponse(reply('{"accepted": "true", "observation": "x"}')).accepted, false);
   assert.equal(judge.parseJudgeResponse(reply('{"accepted": 1}')).accepted, false);
   assert.match(judge.parseJudgeResponse(reply('{"accepted": false}')).reason, /does not show/);
@@ -69,4 +69,21 @@ test('judge text is cleaned and length-limited before it reaches players', () =>
   const noisy = judge.parseJudgeResponse(reply(JSON.stringify({ accepted: true, observation: `A\u0000 bird\n\n${'x'.repeat(400)}` })));
   assert.ok(noisy.observation.startsWith('A bird x'));
   assert.ok(noisy.observation.length <= 160);
+});
+
+test('bounties ask the judge to name the creature, and the name is cleaned', () => {
+  const bounty = { ...quest, title: 'Wanted: Heron or Egret', bountyTarget: 'Heron or Egret' };
+  const text = judge.buildJudgeRequest(bounty, 'data:image/jpeg;base64,QUJD', 'vision-model').messages[1].content[0].text;
+  assert.match(text, /Bestiary bounty\. Wanted: Heron or Egret/);
+  assert.doesNotMatch(judge.judgeQuestText(quest), /bounty/);
+  assert.match(judge.JUDGE_SYSTEM_PROMPT, /"creature"/);
+  const verdict = judge.parseJudgeResponse(reply(JSON.stringify({ accepted: true, observation: 'A tall wading bird', creature: '  Great Blue Heron\n' })));
+  assert.equal(verdict.creature, 'Great Blue Heron');
+  assert.equal(judge.parseJudgeResponse(reply(`{"accepted": true, "creature": "${'x'.repeat(200)}"}`)).creature.length, 80);
+});
+
+test('capture photos use the same format checks with a smaller size limit', () => {
+  assert.equal(judge.validateCapturePhoto('data:image/jpeg;base64,QUJD'), null);
+  assert.match(judge.validateCapturePhoto(`data:image/jpeg;base64,${'A'.repeat(400_001)}`), /too large/);
+  assert.match(judge.validateCapturePhoto('not a photo'), /JPEG, PNG or WebP/);
 });

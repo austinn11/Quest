@@ -11,7 +11,7 @@ import { levelForXp } from '../shared/progression';
 
 export function renderPage(path: string, board: Partial<QuestboardState> = {}, xp = 150) {
   const questState: QuestboardState = {
-    slots: [], templates: [], completions: [], area: null, connected: true, ready: false,
+    slots: [], templates: [], completions: [], area: null, captures: [], connected: true, ready: false,
     location: { status: { kind: 'off' }, enable: () => {}, disable: () => {}, retry: () => {} },
     hasSnapshot: board.ready ?? false, initializing: false, error: null,
     subscriptionError: null, retry: () => {},

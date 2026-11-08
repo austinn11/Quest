@@ -1,5 +1,5 @@
 import { tables, type DbConnection, type EventContext, type SubscriptionHandle } from '../module_bindings';
-import type { PlayerQuestArea, PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
+import type { CreatureCaptures, PlayerQuestArea, PlayerQuestSlots, QuestCompletions, QuestTemplates } from '../module_bindings/types';
 
 export type QuestSnapshot = {
   slots: readonly PlayerQuestSlots[];
@@ -7,6 +7,8 @@ export type QuestSnapshot = {
   templates: readonly QuestTemplates[];
   completions: readonly QuestCompletions[];
   area: PlayerQuestArea | null;
+  // Bestiary bounties the player has captured, with their photos.
+  captures: readonly CreatureCaptures[];
 };
 
 // One subscription owns the quest cache. The SDK replays this handle after reconnects.
@@ -24,13 +26,14 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
     templates: [...connection.db.questTemplates.iter(), ...connection.db.myLocalQuests.iter()],
     completions: [...connection.db.myQuestCompletions.iter()],
     area: connection.db.myQuestArea.iter().next().value ?? null,
+    captures: [...connection.db.myCreatureCaptures.iter()],
   });
   const changed = (ctx: EventContext) => {
     if (stopped || !applied || ctx.event.id === lastEvent) return;
     lastEvent = ctx.event.id;
     callbacks.onChange(snapshot());
   };
-  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea];
+  const watched = [connection.db.myQuestSlots, connection.db.questTemplates, connection.db.myQuestCompletions, connection.db.myLocalQuests, connection.db.myQuestArea, connection.db.myCreatureCaptures];
   for (const table of watched) {
     table.onInsert(changed);
     table.onUpdate(changed);
@@ -49,7 +52,7 @@ export function subscribeToQuestData(connection: DbConnection, callbacks: {
         applied = false;
         callbacks.onError(ctx.event?.message ?? 'Your quest data could not be loaded.');
       })
-      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea]);
+      .subscribe([tables.myQuestSlots, tables.questTemplates, tables.myQuestCompletions, tables.myLocalQuests, tables.myQuestArea, tables.myCreatureCaptures]);
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : 'Your quest data could not be loaded.');
   }

@@ -28,7 +28,7 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
   const { player, ready: playerReady } = usePlayer();
   const connection = getConnection() as DbConnection | null;
   const [data, setData] = useState<QuestSnapshot & { appliedConnectionId: string | null; hasSnapshot: boolean; subscriptionError: string | null }>({
-    slots: [], templates: [], completions: [], area: null, appliedConnectionId: null, hasSnapshot: false, subscriptionError: null,
+    slots: [], templates: [], completions: [], area: null, captures: [], appliedConnectionId: null, hasSnapshot: false, subscriptionError: null,
   });
   const initialize = useReducer(reducers.initializeQuestboard);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ export function QuestboardProvider({ children }: { children: ReactNode }) {
 
   return (
     <QuestboardContext.Provider value={{
-      slots: data.slots, templates: data.templates, completions: data.completions, area: data.area, location,
+      slots: data.slots, templates: data.templates, completions: data.completions, area: data.area, captures: data.captures, location,
       connected: isActive, ready,
       hasSnapshot: data.hasSnapshot, subscriptionError: data.subscriptionError, initializing,
       error, ...refresh, retry: () => setAttempt(value => value + 1),

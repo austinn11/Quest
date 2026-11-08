@@ -10,6 +10,20 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const CreatureCaptures = __t.object("CreatureCaptures", {
+  captureId: __t.u64(),
+  playerIdentity: __t.identity(),
+  completionId: __t.u64(),
+  templateId: __t.string(),
+  bountyTarget: __t.string(),
+  creature: __t.string(),
+  verified: __t.bool(),
+  photo: __t.string(),
+  locationName: __t.option(__t.string()),
+  capturedAt: __t.timestamp(),
+});
+export type CreatureCaptures = __Infer<typeof CreatureCaptures>;
+
 export const LocalQuests = __t.object("LocalQuests", {
   templateId: __t.string(),
   playerIdentity: __t.identity(),
@@ -29,8 +43,12 @@ export const LocalQuests = __t.object("LocalQuests", {
   locationType: __t.option(__t.string()),
   photoGoal: __t.option(__t.string()),
   createdAt: __t.timestamp(),
+  bountyTarget: __t.option(__t.string()),
 });
 export type LocalQuests = __Infer<typeof LocalQuests>;
+
+export const MyCreatureCaptures = __t.object("MyCreatureCaptures", {});
+export type MyCreatureCaptures = __Infer<typeof MyCreatureCaptures>;
 
 export const MyLocalQuests = __t.object("MyLocalQuests", {});
 export type MyLocalQuests = __Infer<typeof MyLocalQuests>;
@@ -59,6 +77,7 @@ export const PhotoVerdict = __t.object("PhotoVerdict", {
   accepted: __t.bool(),
   message: __t.string(),
   observation: __t.string(),
+  creature: __t.string(),
 });
 export type PhotoVerdict = __Infer<typeof PhotoVerdict>;
 
@@ -168,6 +187,7 @@ export const QuestTemplates = __t.object("QuestTemplates", {
   locationName: __t.option(__t.string()),
   locationType: __t.option(__t.string()),
   photoGoal: __t.option(__t.string()),
+  bountyTarget: __t.option(__t.string()),
 });
 export type QuestTemplates = __Infer<typeof QuestTemplates>;
 

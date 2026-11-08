@@ -120,3 +120,27 @@ test('difficulty follows distance and Bestiary quests only use natural places', 
 test('an area with no named places produces no local quests', () => {
   assert.deepEqual(generator.generateLocalQuests([], () => 0, () => 'local-000000000000'), []);
 });
+
+test('every local Bestiary quest is a bounty for a creature suited to its place', () => {
+  let next = 0;
+  const quests = generator.generateLocalQuests(neighbourhood, n => n - 1, () => `local-${String(next++).padStart(12, '0')}`);
+  const bestiary = quests.filter(quest => quest.category.tag === 'Bestiary');
+  assert.ok(bestiary.length >= 3);
+  for (const quest of bestiary) {
+    assert.match(quest.title, /^Wanted: /);
+    assert.equal(quest.title, `Wanted: ${quest.bountyTarget}`);
+    assert.match(quest.description, /bounty is posted at/);
+    assert.match(quest.photoGoal, /photographed in the wild/);
+    assert.equal(model.validateTemplate(quest), null);
+  }
+  for (const quest of quests.filter(quest => quest.category.tag !== 'Bestiary')) assert.equal(quest.bountyTarget, undefined);
+  const pondBounties = new Set(['Duck or Goose', 'Wild Bird', 'Turtle', 'Dragonfly', 'Heron or Egret', 'Kingfisher']);
+  for (const quest of bestiary.filter(quest => quest.locationName === 'Duck Pond')) assert.ok(pondBounties.has(quest.bountyTarget), quest.bountyTarget);
+});
+
+test('bounty targets are only allowed on Bestiary quests', () => {
+  const base = { templateId: 'local-000000000001', title: 'Scout the Park', description: 'Walk to the park and look around.', category: { tag: 'Exploration' }, difficulty: { tag: 'Easy' }, xpReward: 50, isActive: true };
+  assert.match(model.validateTemplate({ ...base, bountyTarget: 'Duck' }), /Only Bestiary quests/);
+  assert.equal(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'Duck' }), null);
+  assert.match(model.validateTemplate({ ...base, category: { tag: 'Bestiary' }, bountyTarget: 'x' }), /2 to 60/);
+});

@@ -2,8 +2,8 @@ import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from
 import { TimeDuration } from 'spacetimedb';
 import { authenticationError } from './auth-policy';
 import { levelForXp, normalizeUsername, USERNAME_ERROR } from './player-profile';
-import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
-import { buildJudgeRequest, parseJudgeResponse, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
+import { questTemplates, playerQuestSlots, questCompletions, playerQuestArea, localQuests, photoAttempts, creatureCaptures, validateTemplate, validateSlot, SLOT_DIFFICULTIES, slotIdFor } from './quest-model';
+import { buildJudgeRequest, parseJudgeResponse, validateCapturePhoto, validateImageDataUrl, type JudgeVerdict } from './photo-judge';
 import { applyQuestArea, beginPhotoCheck, finishPhotoCompletion } from './quest-area';
 import { DEFAULT_AI_BASE_URL } from './quest-config';
 import { seedTemplates } from './quest-seeds';
@@ -33,6 +33,7 @@ const spacetimedb = schema({
   playerQuestArea,
   localQuests,
   photoAttempts,
+  creatureCaptures,
 }, { env: {
   SPACETIMEAUTH_CLIENT_ID: t.string(),
   // Photo judge: any OpenAI-compatible chat completions API. Without a key, photos are accepted unchecked.
@@ -55,6 +56,7 @@ function seedQuestTemplates(ctx: Ctx) {
       }
       // Backfill photo goals for catalogues created before photo proof existed.
       if (updated.photoGoal === undefined && template.photoGoal !== undefined) updated = { ...updated, photoGoal: template.photoGoal };
+      if (updated.bountyTarget === undefined && template.bountyTarget !== undefined) updated = { ...updated, bountyTarget: template.bountyTarget };
       if (updated !== existing) ctx.db.questTemplates.templateId.update(updated);
       continue;
     }
@@ -74,6 +76,12 @@ export const myLocalQuests = spacetimedb.view(
   { name: 'my_local_quests', public: true },
   t.array(localQuests.rowType),
   ctx => [...ctx.db.localQuests.playerIdentity.filter(ctx.sender)]
+);
+
+export const myCreatureCaptures = spacetimedb.view(
+  { name: 'my_creature_captures', public: true },
+  t.array(creatureCaptures.rowType),
+  ctx => [...ctx.db.creatureCaptures.playerIdentity.filter(ctx.sender)]
 );
 
 export const myQuestArea = spacetimedb.view(
@@ -201,15 +209,20 @@ const PhotoVerdict = t.object('PhotoVerdict', {
   accepted: t.bool(),
   message: t.string(),
   observation: t.string(),
+  // For a Bestiary bounty, the creature the judge identified.
+  creature: t.string(),
 });
 
 // Photo proof: an AI judge checks the photo against the quest, then completion runs exactly once.
 export const submitQuestPhoto = spacetimedb.procedure(
-  { slotIndex: t.u8(), expectedAssignedAt: t.timestamp(), image: t.string() },
+  // capturePhoto: a smaller copy kept in the player's Bestiary when a bounty is accepted.
+  { slotIndex: t.u8(), expectedAssignedAt: t.timestamp(), image: t.string(), capturePhoto: t.option(t.string()) },
   PhotoVerdict,
-  (ctx, { slotIndex, expectedAssignedAt, image }) => {
+  (ctx, { slotIndex, expectedAssignedAt, image, capturePhoto }) => {
     const imageError = validateImageDataUrl(image);
-    if (imageError) return { accepted: false, message: imageError, observation: '' };
+    if (imageError) return { accepted: false, message: imageError, observation: '', creature: '' };
+    const captureError = capturePhoto === undefined ? null : validateCapturePhoto(capturePhoto);
+    if (captureError) return { accepted: false, message: captureError, observation: '', creature: '' };
     const args = { slotIndex, expectedAssignedAt };
     // Expected refusals (sign-in, ownership, rate limit, changed assignment) roll back their
     // transaction and come back as an ordinary verdict instead of a procedure failure.
@@ -217,6 +230,7 @@ export const submitQuestPhoto = spacetimedb.procedure(
       accepted: false,
       message: error instanceof Error ? error.message : 'Your photo could not be checked. Please try again.',
       observation: '',
+      creature: '',
     });
     let quest: ReturnType<typeof beginPhotoCheck>;
     try {
@@ -227,12 +241,12 @@ export const submitQuestPhoto = spacetimedb.procedure(
     const apiKey = ctx.env.AI_API_KEY;
     let verdict: JudgeVerdict;
     if (!apiKey) {
-      verdict = { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '' };
+      verdict = { accepted: true, observation: 'Photo received. The AI check is not configured on this server.', reason: '', creature: '' };
     } else {
       const model = ctx.env.AI_MODEL;
-      if (!model) return { accepted: false, message: 'The AI judge is missing its AI_MODEL setting. Ask the server owner to set it.', observation: '' };
+      if (!model) return { accepted: false, message: 'The AI judge is missing its AI_MODEL setting. Ask the server owner to set it.', observation: '', creature: '' };
       const baseUrl = (ctx.env.AI_BASE_URL || DEFAULT_AI_BASE_URL).replace(/\/+$/, '');
-      const unavailable = { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '' };
+      const unavailable = { accepted: false, message: 'The guild judge is unavailable right now. Please try again in a minute.', observation: '', creature: '' };
       try {
         const response = ctx.http.fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
@@ -250,14 +264,16 @@ export const submitQuestPhoto = spacetimedb.procedure(
         return unavailable;
       }
     }
-    if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation };
+    if (!verdict.accepted) return { accepted: false, message: verdict.reason, observation: verdict.observation, creature: verdict.creature };
     const accepted = verdict;
     try {
-      ctx.withTx(tx => finishPhotoCompletion(tx, args, accepted.observation));
+      const capture = capturePhoto === undefined ? undefined : { photo: capturePhoto, creature: accepted.creature, verified: Boolean(apiKey) };
+      ctx.withTx(tx => finishPhotoCompletion(tx, args, accepted.observation, capture));
     } catch (error) {
       return refusal(error);
     }
-    return { accepted: true, message: `Quest complete! +${quest.xpReward} XP`, observation: verdict.observation };
+    const message = quest.category.tag === 'Bestiary' ? `Bounty claimed! +${quest.xpReward} XP` : `Quest complete! +${quest.xpReward} XP`;
+    return { accepted: true, message, observation: verdict.observation, creature: verdict.creature || (quest.category.tag === 'Bestiary' ? quest.bountyTarget ?? '' : '') };
   }
 );
 

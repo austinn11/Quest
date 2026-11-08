@@ -45,6 +45,7 @@ import SetUsernameReducer from "./set_username_reducer";
 import * as SubmitQuestPhotoProcedure from "./submit_quest_photo_procedure";
 
 // Import all table schema definitions
+import MyCreatureCapturesRow from "./my_creature_captures_table";
 import MyLocalQuestsRow from "./my_local_quests_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestAreaRow from "./my_quest_area_table";
@@ -76,6 +77,13 @@ const tablesSchema = __schema({
       { name: 'quest_templates_template_id_key', constraint: 'unique', columns: ['templateId'] },
     ],
   }, QuestTemplatesRow),
+  myCreatureCaptures: __table({
+    name: 'my_creature_captures',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCreatureCapturesRow),
   myLocalQuests: __table({
     name: 'my_local_quests',
     indexes: [

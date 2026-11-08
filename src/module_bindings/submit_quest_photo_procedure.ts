@@ -18,5 +18,6 @@ export const params = {
   slotIndex: __t.u8(),
   expectedAssignedAt: __t.timestamp(),
   image: __t.string(),
+  capturePhoto: __t.option(__t.string()),
 };
 export const returnType = PhotoVerdict

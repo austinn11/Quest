@@ -1,15 +1,17 @@
 import { DIFFICULTY_MAX_METERS, MAX_LOCAL_QUESTS_PER_AREA } from './quest-config';
 import { isNaturePlace, type Place } from '../../shared/nearby-places';
 import { rewardForDifficulty, type QuestTemplate } from './quest-model';
+import { bountyFor } from './bounties';
 
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
 type Category = 'Exploration' | 'Bestiary' | 'Crafting';
-type Recipe = { title: string; description: string; photoGoal: string };
+type Recipe = { title: string; description: string; photoGoal: string; bountyTarget?: string };
+type Random = (n: number) => number;
 
 const away = (meters: number) => meters < 950 ? `about ${Math.max(100, Math.round(meters / 100) * 100)} m away` : `about ${(meters / 1000).toFixed(1)} km away`;
 
 // Fixed wording keeps generation free, instant and predictable; the AI only judges photos.
-const recipes: Record<Category, Record<Difficulty, (place: Place) => Recipe>> = {
+const recipes: Record<Category, Record<Difficulty, (place: Place, random: Random) => Recipe>> = {
   Exploration: {
     Easy: place => ({
       title: `Scout ${place.name}`,
@@ -27,22 +29,11 @@ const recipes: Record<Category, Record<Difficulty, (place: Place) => Recipe>> = 
       photoGoal: `An outdoor photo of a view or landmark at ${place.name} (a ${place.kind}).`,
     }),
   },
+  // Bestiary quests are bounties: a named creature to capture on camera at a nearby place.
   Bestiary: {
-    Easy: place => ({
-      title: `Wildlife of ${place.name}`,
-      description: `At ${place.name}, ${away(place.distance)}, photograph a bird, insect or flowering plant without touching or disturbing it.`,
-      photoGoal: 'A living bird, insect, small animal or plant, photographed outdoors.',
-    }),
-    Medium: place => ({
-      title: `The ${place.name} Bestiary`,
-      description: `Find a creature or plant at ${place.name}, ${away(place.distance)}, that you cannot name yet. Photograph it clearly, then look it up.`,
-      photoGoal: 'A clearly visible wild animal, insect or plant outdoors, in enough focus to identify.',
-    }),
-    Hard: place => ({
-      title: `Hidden Kingdom of ${place.name}`,
-      description: `Spend time at ${place.name}, ${away(place.distance)}, and photograph a wild animal (bird, reptile, mammal or insect) in its habitat. Keep your distance and never feed wildlife.`,
-      photoGoal: 'A wild animal (not a pet) in a natural outdoor setting.',
-    }),
+    Easy: (place, random) => bountyRecipe(place, bountyFor(place, 'Easy', random), 'A bounty is posted at'),
+    Medium: (place, random) => bountyRecipe(place, bountyFor(place, 'Medium', random), 'A bounty is posted at'),
+    Hard: (place, random) => bountyRecipe(place, bountyFor(place, 'Hard', random), 'A rare bounty is posted at'),
   },
   Crafting: {
     Easy: place => ({
@@ -63,6 +54,15 @@ const recipes: Record<Category, Record<Difficulty, (place: Place) => Recipe>> = 
   },
 };
 
+function bountyRecipe(place: Place, bounty: { target: string; detail: string }, intro: string): Recipe {
+  return {
+    title: `Wanted: ${bounty.target}`,
+    description: `${intro} ${place.name}, ${away(place.distance)}. Capture ${bounty.detail} on camera there. Keep your distance, stay on paths and never feed wildlife.`,
+    photoGoal: `${bounty.detail.charAt(0).toUpperCase()}${bounty.detail.slice(1)}, photographed in the wild (not a pet, toy or picture of a screen).`,
+    bountyTarget: bounty.target,
+  };
+}
+
 const BAND_MIN_METERS: Record<Difficulty, number> = { Easy: 0, Medium: 1_000, Hard: 3_000 };
 const PER_CATEGORY = 2;
 
@@ -74,6 +74,7 @@ function bandPlaces(places: readonly Place[], difficulty: Difficulty): Place[] {
 }
 
 export type LocalQuestDraft = QuestTemplate & { photoGoal: string };
+
 
 // `random(n)` returns an integer in [0, n). `newId()` returns a unique local template ID.
 export function generateLocalQuests(places: readonly Place[], random: (n: number) => number, newId: () => string): LocalQuestDraft[] {
@@ -94,12 +95,13 @@ export function generateLocalQuests(places: readonly Place[], random: (n: number
         const place = pool[random(pool.length)];
         usedInCategory.add(place.id);
         usedInDifficulty.add(place.id);
-        const recipe = recipes[category][difficulty](place);
+        const recipe = recipes[category][difficulty](place, random);
         quests.push({
           templateId: newId(),
           title: recipe.title.slice(0, 100),
           description: recipe.description,
           photoGoal: recipe.photoGoal,
+          bountyTarget: recipe.bountyTarget,
           category: { tag: category },
           difficulty: { tag: difficulty },
           xpReward: rewardForDifficulty({ tag: difficulty }),

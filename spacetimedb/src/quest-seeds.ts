@@ -19,8 +19,21 @@ const definitions: readonly (readonly [string, string, string, 'Exploration' | '
   ['hard-freshly-baked', 'Freshly Baked', 'Make a loaf of homemade bread from scratch and document your process and finished result.', 'Crafting', 'Hard', 'A homemade loaf of bread.'],
 ];
 
+// Every Bestiary quest is presented as a bounty for a named creature.
+const BOUNTY_TARGETS: Record<string, string> = {
+  'easy-birdwatch': 'Wild Bird',
+  'easy-leaf-journal': 'Three Leaf Specimens',
+  'medium-species-notes': 'An Unnamed Creature',
+  'medium-pollinators': 'Garden Pollinator',
+  'hard-field-journal': 'Ten Field Specimens',
+  'hard-habitat-study': 'Hidden Wildlife',
+  'easy-lagoon-watch': 'Lagoon Creature',
+  'medium-arboretum-bestiary': 'Garden Dweller',
+  'hard-cedar-hill': 'Prairie Creature',
+};
+
 // Seven per difficulty retain generic quests alongside curated geographic adventures.
-export const seedTemplates: QuestTemplate[] = [...definitions.map(([templateId, title, description, category, difficulty, photoGoal]) => ({
+export const seedTemplates: QuestTemplate[] = withBounties([...definitions.map(([templateId, title, description, category, difficulty, photoGoal]) => ({
   templateId, title, description,
   category: { tag: category }, difficulty: { tag: difficulty },
   xpReward: rewardForDifficulty({ tag: difficulty }),
@@ -30,4 +43,9 @@ export const seedTemplates: QuestTemplate[] = [...definitions.map(([templateId, 
   locationName: templateId === 'easy-campus-scout' ? 'University of Texas at Dallas campus' : undefined,
   locationType: templateId === 'easy-campus-scout' ? 'Campus' : undefined,
   photoGoal,
-})), ...geographicTemplates];
+  bountyTarget: undefined,
+})), ...geographicTemplates]);
+
+function withBounties(templates: QuestTemplate[]): QuestTemplate[] {
+  return templates.map(template => ({ ...template, bountyTarget: BOUNTY_TARGETS[template.templateId] }));
+}

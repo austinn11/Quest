@@ -71,6 +71,7 @@ The signed-in application uses React Router with a shared header and navigation:
 | `/map` | Interactive fantasy world map and assigned quest destinations |
 | `/questboard` | Personal six-slot Questboard |
 | `/journal` | Completed adventures and historical XP |
+| `/bestiary` | Creatures captured for Bestiary bounties, with their photos |
 | `/profile` | Player profile, progression, and username editor |
 
 The header includes sign-out on every page, active navigation states, and links that wrap on small screens. Profile initialization and its subscription remain mounted across page changes. Unknown paths show a recovery link to Home.
@@ -254,7 +255,7 @@ Public Overpass servers can be slow or overloaded. If none responds, the board k
 2. Sends the quest title, objective, its **photo goal** (shown on each notice) and the image to an OpenAI-compatible `/chat/completions` endpoint. The judge prompt ignores any text written inside the photo and must answer with JSON. Anything other than an explicit acceptance is treated as a rejection.
 3. On acceptance, completes the quest through the same exactly-once logic as before, and saves the judge's short description as the completion's `proofNote`, shown in the Journal.
 
-The photo itself is not stored. Configure the judge with module environment variables; never commit the key:
+Photos for other quests are not stored; Bestiary bounties keep one (see below). Configure the judge with module environment variables; never commit the key:
 
 | Variable | Meaning |
 | --- | --- |
@@ -271,6 +272,20 @@ npm run spacetime:publish:local
 ```
 
 Use `spacetime publish --env-only` to change only these values on an existing database. Check judge errors with `spacetime logs quest-db --server local`.
+
+## Bestiary bounties and captures
+
+Every Bestiary quest is a **bounty** for a named creature, shown on the Questboard as a WANTED poster with a portrait frame, "Last seen near …" and its reward. **Claim bounty** opens the camera.
+
+- Local bounties are chosen for the kind of place, in `spacetimedb/src/bounties.ts`:
+  - Ponds: ducks, turtles, dragonflies, herons.
+  - Parks and gardens: songbirds, pollinators, squirrels, woodpeckers, birds of prey.
+  - Nature reserves and woods: lizards, rabbits, deer, foxes, armadillos.
+  - Beaches: gulls and shorebirds.
+  Easy bounties are common creatures; Hard ones need patience. The nine catalogue Bestiary quests carry fixed targets, backfilled on connect for existing databases.
+- The AI judge accepts only a creature matching the bounty and names it (for example "Great Egret").
+- An accepted bounty also stores a **capture**: the judge's creature name, whether the AI verified it, the place, and a 640 px JPEG copy of the photo sent alongside the 1024 px judging image. Captures live in the private `creature_captures` table, readable only through `my_creature_captures`.
+- The **Bestiary** page lists your captures with their photos, newest first. A claimed poster shows the photo with a CAPTURED stamp until the slot refreshes, and the Journal entry links to it.
 
 ## Work on the backend
 
@@ -361,6 +376,7 @@ Quest/
     src/quest-completion.ts Atomic completion history, XP, and cooldown transition
     src/quest-refresh.ts    Server-authoritative lazy slot replacement
     src/local-quests.ts     Bestiary, Exploration and Crafting quests generated from nearby places
+    src/bounties.ts         Bestiary bounty targets for each kind of place and difficulty
     src/quest-area.ts       Quest-area reloads and photo-check transactions
     src/photo-judge.ts      AI judge prompt, image checks, and verdict parsing
     package.json            Database module dependencies

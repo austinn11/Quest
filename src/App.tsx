@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { WorldMapPage } from './pages/WorldMapPage';
 import { QuestboardPage } from './pages/QuestboardPage';
 import { JournalPage } from './pages/JournalPage';
+import { BestiaryPage } from './pages/BestiaryPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -17,6 +18,7 @@ export function AppRoutes() {
         <Route path="map" element={<WorldMapPage />} />
         <Route path="questboard" element={<QuestboardPage />} />
         <Route path="journal" element={<JournalPage />} />
+        <Route path="bestiary" element={<BestiaryPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

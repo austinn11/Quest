@@ -10,6 +10,7 @@ const navigation = [
   { to: '/map', label: 'World Map' },
   { to: '/questboard', label: 'Questboard' },
   { to: '/journal', label: 'Quest Journal' },
+  { to: '/bestiary', label: 'Bestiary' },
   { to: '/profile', label: 'Profile' },
 ];
 

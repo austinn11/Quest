@@ -2,6 +2,9 @@
 // Smaller images upload faster on mobile data and cost less per AI check.
 export const PHOTO_MAX_EDGE = 1024;
 export const PHOTO_QUALITY = 0.8;
+// The copy kept in the player's Bestiary collection.
+export const CAPTURE_MAX_EDGE = 640;
+export const CAPTURE_QUALITY = 0.75;
 
 async function decode(file: File): Promise<{ source: CanvasImageSource; width: number; height: number; close: () => void }> {
   if ('createImageBitmap' in window) {
@@ -22,18 +25,18 @@ async function decode(file: File): Promise<{ source: CanvasImageSource; width: n
   }
 }
 
-export async function photoToDataUrl(file: File): Promise<string> {
+export async function photoToDataUrl(file: File, maxEdge = PHOTO_MAX_EDGE, quality = PHOTO_QUALITY): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Choose a photo to submit.');
   const image = await decode(file);
   try {
-    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(image.width, image.height));
+    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Your browser could not prepare this photo.');
     context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', PHOTO_QUALITY);
+    return canvas.toDataURL('image/jpeg', quality);
   } finally {
     image.close();
   }

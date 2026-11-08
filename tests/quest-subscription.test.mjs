@@ -12,10 +12,10 @@ before(async () => {
 after(async () => { await server?.close(); });
 
 function setup({ failSubscribe = false } = {}) {
-  const cache = { slots: [], templates: [], completions: [], localQuests: [], area: [] };
+  const cache = { slots: [], templates: [], completions: [], localQuests: [], area: [], captures: [] };
   const listeners = {};
   const db = {};
-  for (const [accessor, key] of [['myQuestSlots', 'slots'], ['questTemplates', 'templates'], ['myQuestCompletions', 'completions'], ['myLocalQuests', 'localQuests'], ['myQuestArea', 'area']]) {
+  for (const [accessor, key] of [['myQuestSlots', 'slots'], ['questTemplates', 'templates'], ['myQuestCompletions', 'completions'], ['myLocalQuests', 'localQuests'], ['myQuestArea', 'area'], ['myCreatureCaptures', 'captures']]) {
     const sets = { insert: new Set(), update: new Set(), delete: new Set() };
     listeners[key] = sets;
     db[accessor] = {
@@ -59,7 +59,7 @@ function setup({ failSubscribe = false } = {}) {
 
 test('quest subscription reads only the public catalogue and caller-bound views, and waits for application', () => {
   const state = setup();
-  assert.deepEqual(state.querySql, ['SELECT * FROM "my_quest_slots"', 'SELECT * FROM "quest_templates"', 'SELECT * FROM "my_quest_completions"', 'SELECT * FROM "my_local_quests"', 'SELECT * FROM "my_quest_area"']);
+  assert.deepEqual(state.querySql, ['SELECT * FROM "my_quest_slots"', 'SELECT * FROM "quest_templates"', 'SELECT * FROM "my_quest_completions"', 'SELECT * FROM "my_local_quests"', 'SELECT * FROM "my_quest_area"', 'SELECT * FROM "my_creature_captures"']);
   state.cache.slots.push({ slotId: 'one' });
   state.emit('slots', 'insert', 'initial');
   assert.equal(state.received.changes.length, 0);

@@ -33,7 +33,7 @@ export function prepareCompletion(ctx: Ctx, { slotIndex, expectedAssignedAt }: C
   return { player, slot, template, xp };
 }
 
-export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: string): QuestTemplate {
+export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: string): { template: QuestTemplate; completion: QuestCompletion } {
   const { player, slot, template, xp } = prepareCompletion(ctx, args);
   const completedSlot: PlayerQuestSlot = {
     ...slot,
@@ -53,10 +53,10 @@ export function applyCompletion(ctx: Ctx, args: CompletionArgs, proofNote?: stri
   if (completionError) throw new SenderError(completionError);
 
   // These writes commit together. A duplicate invocation sees Cooldown and awards nothing.
-  ctx.db.questCompletions.insert(completion);
+  const inserted = ctx.db.questCompletions.insert(completion);
   ctx.db.player.identity.update({ ...player, xp });
   ctx.db.playerQuestSlots.slotId.update(completedSlot);
-  return template;
+  return { template, completion: inserted };
 }
 
 export function completeQuest(ctx: Ctx, args: CompletionArgs): void {

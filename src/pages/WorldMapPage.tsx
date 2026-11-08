@@ -105,7 +105,7 @@ export function WorldMapPage() {
               {selected.slot.completedAt && <p>Completed <QuestDate timestamp={selected.slot.completedAt} /></p>}
               {selected.slot.refreshAt && <p>Replacement eligible <QuestDate timestamp={selected.slot.refreshAt} /></p>}
               <QuestCooldown slot={selected.slot} now={now} refreshing={refreshing} />
-              <CompleteQuestButton key={selected.key} slot={selected.slot} disabled={!canComplete} />
+              <CompleteQuestButton key={selected.key} slot={selected.slot} disabled={!canComplete} bounty={selected.template.category.tag === 'Bestiary'} />
               <div className="map-detail-links"><Link to={`/questboard#quest-slot-${selected.slot.slotIndex}`}>View this quest on your Questboard</Link><a href={directionsUrl(selected)} target="_blank" rel="noopener noreferrer">Walking directions in Google Maps ↗</a></div>
             </>
           ) : target.kind === 'none' ? <p>Select a quest marker or destination to inspect its objective and rewards.</p>

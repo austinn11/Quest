@@ -32,4 +32,5 @@ export default __t.row({
   locationName: __t.option(__t.string()).name("location_name"),
   locationType: __t.option(__t.string()).name("location_type"),
   photoGoal: __t.option(__t.string()).name("photo_goal"),
+  bountyTarget: __t.option(__t.string()).name("bounty_target"),
 });

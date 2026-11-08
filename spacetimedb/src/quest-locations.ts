@@ -14,5 +14,5 @@ const locations = [
 
 export const geographicTemplates: QuestTemplate[] = locations.map(([templateId, title, description, category, difficulty, locationName, locationType, latitude, longitude, photoGoal]) => ({
   templateId, title, description, category: { tag: category }, difficulty: { tag: difficulty },
-  xpReward: rewardForDifficulty({ tag: difficulty }), locationName, locationType, latitude, longitude, isActive: true, photoGoal,
+  xpReward: rewardForDifficulty({ tag: difficulty }), locationName, locationType, latitude, longitude, isActive: true, photoGoal, bountyTarget: undefined,
 }));

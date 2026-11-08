@@ -54,12 +54,14 @@ export function createPlayerHarness(rngSeed = 42n, env: { AI_API_KEY?: string } 
         expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
       }));
     },
-    finishPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, note: string, expectedAssignedAt?: Timestamp) {
+    finishPhoto(auth: ReturnType<typeof TestAuth.fromJwtPayload>, slotIndex: number, note: string, expectedAssignedAt?: Timestamp, capture?: questArea.CaptureEvidence) {
       return harness.withReducerTx(auth, ctx => questArea.finishPhotoCompletion(configuredContext(ctx), {
         slotIndex,
         expectedAssignedAt: expectedAssignedAt ?? ctx.db.playerQuestSlots.slotId.find(model.slotIdFor(ctx.sender, slotIndex))?.assignedAt ?? Timestamp.UNIX_EPOCH,
-      }, note));
+      }, note, capture));
     },
+    captures(auth: ReturnType<typeof TestAuth.fromJwtPayload>) { return module.myCreatureCaptures(harness.viewContext(auth)); },
+    captureVisibility: module.default.schemaType.tables.creatureCaptures.tableDef.tableAccess.tag,
     localQuestVisibility: module.default.schemaType.tables.localQuests.tableDef.tableAccess.tag,
     areaVisibility: module.default.schemaType.tables.playerQuestArea.tableDef.tableAccess.tag,
     refresh(auth: ReturnType<typeof TestAuth.fromJwtPayload>) {

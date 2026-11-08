@@ -210,6 +210,37 @@ input:disabled { opacity: .6; cursor: not-allowed; }
 .quest-details dt { color: var(--muted-foreground); font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; }
 .quest-details dd { margin: 0; }
 
+/* Bestiary bounties: wanted posters on the Questboard */
+.bounty-sheet { --notice: oklch(0.94 0.035 80); --ink: oklch(0.36 0.09 35); --stamp: oklch(0.5 0.16 28); }
+.bounty-head { text-align: center; }
+.bounty-wanted { margin: 0; padding-bottom: .35rem; border-bottom: 3px double color-mix(in oklab, var(--ink) 60%, transparent); color: var(--ink); font-family: "Rye", Georgia, serif; font-size: 2.1rem; letter-spacing: .06em; line-height: 1; text-transform: uppercase; }
+.bounty-portrait { position: relative; display: grid; place-items: center; width: 100%; max-width: 15rem; aspect-ratio: 4 / 3; margin: .75rem auto .5rem; overflow: hidden; border: 2px solid oklch(0.36 0.06 50); background: color-mix(in oklab, oklch(0.36 0.06 50) 8%, transparent); box-shadow: inset 0 0 0 4px var(--notice); }
+.bounty-portrait img { width: 100%; height: 100%; object-fit: cover; filter: sepia(.35); }
+.bounty-unknown { color: color-mix(in oklab, oklch(0.36 0.06 50) 45%, transparent); font-family: "Rye", Georgia, serif; font-size: 3.5rem; line-height: 1; }
+.bounty-stamp { position: absolute; top: 50%; left: 50%; padding: .15rem .6rem; border: 3px solid var(--stamp); background: color-mix(in oklab, var(--notice) 55%, transparent); color: var(--stamp); font-family: "Rye", Georgia, serif; font-size: 1.25rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; transform: translate(-50%, -50%) rotate(-14deg); }
+.bounty-head h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.bounty-alias { margin: .1rem 0 0; color: var(--muted-foreground); font-size: .875rem; font-style: italic; }
+.bounty-seen { margin: .25rem 0 0; font-size: .875rem; }
+.bounty-caught { margin: .25rem 0 0; color: var(--stamp); font-weight: 600; }
+.bounty-sheet .quest-meta { justify-content: center; }
+.bounty-reward { display: flex; align-items: baseline; justify-content: center; gap: .5rem; font-size: 1.1rem; }
+.bounty-reward span { color: var(--ink); font-family: "Rye", Georgia, serif; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Bestiary collection */
+.bestiary-summary { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin: 0 0 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.bestiary-summary strong { font-family: var(--font-mono); font-weight: 500; }
+.bestiary-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); }
+.capture-card { margin: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.capture-card img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--muted); }
+.capture-card figcaption { padding: .9rem 1rem 1rem; overflow-wrap: anywhere; }
+.capture-card h2 { font-size: 1.05rem; }
+.capture-card p { margin: .2rem 0 0; color: var(--muted-foreground); font-size: .875rem; }
+.capture-badge { display: inline-block; margin-top: .6rem; padding: 0 .5rem; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: .75rem; font-weight: 500; }
+.capture-badge.is-verified { border-color: color-mix(in oklab, var(--success) 40%, var(--border)); color: var(--success); }
+.journal-capture { display: inline-flex; align-items: center; gap: .75rem; margin-top: .5rem; text-decoration: none; }
+.journal-capture img { width: 4.5rem; height: 3.4rem; object-fit: cover; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); }
+.journal-capture:hover span { text-decoration: underline; }
+
 /* Nearby quests and photo proof */
 .area-notice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1.5rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .area-notice > .icon { color: var(--primary); }

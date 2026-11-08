@@ -173,3 +173,46 @@ test('location and photo steps require a signed-in player and valid coordinates'
   assert.throws(() => db.checkArea(alice, 95, 0), /location could not be read/);
   assert.throws(() => db.beginPhoto(db.internal(), 0), /Sign in/);
 });
+
+test('an accepted bounty files a private capture with its photo, linked to the completion', () => {
+  const { db, alice, bob } = setup({ AI_API_KEY: 'test-key' });
+  assert.equal(db.captureVisibility, 'Private');
+  db.putSlotFixture(alice, 'easy-birdwatch', 0);
+  const photo = 'data:image/jpeg;base64,QUJD';
+  db.finishPhoto(alice, 0, 'A grackle on a fence', undefined, { photo, creature: 'Great-tailed Grackle', verified: true });
+  const [completion] = db.completions(alice);
+  const [capture] = db.captures(alice);
+  assert.equal(capture.completionId, completion.completionId);
+  assert.equal(capture.templateId, 'easy-birdwatch');
+  assert.equal(capture.bountyTarget, 'Wild Bird');
+  assert.equal(capture.creature, 'Great-tailed Grackle');
+  assert.equal(capture.verified, true);
+  assert.equal(capture.photo, photo);
+  assert.deepEqual(db.captures(bob), []);
+});
+
+test('captures need a valid photo, fall back to the bounty name, and are only filed for Bestiary quests', () => {
+  const { db, alice } = setup();
+  db.putSlotFixture(alice, 'easy-birdwatch', 0);
+  assert.throws(() => db.finishPhoto(alice, 0, 'note', undefined, { photo: 'not a photo', creature: 'Bird', verified: false }), /JPEG, PNG or WebP/);
+  assert.deepEqual(db.completions(alice), [], 'a rejected capture rolls back the completion');
+  db.finishPhoto(alice, 0, 'note', undefined, { photo: 'data:image/jpeg;base64,QUJD', creature: '  ', verified: false });
+  assert.equal(db.captures(alice)[0].creature, 'Wild Bird');
+  assert.equal(db.captures(alice)[0].verified, false);
+
+  db.putSlotFixture(alice, 'easy-paper-charm', 1);
+  db.finishPhoto(alice, 1, 'A paper crane', undefined, { photo: 'data:image/jpeg;base64,QUJD', creature: 'Crane', verified: false });
+  assert.equal(db.completions(alice).length, 2);
+  assert.equal(db.captures(alice).length, 1, 'crafting quests do not create captures');
+});
+
+test('catalogue Bestiary quests carry bounty targets and older catalogues are backfilled', () => {
+  const { db, alice } = setup();
+  const bestiary = db.templates().filter(template => template.category.tag === 'Bestiary');
+  assert.ok(bestiary.length >= 9);
+  assert.ok(bestiary.every(template => template.bountyTarget));
+  assert.ok(db.templates().filter(template => template.category.tag !== 'Bestiary').every(template => template.bountyTarget === undefined));
+  db.patchTemplateForTest('easy-birdwatch', { bountyTarget: undefined });
+  db.connect(alice);
+  assert.equal(db.templates().find(template => template.templateId === 'easy-birdwatch').bountyTarget, 'Wild Bird');
+});
